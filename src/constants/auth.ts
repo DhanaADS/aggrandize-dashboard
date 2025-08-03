@@ -4,34 +4,46 @@ export const COMMON_PASSWORD = 'Admin@123';
 
 export const USERS: User[] = [
   {
+    id: '1',
     email: 'dhana@aggrandizedigital.com',
     name: 'Dhana',
-    role: 'admin'
+    role: 'admin',
+    profileIcon: 'smile'
   },
   {
+    id: '2',
     email: 'veera@aggrandizedigital.com',
     name: 'Veera',
-    role: 'marketing'
+    role: 'marketing',
+    profileIcon: 'smile'
   },
   {
+    id: '3',
     email: 'saravana@aggrandizedigital.com',
     name: 'Saravana',
-    role: 'marketing'
+    role: 'marketing',
+    profileIcon: 'smile'
   },
   {
+    id: '4',
     email: 'saran@aggrandizedigital.com',
     name: 'Saran',
-    role: 'marketing'
+    role: 'marketing',
+    profileIcon: 'smile'
   },
   {
+    id: '5',
     email: 'abbas@aggrandizedigital.com',
     name: 'Abbas',
-    role: 'processing'
+    role: 'processing',
+    profileIcon: 'smile'
   },
   {
+    id: '6',
     email: 'gokul@aggrandizedigital.com',
     name: 'Gokul',
-    role: 'processing'
+    role: 'processing',
+    profileIcon: 'smile'
   }
 ];
 

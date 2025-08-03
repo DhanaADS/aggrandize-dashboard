@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@/types/auth';
 import { canUserAccessRouteSupabase } from '@/lib/supabase-permissions';
@@ -52,7 +52,7 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
   }, [propUser]);
 
   // Dynamic permission checking function
-  const updateAccessibleActions = async () => {
+  const updateAccessibleActions = useCallback(async () => {
     if (!user) {
       setAccessibleActions([]);
       return;
@@ -66,7 +66,7 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
     const results = await Promise.all(actionPromises);
     const filteredActions = results.filter(action => action !== null) as typeof quickActions;
     setAccessibleActions(filteredActions);
-  };
+  }, [user]);
 
   // Update accessible actions when user changes
   useEffect(() => {

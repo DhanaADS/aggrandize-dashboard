@@ -117,7 +117,7 @@ export async function syncUsersFromSupabase(): Promise<void> {
         email: supabaseUser.email,
         name: supabaseUser.full_name,
         role: supabaseUser.role,
-        permissions: existingLocalUser?.permissions || DEFAULT_ROLE_PERMISSIONS[supabaseUser.role]
+        permissions: existingLocalUser?.permissions || DEFAULT_ROLE_PERMISSIONS[supabaseUser.role as UserRole]
       };
     });
 
