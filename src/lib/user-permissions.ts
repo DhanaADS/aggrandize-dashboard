@@ -108,7 +108,7 @@ export async function syncUsersFromSupabase(): Promise<void> {
     const localUsers = getAllUsers();
     
     // Convert Supabase users to UserPermissions format
-    const convertedUsers: UserPermissions[] = supabaseUsers.map((supabaseUser, index) => {
+    const convertedUsers: UserPermissions[] = supabaseUsers.map((supabaseUser) => {
       // Try to find existing local user to preserve permissions
       const existingLocalUser = localUsers.find(u => u.email === supabaseUser.email);
       

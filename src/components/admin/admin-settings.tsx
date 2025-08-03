@@ -52,7 +52,7 @@ export function AdminSettings() {
       }
       
       setTimeout(() => setMessage(''), 3000);
-    } catch (error) {
+    } catch {
       setMessage('Error saving settings');
     } finally {
       setIsLoading(false);

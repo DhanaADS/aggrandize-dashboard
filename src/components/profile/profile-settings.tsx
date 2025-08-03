@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ProfileIconSelector, ProfileIconDisplay } from './profile-icon-selector';
-import { updateUserProfileIcon, getCurrentUser } from '@/lib/auth-supabase';
+import { updateUserProfileIcon } from '@/lib/auth-supabase';
 import { DEFAULT_PROFILE_ICON } from '@/constants/profile-icons';
 import styles from './profile-settings.module.css';
 

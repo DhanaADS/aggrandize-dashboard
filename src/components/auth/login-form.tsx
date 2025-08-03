@@ -33,7 +33,7 @@ export function LoginForm() {
       
       // Redirect to dashboard
       router.push('/order'); // Default first accessible tab
-    } catch (err) {
+    } catch {
       setError('An error occurred during login');
     } finally {
       setIsLoading(false);

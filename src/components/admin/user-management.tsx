@@ -60,7 +60,7 @@ export function UserManagement() {
       } else {
         setMessage('User with this email already exists or creation failed');
       }
-    } catch (error) {
+    } catch {
       setMessage('Error adding user');
     } finally {
       setIsLoading(false);

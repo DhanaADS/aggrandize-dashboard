@@ -172,7 +172,7 @@ export async function getAllUserPermissionsFromSupabase(): Promise<UserPermissio
             role: user.role as UserRole,
             permissions
           };
-        } catch (permError) {
+        } catch {
           // Fallback to role-based permissions
           return {
             userId: user.id,

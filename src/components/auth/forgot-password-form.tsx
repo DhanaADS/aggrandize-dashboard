@@ -40,7 +40,7 @@ export function ForgotPasswordForm() {
           <div className={styles.header}>
             <h1 className={styles.title}>Check Your Email</h1>
             <p className={styles.subtitle}>
-              We've sent a password reset link to your email address
+              We&apos;ve sent a password reset link to your email address
             </p>
           </div>
           
@@ -54,7 +54,7 @@ export function ForgotPasswordForm() {
               <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📧</div>
               <p>Please check your email and click the reset link to continue.</p>
               <p style={{ fontSize: '0.9rem', marginTop: '1rem', opacity: '0.7' }}>
-                Didn't receive an email? Check your spam folder or try again.
+                Didn&apos;t receive an email? Check your spam folder or try again.
               </p>
             </div>
             

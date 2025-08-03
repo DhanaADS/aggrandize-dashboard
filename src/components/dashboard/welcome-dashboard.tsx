@@ -51,12 +51,29 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
     return () => clearInterval(timer);
   }, [propUser]);
 
+  // Dynamic permission checking function
+  const updateAccessibleActions = async () => {
+    if (!user) {
+      setAccessibleActions([]);
+      return;
+    }
+
+    const actionPromises = quickActions.map(async action => {
+      const hasAccess = await canUserAccessRouteSupabase(user.email, action.route);
+      return hasAccess ? action : null;
+    });
+    
+    const results = await Promise.all(actionPromises);
+    const filteredActions = results.filter(action => action !== null) as typeof quickActions;
+    setAccessibleActions(filteredActions);
+  };
+
   // Update accessible actions when user changes
   useEffect(() => {
     if (user) {
       updateAccessibleActions();
     }
-  }, [user]);
+  }, [user, updateAccessibleActions]);
 
   // Listen for permission updates (both local events and real-time database changes)
   useEffect(() => {
@@ -65,8 +82,9 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
     const supabase = createClient();
 
     // Local event listener (for same browser updates)
-    const handlePermissionsUpdate = (event: any) => {
-      if (event.detail?.email === user.email) {
+    const handlePermissionsUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.email === user.email) {
         updateAccessibleActions();
       }
     };
@@ -97,7 +115,7 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
       window.removeEventListener('user-permissions-updated', handlePermissionsUpdate);
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, updateAccessibleActions]);
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -165,23 +183,6 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
       gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
     }
   ];
-
-  // Dynamic permission checking function
-  const updateAccessibleActions = async () => {
-    if (!user) {
-      setAccessibleActions([]);
-      return;
-    }
-
-    const actionPromises = quickActions.map(async action => {
-      const hasAccess = await canUserAccessRouteSupabase(user.email, action.route);
-      return hasAccess ? action : null;
-    });
-    
-    const results = await Promise.all(actionPromises);
-    const filteredActions = results.filter(action => action !== null) as typeof quickActions;
-    setAccessibleActions(filteredActions);
-  };
 
   const stats = [
     {
