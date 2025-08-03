@@ -1,0 +1,163 @@
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.logo:hover {
+  transform: translateY(-1px);
+}
+
+/* Logo Icon */
+.logoIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.logoImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+.logo:hover .logoImage {
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.3));
+  transform: scale(1.05);
+}
+
+/* Legacy SVG styles for fallback */
+.logoSvg {
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+.logo:hover .logoSvg {
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.3));
+  transform: scale(1.05);
+}
+
+/* Logo Text */
+.logoText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.logoName {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.5px;
+}
+
+.logoTagline {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: -2px;
+}
+
+/* Size Variants */
+.small .logoIcon {
+  width: 24px;
+  height: 24px;
+}
+
+.small .logoName {
+  font-size: 1rem;
+}
+
+.small .logoTagline {
+  font-size: 0.6rem;
+}
+
+.medium .logoIcon {
+  width: 48px;
+  height: 48px;
+}
+
+.medium .logoName {
+  font-size: 1.25rem;
+}
+
+.medium .logoTagline {
+  font-size: 0.7rem;
+}
+
+.large .logoIcon {
+  width: 64px;
+  height: 64px;
+}
+
+.large .logoName {
+  font-size: 1.75rem;
+}
+
+.large .logoTagline {
+  font-size: 0.8rem;
+}
+
+/* Legacy SVG size variants */
+.small .logoSvg {
+  width: 24px;
+  height: 24px;
+}
+
+.medium .logoSvg {
+  width: 48px;
+  height: 48px;
+}
+
+.large .logoSvg {
+  width: 64px;
+  height: 64px;
+}
+
+/* Color Variants */
+.white .logoName {
+  background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.white .logoTagline {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.compact {
+  gap: 0.5rem;
+}
+
+.compact .logoText {
+  display: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .logo {
+    gap: 0.5rem;
+  }
+  
+  .logoName {
+    font-size: 1.1rem;
+  }
+  
+  .logoTagline {
+    font-size: 0.65rem;
+  }
+}

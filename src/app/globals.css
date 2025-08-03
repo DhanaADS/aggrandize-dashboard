@@ -1,26 +1,162 @@
-@import "tailwindcss";
+/* AGGRANDIZE Dashboard - Modern Web3 Styled UI */
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* Global Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Web3 Dark Theme */
+html {
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%) !important;
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%) !important;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  color: #ffffff !important;
+  min-height: 100vh !important;
+  line-height: 1.6 !important;
+  font-weight: 400;
+}
+
+/* Next.js containers */
+#__next,
+#__next > div,
+#__next > div > div,
+[data-nextjs-scroll-focus-boundary],
+main,
+main > div {
+  background: transparent !important;
+  min-height: 100vh !important;
+}
+
+/* Dashboard layout specific */
+div[class*="layout"] {
+  background: transparent !important;
+  min-height: 100vh !important;
+}
+
+/* Page containers should not inherit min-height */
+div[class*="container"] {
+  background: transparent !important;
+}
+
+/* Force transparent background on divs */
+div:not([class*="card"]):not([class*="navbar"]):not([class*="glassmorphism"]) {
+  background-color: transparent !important;
+}
+
+/* Glassmorphism Cards */
+div[class*="card"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+div[class*="card"]:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Web3 Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: #ffffff !important;
+}
+
+/* Neon accent colors for metrics */
+.positive {
+  color: #00ff88 !important;
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.3) !important;
+}
+
+.negative {
+  color: #ff4757 !important;
+  text-shadow: 0 0 10px rgba(255, 71, 87, 0.3) !important;
+}
+
+/* Modern Web3 Navigation */
+.navbar {
+  background: rgba(15, 15, 35, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Glowing buttons */
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.3s ease !important;
+}
+
+button:hover {
+  transform: translateY(-1px) !important;
+}
+
+/* Login/Auth specific styles */
+.login-container,
+.dashboard-layout {
+  background: transparent !important;
+  min-height: 100vh !important;
+}
+
+/* Input styling */
+input {
+  font-family: inherit;
+  font-size: inherit;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px) !important;
+  transition: all 0.3s ease !important;
+}
+
+input:focus {
+  outline: none !important;
+  border-color: #00ff88 !important;
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.2) !important;
+}
+
+input::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Smooth animations */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, transform 0.3s ease !important;
 }

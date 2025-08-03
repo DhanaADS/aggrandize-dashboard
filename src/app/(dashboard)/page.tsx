@@ -2,6 +2,6 @@
 
 import { WelcomeDashboard } from '@/components/dashboard/welcome-dashboard';
 
-export default function Home() {
+export default function HomePage() {
   return <WelcomeDashboard />;
 }

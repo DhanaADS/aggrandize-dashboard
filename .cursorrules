@@ -1,0 +1,117 @@
+# AGGRANDIZE Dashboard - Cursor AI Rules
+
+## Project Context
+- Building a role-based access control dashboard for AGGRANDIZE
+- 4 main tabs: Order, Processing, Inventory, Tools
+- 3 user roles: Admin, Marketing Team, Processing Team
+- Tech stack: Next.js 14 + TypeScript + TailwindCSS + shadcn/ui
+
+## Code Standards
+
+### TypeScript
+- Use TypeScript for ALL files (.ts, .tsx)
+- Define proper interfaces and types
+- No 'any' types allowed
+- Use strict type checking
+
+### Next.js App Router
+- Use app/ directory structure
+- Implement route groups: (auth), (dashboard)
+- Use server components by default
+- Add 'use client' only when necessary
+- Use proper metadata API
+
+### Component Structure
+- Use shadcn/ui components as base
+- Create reusable custom components
+- Follow atomic design principles
+- Use proper component composition
+
+### Styling
+- Use TailwindCSS exclusively
+- No custom CSS files except globals.css
+- Use consistent spacing (4, 8, 16, 24, 32...)
+- Implement mobile-first responsive design
+- Use Tailwind dark mode utilities
+
+### Authentication & Security
+- Implement role-based access control
+- Use middleware for route protection
+- Store user sessions securely
+- Validate user permissions on every route
+
+### File Naming
+- Use kebab-case for files and folders
+- Use PascalCase for components
+- Use camelCase for functions and variables
+- Use UPPER_CASE for constants
+
+### Constants & Configuration
+- Store all hardcoded values in constants files
+- Use environment variables for sensitive data
+- Create centralized configuration objects
+- No magic numbers or strings in components
+
+### Error Handling
+- Implement proper error boundaries
+- Add loading and error states
+- Use try-catch for async operations
+- Provide user-friendly error messages
+
+### Performance
+- Use Next.js Image component for images
+- Implement proper loading states
+- Use React.memo for expensive components
+- Lazy load non-critical components
+
+### Accessibility
+- Use semantic HTML elements
+- Add proper ARIA labels
+- Ensure keyboard navigation
+- Maintain color contrast ratios
+
+## Folder Structure Rules
+```
+src/
+├── app/                 # Next.js app router
+│   ├── (auth)/         # Authentication routes
+│   ├── (dashboard)/    # Protected dashboard routes
+│   ├── globals.css     # Global styles
+│   ├── layout.tsx      # Root layout
+│   └── page.tsx        # Home page
+├── components/         # Reusable components
+│   ├── ui/            # shadcn/ui components
+│   ├── auth/          # Authentication components
+│   └── dashboard/     # Dashboard-specific components
+├── lib/               # Utility functions
+├── types/             # TypeScript type definitions
+└── constants/         # Application constants
+```
+
+## Import Rules
+- Use absolute imports with @ alias
+- Group imports: React -> Next.js -> External -> Internal
+- Use named imports when possible
+- Sort imports alphabetically within groups
+
+## Git Commit Rules
+- Use conventional commits format
+- feat: new features
+- fix: bug fixes
+- docs: documentation changes
+- style: formatting changes
+- refactor: code refactoring
+- test: test additions
+- chore: maintenance tasks
+
+## Comments
+- Add JSDoc comments for complex functions
+- Use inline comments sparingly
+- Document business logic and complex algorithms
+- Explain WHY, not WHAT the code does
+
+## Testing (Future)
+- Write unit tests for utility functions
+- Add integration tests for authentication
+- Test role-based access control thoroughly
+- Use React Testing Library for component tests
