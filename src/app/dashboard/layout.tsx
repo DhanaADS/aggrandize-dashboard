@@ -1,9 +1,9 @@
-import { SupabaseDashboardLayout } from '@/components/dashboard/supabase-dashboard-layout';
+import { NextAuthDashboardLayout } from '@/components/dashboard/nextauth-dashboard-layout';
 
 export default function DashboardLayoutWrapper({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <SupabaseDashboardLayout>{children}</SupabaseDashboardLayout>;
+  return <NextAuthDashboardLayout>{children}</NextAuthDashboardLayout>;
 }
