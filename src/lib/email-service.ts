@@ -1,8 +1,8 @@
 // Email Service Integration - Using Resend for reliable email delivery
 import { Resend } from 'resend';
 
-// Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend client only if API key is available
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 export interface EmailAddress {
   email: string;
@@ -134,7 +134,7 @@ export const sendEmail = async (options: SendEmailOptions): Promise<EmailResult>
     console.log('Sending email to:', to.email, 'from:', from.email);
     console.log('Email data:', JSON.stringify({ ...emailData, html: 'HTML_CONTENT_HIDDEN' }, null, 2));
     
-    const result = await resend.emails.send(emailData);
+    const result = await resend!.emails.send(emailData);
 
     if (result.error) {
       console.error('Resend API error for', to.email, ':', result.error);
@@ -278,6 +278,9 @@ export const validateEmailConfig = async (): Promise<{ valid: boolean; error?: s
     }
 
     // Test the API key by attempting to get domain info
+    if (!resend) {
+      return { valid: false, error: 'Resend client not initialized' };
+    }
     const domains = await resend.domains.list();
     
     if (domains.error) {
@@ -296,6 +299,13 @@ export const validateEmailConfig = async (): Promise<{ valid: boolean; error?: s
 // Get email service status and limits
 export const getEmailServiceStatus = async () => {
   try {
+    if (!resend) {
+      return {
+        connected: false,
+        domains: [],
+        error: 'Resend client not initialized - missing RESEND_API_KEY'
+      };
+    }
     const domains = await resend.domains.list();
     
     return {
