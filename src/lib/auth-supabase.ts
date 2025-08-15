@@ -193,11 +193,18 @@ export async function getCurrentUser(): Promise<User | null> {
   
   const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
   
-  if (authError) {
-    return null
-  }
-  
-  if (!authUser) {
+  if (authError || !authUser) {
+    // Fallback to localStorage auth if Supabase auth fails
+    if (typeof window !== 'undefined') {
+      const localUser = localStorage.getItem('user')
+      if (localUser) {
+        try {
+          return JSON.parse(localUser)
+        } catch {
+          return null
+        }
+      }
+    }
     return null
   }
 
@@ -209,6 +216,17 @@ export async function getCurrentUser(): Promise<User | null> {
     .single()
 
   if (profileError || !profile) {
+    // Fallback to localStorage auth if profile fetch fails
+    if (typeof window !== 'undefined') {
+      const localUser = localStorage.getItem('user')
+      if (localUser) {
+        try {
+          return JSON.parse(localUser)
+        } catch {
+          return null
+        }
+      }
+    }
     return null
   }
 

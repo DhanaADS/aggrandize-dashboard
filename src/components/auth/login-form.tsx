@@ -32,7 +32,7 @@ export function LoginForm() {
       localStorage.setItem('user', JSON.stringify(user));
       
       // Redirect to dashboard
-      router.push('/order'); // Default first accessible tab
+      router.push('/dashboard');
     } catch {
       setError('An error occurred during login');
     } finally {

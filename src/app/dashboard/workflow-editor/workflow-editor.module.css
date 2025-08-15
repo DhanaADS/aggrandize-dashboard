@@ -1,0 +1,810 @@
+/* N8N-Style Workflow Editor */
+
+.workflowEditor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 280px 1fr 350px;
+  grid-template-rows: 1fr 60px;
+  grid-template-areas: 
+    "left-panel main-canvas right-panel"
+    "bottom-panel bottom-panel bottom-panel";
+  background: #1a1a1a;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+  z-index: 10000;
+}
+
+/* Left Panel - Node Palette */
+.leftPanel {
+  grid-area: left-panel;
+  background: #2a2e3b;
+  border-right: 1px solid #3a3f4c;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panelHeader {
+  padding: 16px 20px;
+  border-bottom: 1px solid #3a3f4c;
+  background: #2a2e3b;
+}
+
+.panelHeader h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nodeCategories {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.nodeCategory {
+  margin-bottom: 4px;
+}
+
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a0a3a8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #242833;
+  border-bottom: 1px solid #3a3f4c;
+}
+
+.categoryIcon {
+  font-size: 14px;
+}
+
+.categoryTitle {
+  flex: 1;
+}
+
+.nodeList {
+  display: flex;
+  flex-direction: column;
+}
+
+.nodeItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  cursor: grab;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+  position: relative;
+}
+
+.nodeItem:hover {
+  background: #3a3f4c;
+  border-left-color: #ff6d35;
+  transform: translateX(2px);
+}
+
+.nodeItem:active {
+  cursor: grabbing;
+}
+
+.nodeItem::after {
+  content: '⋮⋮';
+  position: absolute;
+  right: 12px;
+  color: #666666;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.nodeItem:hover::after {
+  opacity: 1;
+}
+
+.nodeIcon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.nodeLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+/* Main Canvas */
+.mainCanvas {
+  grid-area: main-canvas;
+  position: relative;
+  background: #1a1a1a;
+  overflow: hidden;
+}
+
+.reactFlow {
+  width: 100%;
+  height: 100%;
+  background: transparent !important;
+}
+
+.controls {
+  background: #ffffff;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.controls button {
+  background: #ffffff;
+  border: none;
+  color: #666666;
+  transition: all 0.2s ease;
+}
+
+.controls button:hover {
+  background: #f8f9fa;
+  color: #333333;
+}
+
+.minimap {
+  background: #ffffff;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.background {
+  background-color: #1a1a1a !important;
+}
+
+/* Custom dotted grid background */
+.react-flow__background {
+  background-color: #1a1a1a;
+}
+
+.topPanel {
+  background: transparent !important;
+}
+
+.workflowControls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 20px;
+  background: #ffffff;
+  border: 1px solid #e1e5e9;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.executeButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #ff6d35, #ff8a00);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.executeButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 109, 53, 0.3);
+}
+
+.executeButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.executeButton.executing {
+  background: linear-gradient(135deg, #ffa726, #ffb74d);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.saveButton,
+.testButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #ffffff;
+  color: #666666;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.saveButton:hover,
+.testButton:hover {
+  background: #f8f9fa;
+  color: #333333;
+  border-color: #d1d5d9;
+  transform: translateY(-1px);
+}
+
+/* Right Panel - Configuration */
+.rightPanel {
+  grid-area: right-panel;
+  background: #2a2e3b;
+  border-left: 1px solid #3a3f4c;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.configContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.nodeConfig {
+  padding: 20px;
+}
+
+.nodeInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #242833;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.nodeInfo .nodeIcon {
+  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.nodeDetails h4 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.nodeType {
+  font-size: 12px;
+  color: #a0a3a8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nodeSettings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settingGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settingGroup label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.input,
+.textarea,
+.select {
+  padding: 10px 12px;
+  border: 1px solid #3a3f4c;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #ffffff;
+  background: #1e222d;
+  transition: all 0.2s ease;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: #ff6d35;
+  box-shadow: 0 0 0 3px rgba(255, 109, 53, 0.1);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: #666666;
+}
+
+.textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.select {
+  cursor: pointer;
+}
+
+.noSelection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px 20px;
+  text-align: center;
+  color: #a0a3a8;
+}
+
+.noSelectionIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.noSelection h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.noSelection p {
+  margin: 0;
+  font-size: 14px;
+  color: #a0a3a8;
+}
+
+/* Bottom Panel - Execution Status */
+.bottomPanel {
+  grid-area: bottom-panel;
+  background: #242833;
+  border-top: 1px solid #3a3f4c;
+  display: flex;
+  align-items: center;
+}
+
+.executionBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 20px;
+}
+
+.executionStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statusIndicator {
+  font-size: 16px;
+}
+
+.statusText {
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.executionStats {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 12px;
+  color: #a0a3a8;
+}
+
+.executionStats span {
+  padding: 4px 8px;
+  background: #1e222d;
+  border-radius: 4px;
+  color: #ffffff;
+}
+
+/* Base Node Styles */
+.customNode,
+.processNode,
+.outputNode,
+.aiNode,
+.inputNode {
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
+  min-width: 180px;
+  min-height: 80px;
+  padding: 0;
+  overflow: visible;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  pointer-events: all;
+}
+
+/* 🔵 Rounded Square Trigger Nodes */
+.triggerNode {
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
+  min-width: 140px;
+  min-height: 100px;
+  width: 140px;
+  height: 100px;
+  padding: 0;
+  overflow: visible;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  pointer-events: all;
+}
+
+/* 🔵 Trigger Node - Green rounded square like in image */
+.triggerNode {
+  background: #2a2e3b;
+  border: 2px solid #10b981;
+}
+
+.triggerNode:hover,
+.triggerNode.selected {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+  transform: translateY(-2px);
+}
+
+/* 🔶 Diamond Conditional/Logic Nodes */
+.conditionalNode {
+  background: #f59e0b;
+  border: 2px solid #fbbf24;
+  border-radius: 0;
+  transform: rotate(45deg);
+  min-width: 80px;
+  min-height: 80px;
+  width: 80px;
+  height: 80px;
+}
+
+.conditionalNode .nodeHeader {
+  transform: rotate(-45deg);
+}
+
+.conditionalNode:hover,
+.conditionalNode.selected {
+  border-color: #fcd34d;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
+  transform: rotate(45deg) translateY(-2px);
+}
+
+/* 🟣 AI Node - Purple (Transform/Manipulation) */
+.aiNode {
+  background: #2a2e3b;
+  border: 2px solid #8b5cf6;
+}
+
+.aiNode:hover,
+.aiNode.selected {
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+  transform: translateY(-2px);
+}
+
+/* 🟢 Input/Data Node - Green (Success/Data Processing) */
+.inputNode {
+  background: #2a2e3b;
+  border: 2px solid #10b981;
+}
+
+.inputNode:hover,
+.inputNode.selected {
+  border-color: #34d399;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+  transform: translateY(-2px);
+}
+
+/* ⬜ Process Node - Gray (Regular Processing) */
+.processNode {
+  background: #2a2e3b;
+  border: 2px solid #6b7280;
+}
+
+.processNode:hover,
+.processNode.selected {
+  border-color: #9ca3af;
+  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.3);
+  transform: translateY(-2px);
+}
+
+/* 🟠 Output Node - Orange (Communication/Output) */
+.outputNode {
+  background: #2a2e3b;
+  border: 2px solid #f59e0b;
+}
+
+.outputNode:hover,
+.outputNode.selected {
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
+  transform: translateY(-2px);
+}
+
+/* 🔵 Custom Node - Blue (Core System) */
+.customNode {
+  background: #2a2e3b;
+  border: 2px solid #3b82f6;
+}
+
+.customNode:hover,
+.customNode.selected {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
+}
+
+/* N8N Node header */
+.nodeHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 16px;
+  position: relative;
+  text-align: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* Trigger node specific header */
+.triggerNode .nodeHeader {
+  gap: 6px;
+  padding: 12px;
+  flex-direction: column;
+}
+
+.triggerNode .nodeIcon {
+  font-size: 28px;
+  width: auto;
+  height: auto;
+  color: #ffffff;
+}
+
+.triggerNode .nodeTitle {
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.triggerNode .nodeSubtitle {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.nodeIcon {
+  font-size: 32px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  flex-shrink: 0;
+  color: #ffffff;
+}
+
+.nodeInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.nodeTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.nodeSubtitle {
+  font-size: 11px;
+  color: #9ca3af;
+  text-transform: lowercase;
+  letter-spacing: 0px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+/* N8N-Style Handles */
+.handle {
+  background: #666666 !important;
+  border: 2px solid #1a1a1a !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  transition: all 0.2s ease !important;
+  z-index: 10 !important;
+  position: absolute !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.handle::before {
+  content: '+';
+  color: #1a1a1a;
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.handle:hover {
+  background: #6b73ff !important;
+  transform: scale(1.4) !important;
+  box-shadow: 0 0 0 3px rgba(107, 115, 255, 0.4) !important;
+}
+
+.handle:hover::before {
+  color: #ffffff;
+}
+
+.handle.connectable {
+  cursor: pointer !important;
+}
+
+/* React Flow Customizations */
+.react-flow__node {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.react-flow__edge-path {
+  stroke: #9ca3af;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #6b73ff;
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+/* Custom arrow markers */
+.react-flow__arrowhead {
+  fill: #9ca3af;
+}
+
+.react-flow__edge.selected .react-flow__arrowhead {
+  fill: #6b73ff;
+}
+
+/* Arrow marker definitions */
+.react-flow__edge svg defs {
+  display: block;
+}
+
+.react-flow__handle {
+  background: #666666 !important;
+  border: 2px solid #1a1a1a !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  z-index: 10 !important;
+  opacity: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.react-flow__handle::before {
+  content: '+';
+  color: #1a1a1a;
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.react-flow__handle.connectable {
+  cursor: pointer !important;
+}
+
+.react-flow__handle.connectable:hover {
+  background: #6b73ff !important;
+  transform: scale(1.4) !important;
+  box-shadow: 0 0 0 3px rgba(107, 115, 255, 0.4) !important;
+}
+
+.react-flow__handle.connectable:hover::before {
+  color: #ffffff;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .workflowEditor {
+    grid-template-columns: 260px 1fr 300px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .workflowEditor {
+    grid-template-columns: 240px 1fr 280px;
+  }
+  
+  .nodeItem {
+    padding: 8px 16px;
+  }
+  
+  .workflowControls {
+    padding: 8px 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .workflowEditor {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto auto;
+    grid-template-areas: 
+      "left-panel"
+      "main-canvas"
+      "right-panel"
+      "bottom-panel";
+  }
+  
+  .leftPanel,
+  .rightPanel {
+    height: 200px;
+    overflow-y: auto;
+  }
+}

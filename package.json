@@ -9,17 +9,28 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.3.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.53.0",
+    "@types/xml2js": "^0.4.14",
+    "cheerio": "^1.1.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.1",
     "next": "15.4.5",
+    "node-fetch": "^3.3.2",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "reactflow": "^11.11.4",
+    "resend": "^6.0.1",
+    "xlsx": "^0.18.5",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/xlsx": "^0.0.35",
     "eslint": "^9",
     "eslint-config-next": "15.4.5",
     "typescript": "^5"

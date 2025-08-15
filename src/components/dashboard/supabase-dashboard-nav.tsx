@@ -21,11 +21,12 @@ type TabItem = {
 };
 
 const DASHBOARD_TABS: TabItem[] = [
-  { id: 'order', label: 'Order', href: '/order' },
-  { id: 'processing', label: 'Processing', href: '/processing' },
-  { id: 'inventory', label: 'Inventory', href: '/inventory' },
-  { id: 'tools', label: 'Tools', href: '/tools' },
-  { id: 'admin', label: 'Admin', href: '/admin' }
+  { id: 'order', label: 'Order', href: '/dashboard/order' },
+  { id: 'processing', label: 'Processing', href: '/dashboard/processing' },
+  { id: 'inventory', label: 'Inventory', href: '/dashboard/inventory' },
+  { id: 'tools', label: 'Tools', href: '/dashboard/tools' },
+  { id: 'payments', label: 'Payments', href: '/dashboard/payments' },
+  { id: 'admin', label: 'Admin', href: '/dashboard/admin' }
 ];
 
 export function SupabaseDashboardNav({ user }: SupabaseDashboardNavProps) {

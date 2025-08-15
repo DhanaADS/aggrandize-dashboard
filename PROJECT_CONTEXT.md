@@ -27,7 +27,8 @@
 
 ### Processing Team  
 - **Users:** abbas, gokul
-- **Access:** Processing, Tools (if admin allows)
+- **Access:** Processing, Too
+ls (if admin allows)
 
 ## Dashboard Tabs
 1. **Order** - Order management section

@@ -34,6 +34,7 @@ export interface RolePermissions {
   canAccessProcessing: boolean;
   canAccessInventory: boolean;
   canAccessTools: boolean;
+  canAccessPayments: boolean;
 }
 
 export interface UserPermissions {

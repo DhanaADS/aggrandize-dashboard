@@ -7,19 +7,22 @@ const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessOrder: true,
     canAccessProcessing: true,
     canAccessInventory: true,
-    canAccessTools: true
+    canAccessTools: true,
+    canAccessPayments: true
   },
   marketing: {
     canAccessOrder: true,
     canAccessProcessing: false,
     canAccessInventory: true,
-    canAccessTools: true
+    canAccessTools: true,
+    canAccessPayments: false
   },
   processing: {
     canAccessOrder: false,
     canAccessProcessing: true,
     canAccessInventory: false,
-    canAccessTools: true
+    canAccessTools: true,
+    canAccessPayments: false
   }
 };
 
@@ -30,7 +33,7 @@ export async function getUserPermissionsFromSupabase(email: string): Promise<Rol
     // First try to get specific permissions from the permissions table
     const { data: permissions, error } = await supabase
       .from('user_permissions')
-      .select('can_access_order, can_access_processing, can_access_inventory, can_access_tools')
+      .select('can_access_order, can_access_processing, can_access_inventory, can_access_tools, can_access_payments')
       .eq('user_email', email)
       .single();
 
@@ -39,7 +42,8 @@ export async function getUserPermissionsFromSupabase(email: string): Promise<Rol
         canAccessOrder: permissions.can_access_order,
         canAccessProcessing: permissions.can_access_processing,
         canAccessInventory: permissions.can_access_inventory,
-        canAccessTools: permissions.can_access_tools
+        canAccessTools: permissions.can_access_tools,
+        canAccessPayments: permissions.can_access_payments || false
       };
     }
 
@@ -54,11 +58,38 @@ export async function getUserPermissionsFromSupabase(email: string): Promise<Rol
       return DEFAULT_ROLE_PERMISSIONS[userProfile.role as UserRole];
     }
 
+    // Fallback to localStorage-based permissions
+    if (typeof window !== 'undefined') {
+      const localUser = localStorage.getItem('user');
+      if (localUser) {
+        try {
+          const user = JSON.parse(localUser);
+          return DEFAULT_ROLE_PERMISSIONS[user.role as UserRole] || DEFAULT_ROLE_PERMISSIONS.processing;
+        } catch {
+          return DEFAULT_ROLE_PERMISSIONS.processing;
+        }
+      }
+    }
+
     // Ultimate fallback
     return DEFAULT_ROLE_PERMISSIONS.processing;
     
   } catch (error) {
     console.error('Error getting user permissions:', error);
+    
+    // Try localStorage fallback on error
+    if (typeof window !== 'undefined') {
+      const localUser = localStorage.getItem('user');
+      if (localUser) {
+        try {
+          const user = JSON.parse(localUser);
+          return DEFAULT_ROLE_PERMISSIONS[user.role as UserRole] || DEFAULT_ROLE_PERMISSIONS.processing;
+        } catch {
+          return DEFAULT_ROLE_PERMISSIONS.processing;
+        }
+      }
+    }
+    
     return DEFAULT_ROLE_PERMISSIONS.processing;
   }
 }
@@ -91,7 +122,8 @@ export async function updateUserPermissionsInSupabase(
         can_access_order: permissions.canAccessOrder,
         can_access_processing: permissions.canAccessProcessing,
         can_access_inventory: permissions.canAccessInventory,
-        can_access_tools: permissions.canAccessTools
+        can_access_tools: permissions.canAccessTools,
+        can_access_payments: permissions.canAccessPayments
       }, {
         onConflict: 'user_email'
       });
@@ -153,7 +185,7 @@ export async function getAllUserPermissionsFromSupabase(): Promise<UserPermissio
         try {
           const { data: userPermissions } = await supabase
             .from('user_permissions')
-            .select('can_access_order, can_access_processing, can_access_inventory, can_access_tools')
+            .select('can_access_order, can_access_processing, can_access_inventory, can_access_tools, can_access_payments')
             .eq('user_email', user.email)
             .maybeSingle();
 
@@ -162,7 +194,8 @@ export async function getAllUserPermissionsFromSupabase(): Promise<UserPermissio
             canAccessOrder: userPermissions.can_access_order,
             canAccessProcessing: userPermissions.can_access_processing,
             canAccessInventory: userPermissions.can_access_inventory,
-            canAccessTools: userPermissions.can_access_tools
+            canAccessTools: userPermissions.can_access_tools,
+            canAccessPayments: userPermissions.can_access_payments || false
           } : DEFAULT_ROLE_PERMISSIONS[user.role as UserRole];
 
           return {
@@ -235,15 +268,17 @@ export async function canUserAccessRouteSupabase(email: string, route: string): 
   const permissions = await getUserPermissionsFromSupabase(email);
   
   switch (route) {
-    case '/order':
+    case '/dashboard/order':
       return permissions.canAccessOrder;
-    case '/processing':
+    case '/dashboard/processing':
       return permissions.canAccessProcessing;
-    case '/inventory':
+    case '/dashboard/inventory':
       return permissions.canAccessInventory;
-    case '/tools':
+    case '/dashboard/tools':
       return permissions.canAccessTools;
-    case '/admin':
+    case '/dashboard/payments':
+      return permissions.canAccessPayments;
+    case '/dashboard/admin':
       // Only admin can access admin settings
       const supabase = createClient();
       const { data: userProfile } = await supabase
@@ -251,7 +286,24 @@ export async function canUserAccessRouteSupabase(email: string, route: string): 
         .select('role')
         .eq('email', email)
         .single();
-      return userProfile?.role === 'admin';
+      
+      if (userProfile?.role === 'admin') {
+        return true;
+      }
+      
+      // Fallback to localStorage for admin check
+      if (typeof window !== 'undefined') {
+        const localUser = localStorage.getItem('user');
+        if (localUser) {
+          try {
+            const user = JSON.parse(localUser);
+            return user.role === 'admin';
+          } catch {
+            return false;
+          }
+        }
+      }
+      return false;
     default:
       return false;
   }
@@ -271,7 +323,8 @@ export async function initializeUserPermissions(userId: string, email: string, r
         can_access_order: defaultPermissions.canAccessOrder,
         can_access_processing: defaultPermissions.canAccessProcessing,
         can_access_inventory: defaultPermissions.canAccessInventory,
-        can_access_tools: defaultPermissions.canAccessTools
+        can_access_tools: defaultPermissions.canAccessTools,
+        can_access_payments: defaultPermissions.canAccessPayments
       }, {
         onConflict: 'user_email'
       });

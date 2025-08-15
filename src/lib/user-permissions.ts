@@ -9,19 +9,22 @@ const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessOrder: true,
     canAccessProcessing: true,
     canAccessInventory: true,
-    canAccessTools: true
+    canAccessTools: true,
+    canAccessPayments: true
   },
   marketing: {
     canAccessOrder: true,
     canAccessProcessing: false,
     canAccessInventory: true,
-    canAccessTools: true
+    canAccessTools: true,
+    canAccessPayments: false
   },
   processing: {
     canAccessOrder: false,
     canAccessProcessing: true,
     canAccessInventory: false,
-    canAccessTools: true
+    canAccessTools: true,
+    canAccessPayments: false
   }
 };
 
@@ -186,19 +189,22 @@ export function canUserAccessRoute(email: string, route: string): boolean {
   
   let hasAccess = false;
   switch (route) {
-    case '/order':
+    case '/dashboard/order':
       hasAccess = permissions.canAccessOrder;
       break;
-    case '/processing':
+    case '/dashboard/processing':
       hasAccess = permissions.canAccessProcessing;
       break;
-    case '/inventory':
+    case '/dashboard/inventory':
       hasAccess = permissions.canAccessInventory;
       break;
-    case '/tools':
+    case '/dashboard/tools':
       hasAccess = permissions.canAccessTools;
       break;
-    case '/admin':
+    case '/dashboard/payments':
+      hasAccess = permissions.canAccessPayments;
+      break;
+    case '/dashboard/admin':
       // Only admin can access admin settings
       const users = getAllUsers();
       const user = users.find(u => u.email === email);

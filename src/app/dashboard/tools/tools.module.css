@@ -128,3 +128,23 @@
   text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
   backdrop-filter: blur(10px);
 }
+
+.activeBadge {
+  background: linear-gradient(135deg, #00ff88, #00d4ff);
+  color: #000;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.activeBadge:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(0, 255, 136, 0.6);
+}

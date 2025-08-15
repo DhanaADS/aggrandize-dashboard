@@ -118,6 +118,7 @@ export function AdminSettings() {
               <th className={styles.th}>Processing</th>
               <th className={styles.th}>Inventory</th>
               <th className={styles.th}>Tools</th>
+              <th className={styles.th}>Payments</th>
             </tr>
           </thead>
           <tbody>
@@ -184,6 +185,19 @@ export function AdminSettings() {
                     type="button"
                   >
                     {user.permissions.canAccessTools ? 'ON' : 'OFF'}
+                  </button>
+                </td>
+                <td className={styles.td}>
+                  <button
+                    className={`${styles.toggleBtn} ${user.permissions.canAccessPayments ? styles.enabled : styles.disabled}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleUserAccess(user.email, 'canAccessPayments');
+                    }}
+                    type="button"
+                  >
+                    {user.permissions.canAccessPayments ? 'ON' : 'OFF'}
                   </button>
                 </td>
               </tr>

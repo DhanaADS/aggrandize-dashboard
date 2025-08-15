@@ -147,7 +147,7 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
       title: 'Order Management',
       description: 'Manage and track orders',
       icon: '📋',
-      route: '/order',
+      route: '/dashboard/order',
       gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
     },
     {
@@ -155,7 +155,7 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
       title: 'Processing',
       description: 'Monitor processing workflows',
       icon: '⚙️',
-      route: '/processing',
+      route: '/dashboard/processing',
       gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
     },
     {
@@ -163,7 +163,7 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
       title: 'Inventory',
       description: 'Track stock and inventory',
       icon: '📦',
-      route: '/inventory',
+      route: '/dashboard/inventory',
       gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
     },
     {
@@ -171,7 +171,7 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
       title: 'Tools',
       description: 'Access system tools',
       icon: '🛠️',
-      route: '/tools',
+      route: '/dashboard/tools',
       gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
     },
     {
@@ -179,7 +179,7 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
       title: 'Admin Panel',
       description: 'System administration',
       icon: '👑',
-      route: '/admin',
+      route: '/dashboard/admin',
       gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
     }
   ];
