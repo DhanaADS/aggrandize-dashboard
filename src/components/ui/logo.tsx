@@ -2,6 +2,7 @@
 
 import { FC } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import styles from './logo.module.css';
 
 interface LogoProps {
@@ -15,8 +16,17 @@ export const Logo: FC<LogoProps> = ({
   size = 'medium',
   showText = true 
 }) => {
+  const router = useRouter();
+
+  const handleLogoClick = () => {
+    router.push('/dashboard');
+  };
+
   return (
-    <div className={`${styles.logo} ${styles[variant]} ${styles[size]}`}>
+    <div 
+      className={`${styles.logo} ${styles[variant]} ${styles[size]}`}
+      onClick={handleLogoClick}
+    >
       {/* Logo Icon - Using PNG logo */}
       <div className={styles.logoIcon}>
         <Image 

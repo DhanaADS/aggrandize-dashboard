@@ -62,11 +62,7 @@ export function NextAuthDashboardNav() {
       <div className={styles.header}>
         {/* Logo */}
         <div className={styles.logoContainer}>
-          <Logo />
-          <div className={styles.brandText}>
-            <span className={styles.brandName}>AGGRANDIZE</span>
-            <span className={styles.brandSubtext}>Dashboard</span>
-          </div>
+          <Logo size="small" />
         </div>
 
         {/* User Profile */}
@@ -114,13 +110,11 @@ export function NextAuthDashboardNav() {
         </div>
       </div>
 
-      {/* Team Status Indicator */}
+      {/* Status Bar */}
       <div className={styles.statusBar}>
         <div className={styles.connectionStatus}>
           <div className={styles.statusDot} />
-          <span className={styles.statusText}>
-            {user.teamMember ? 'Team Member' : 'Guest'} • {availableTabs.length} modules available
-          </span>
+          <span className={styles.statusText}>Online</span>
         </div>
         
         {user.email && (

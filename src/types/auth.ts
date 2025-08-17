@@ -4,6 +4,8 @@ export interface User {
   name: string;
   role: UserRole;
   profileIcon?: string;
+  teamMember?: boolean;
+  isExternal?: boolean;
 }
 
 export interface UserProfile {

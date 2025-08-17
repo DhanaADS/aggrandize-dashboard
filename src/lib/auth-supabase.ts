@@ -122,6 +122,7 @@ export async function createUser(email: string, password: string, fullName: stri
     })
 
     if (authError) {
+      console.error('Auth signup error:', authError)
       throw new Error(authError.message)
     }
 
@@ -131,10 +132,53 @@ export async function createUser(email: string, password: string, fullName: stri
 
     // User profile is automatically created by database trigger
     // Wait a moment for the trigger to complete
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Update the role if it's different from default
-    if (role !== 'processing') {
+    // Verify the user profile was created and update role if needed
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', authData.user.id)
+      .single()
+
+    if (profileError) {
+      console.error('Profile creation error:', profileError)
+      console.error('Profile error details:', JSON.stringify(profileError, null, 2))
+      console.error('Profile error message:', profileError?.message)
+      console.error('Profile error code:', profileError?.code)
+      
+      // Return more specific error information
+      if (profileError.code === 'PGRST116') {
+        // Profile doesn't exist, try to create it manually
+        console.log('Profile not found, attempting manual creation...')
+      } else {
+        // Some other error occurred
+        return { 
+          success: false, 
+          error: `Profile verification failed: ${profileError.message || 'Unknown database error'}. Code: ${profileError.code || 'UNKNOWN'}` 
+        }
+      }
+      
+      // If profile wasn't created by trigger, try to create it manually
+      console.log('Attempting manual profile creation with basic fields only...')
+      const { error: insertError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: authData.user.id,
+          email: email,
+          full_name: fullName,
+          role: role
+        })
+
+      if (insertError) {
+        console.error('Manual profile creation failed:', insertError)
+        console.error('Insert error details:', JSON.stringify(insertError, null, 2))
+        console.error('Insert error message:', insertError?.message)
+        console.error('Insert error code:', insertError?.code)
+        throw new Error('Failed to create user profile: ' + (insertError.message || 'Unknown error'))
+      }
+    } else if (profile.role !== role) {
+      // Update the role if it's different from what was set
       const { error: roleError } = await supabase
         .from('user_profiles')
         .update({ role: role })
@@ -271,6 +315,49 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
   }
 
   return data
+}
+
+export async function updateUserProfileWithEmployeeData(email: string, employeeData: {
+  designation?: string;
+  monthly_salary_inr?: number;
+  joining_date?: string;
+  pan_no?: string;
+  bank_account?: string;
+  bank_name?: string;
+  ifsc_code?: string;
+}) {
+  const supabase = createClient()
+  
+  try {
+    // Generate a simple employee number (timestamp-based)
+    const employee_no = `EMP${Date.now().toString().slice(-6)}`;
+    
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .update({
+        employee_no,
+        designation: employeeData.designation,
+        monthly_salary_inr: employeeData.monthly_salary_inr || 0,
+        joining_date: employeeData.joining_date,
+        pan_no: employeeData.pan_no,
+        bank_account: employeeData.bank_account,
+        bank_name: employeeData.bank_name,
+        ifsc_code: employeeData.ifsc_code
+      })
+      .eq('email', email)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating user profile with employee data:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data }
+  } catch (error) {
+    console.error('Error updating user profile with employee data:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
 }
 
 export function getRolePermissions(role: UserRole): RolePermissions {

@@ -51,23 +51,22 @@
 }
 
 .logoName {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: #ffffff;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  letter-spacing: 0.5px;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #6366f1;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .logoTagline {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #94a3b8;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.25em;
   margin-top: -2px;
 }
 
@@ -78,11 +77,11 @@
 }
 
 .small .logoName {
-  font-size: 1rem;
+  font-size: 1.4rem;
 }
 
 .small .logoTagline {
-  font-size: 0.6rem;
+  font-size: 0.85rem;
 }
 
 .medium .logoIcon {
@@ -91,11 +90,11 @@
 }
 
 .medium .logoName {
-  font-size: 1.25rem;
+  font-size: 1.6rem;
 }
 
 .medium .logoTagline {
-  font-size: 0.7rem;
+  font-size: 1rem;
 }
 
 .large .logoIcon {
@@ -104,11 +103,11 @@
 }
 
 .large .logoName {
-  font-size: 1.75rem;
+  font-size: 2.2rem;
 }
 
 .large .logoTagline {
-  font-size: 0.8rem;
+  font-size: 1.3rem;
 }
 
 /* Legacy SVG size variants */
@@ -154,10 +153,10 @@
   }
   
   .logoName {
-    font-size: 1.1rem;
+    font-size: 1.5rem;
   }
   
   .logoTagline {
-    font-size: 0.65rem;
+    font-size: 0.95rem;
   }
 }

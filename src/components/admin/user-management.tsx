@@ -79,13 +79,60 @@ export function UserManagement() {
     setMessage('');
 
     try {
+      // First create the user with basic info
       const success = await addUser(newUser.name, newUser.email, newUser.password, newUser.role);
       
       if (success) {
-        setMessage('User added successfully!');
-        setNewUser({ name: '', email: '', password: '', role: 'marketing' });
+        // If employee details are provided, update the user profile with employee data
+        if (newUser.designation || newUser.monthly_salary_inr || newUser.joining_date || 
+            newUser.pan_no || newUser.bank_account || newUser.bank_name || newUser.ifsc_code) {
+          
+          try {
+            // Wait a bit for user profile to be created
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Update user profile with employee details using Supabase directly
+            const { updateUserProfileWithEmployeeData } = await import('@/lib/auth-supabase');
+            const updateResult = await updateUserProfileWithEmployeeData(newUser.email, {
+              designation: newUser.designation,
+              monthly_salary_inr: newUser.monthly_salary_inr,
+              joining_date: newUser.joining_date,
+              pan_no: newUser.pan_no,
+              bank_account: newUser.bank_account,
+              bank_name: newUser.bank_name,
+              ifsc_code: newUser.ifsc_code
+            });
+
+            if (updateResult.success) {
+              setMessage('User and employee details added successfully!');
+            } else {
+              console.error('Failed to update employee details:', updateResult.error);
+              setMessage('User created but employee details could not be saved');
+            }
+          } catch (employeeError) {
+            console.error('Error updating employee details:', employeeError);
+            setMessage('User created but employee details could not be saved');
+          }
+        } else {
+          setMessage('User added successfully!');
+        }
+
+        setNewUser({ 
+          name: '', 
+          email: '', 
+          password: '', 
+          role: 'marketing',
+          designation: '',
+          monthly_salary_inr: 0,
+          joining_date: '',
+          pan_no: '',
+          bank_account: '',
+          bank_name: '',
+          ifsc_code: ''
+        });
         setIsAddModalOpen(false);
         loadUsers();
+        loadEmployees(); // Reload employee data to show updated info
         setTimeout(() => setMessage(''), 3000);
       } else {
         setMessage('User with this email already exists or creation failed');
@@ -194,96 +241,294 @@ export function UserManagement() {
         </div>
       )}
 
-      <div className={styles.tableContainer} style={{ overflowX: 'auto', maxWidth: '100%' }}>
-        <table className={styles.userTable} style={{ minWidth: '1200px' }}>
+      <div style={{ 
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        borderRadius: '1rem',
+        overflow: 'hidden',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+        overflowX: 'auto',
+        maxWidth: '100%'
+      }}>
+        <table style={{ 
+          width: '100%', 
+          borderCollapse: 'collapse',
+          fontSize: '0.8rem'
+        }}>
           <thead>
-            <tr className={styles.tableHeader}>
-              <th className={styles.th}>Name</th>
-              <th className={styles.th}>Employee No</th>
-              <th className={styles.th}>Email</th>
-              <th className={styles.th}>Role</th>
-              <th className={styles.th}>Designation</th>
-              <th className={styles.th}>PAN No</th>
-              <th className={styles.th}>Bank Name</th>
-              <th className={styles.th}>Bank Acc No</th>
-              <th className={styles.th}>Monthly Salary</th>
-              <th className={styles.th}>Actions</th>
+            <tr style={{
+              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%)',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              <th style={{
+                padding: '0.8rem 1rem',
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#ffffff',
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                whiteSpace: 'nowrap'
+              }}>Name</th>
+              <th style={{
+                padding: '0.8rem 1rem',
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#ffffff',
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                whiteSpace: 'nowrap'
+              }}>Emp No</th>
+              <th style={{
+                padding: '0.8rem 1rem',
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#ffffff',
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                whiteSpace: 'nowrap'
+              }}>Email</th>
+              <th style={{
+                padding: '0.8rem 1rem',
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#ffffff',
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                whiteSpace: 'nowrap'
+              }}>Role</th>
+              <th style={{
+                padding: '0.8rem 1rem',
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#ffffff',
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                whiteSpace: 'nowrap'
+              }}>Designation</th>
+              <th style={{
+                padding: '0.8rem 1rem',
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#ffffff',
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                whiteSpace: 'nowrap'
+              }}>PAN</th>
+              <th style={{
+                padding: '0.8rem 1rem',
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#ffffff',
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                whiteSpace: 'nowrap'
+              }}>Bank</th>
+              <th style={{
+                padding: '0.8rem 1rem',
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#ffffff',
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                whiteSpace: 'nowrap'
+              }}>Account</th>
+              <th style={{
+                padding: '0.8rem 1rem',
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#ffffff',
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                whiteSpace: 'nowrap'
+              }}>Salary</th>
+              <th style={{
+                padding: '0.8rem 1rem',
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#ffffff',
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                whiteSpace: 'nowrap'
+              }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {usersWithEmployeeData.map((user) => (
-              <tr key={user.email} className={styles.tableRow}>
-                <td className={styles.td}>
-                  <div className={styles.userName}>{user.name}</div>
+              <tr key={user.email} style={{
+                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                transition: 'all 0.3s ease'
+              }}>
+                <td style={{
+                  padding: '0.75rem 1rem',
+                  verticalAlign: 'middle'
+                }}>
+                  <div style={{
+                    fontSize: '0.8rem',
+                    fontWeight: '600',
+                    color: '#ffffff',
+                    margin: 0
+                  }}>{user.name}</div>
                 </td>
-                <td className={styles.td}>
-                  <div style={{ fontWeight: '500', color: '#4F46E5' }}>
+                <td style={{
+                  padding: '0.75rem 1rem',
+                  verticalAlign: 'middle'
+                }}>
+                  <div style={{ 
+                    fontWeight: '500', 
+                    color: '#4F46E5',
+                    fontSize: '0.75rem'
+                  }}>
                     {user.employee_no || 'Not Set'}
                   </div>
                 </td>
-                <td className={styles.td}>
-                  <div className={styles.userEmail}>{user.email}</div>
+                <td style={{
+                  padding: '0.75rem 1rem',
+                  verticalAlign: 'middle'
+                }}>
+                  <div style={{
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    fontSize: '0.7rem',
+                    margin: 0
+                  }}>{user.email}</div>
                 </td>
-                <td className={styles.td}>
-                  <span className={`${styles.roleBadge} ${styles[user.role]}`}>
+                <td style={{
+                  padding: '0.75rem 1rem',
+                  verticalAlign: 'middle'
+                }}>
+                  <span style={{
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.65rem',
+                    fontWeight: '500',
+                    textTransform: 'uppercase',
+                    background: user.role === 'admin' ? 'rgba(239, 68, 68, 0.2)' : 
+                               user.role === 'marketing' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                    color: user.role === 'admin' ? '#ef4444' : 
+                           user.role === 'marketing' ? '#3b82f6' : '#10b981',
+                    border: `1px solid ${user.role === 'admin' ? 'rgba(239, 68, 68, 0.3)' : 
+                                        user.role === 'marketing' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+                  }}>
                     {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                   </span>
                 </td>
-                <td className={styles.td}>
-                  <div style={{ fontSize: '0.85rem', color: '#ffffff' }}>
+                <td style={{
+                  padding: '0.75rem 1rem',
+                  verticalAlign: 'middle'
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: '#ffffff' }}>
                     {user.designation || 'Not Set'}
                   </div>
                 </td>
-                <td className={styles.td}>
-                  <div style={{ fontSize: '0.85rem', color: '#ffffff', fontFamily: 'monospace' }}>
+                <td style={{
+                  padding: '0.75rem 1rem',
+                  verticalAlign: 'middle'
+                }}>
+                  <div style={{ 
+                    fontSize: '0.7rem', 
+                    color: '#ffffff', 
+                    fontFamily: 'monospace' 
+                  }}>
                     {user.employeeData?.pan_no || 'Not Set'}
                   </div>
                 </td>
-                <td className={styles.td}>
-                  <div style={{ fontSize: '0.85rem', color: '#ffffff' }}>
+                <td style={{
+                  padding: '0.75rem 1rem',
+                  verticalAlign: 'middle'
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: '#ffffff' }}>
                     {user.employeeData?.bank_name || 'Not Set'}
                   </div>
                 </td>
-                <td className={styles.td}>
-                  <div style={{ fontSize: '0.85rem', color: '#ffffff', fontFamily: 'monospace' }}>
+                <td style={{
+                  padding: '0.75rem 1rem',
+                  verticalAlign: 'middle'
+                }}>
+                  <div style={{ 
+                    fontSize: '0.7rem', 
+                    color: '#ffffff', 
+                    fontFamily: 'monospace' 
+                  }}>
                     {user.employeeData?.bank_account || 'Not Set'}
                   </div>
                 </td>
-                <td className={styles.td}>
-                  <div style={{ fontWeight: '600', color: user.monthly_salary_inr > 0 ? '#059669' : '#6B7280' }}>
+                <td style={{
+                  padding: '0.75rem 1rem',
+                  verticalAlign: 'middle'
+                }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    color: user.monthly_salary_inr > 0 ? '#059669' : '#6B7280',
+                    fontSize: '0.75rem'
+                  }}>
                     {user.monthly_salary_inr > 0 ? formatCurrency(user.monthly_salary_inr) : 'Not Set'}
                   </div>
                 </td>
-                <td className={styles.td}>
-                  <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+                <td style={{
+                  padding: '0.75rem 1rem',
+                  verticalAlign: 'middle'
+                }}>
+                  <div style={{ display: 'flex', gap: '4px', flexDirection: 'column' }}>
                     {user.employeeData && (
                       <button
                         onClick={() => handleEditEmployee(user.employeeData!)}
-                        className={styles.editButton}
                         style={{
                           background: '#3B82F6',
                           color: 'white',
                           border: 'none',
-                          padding: '4px 8px',
+                          padding: '3px 6px',
                           borderRadius: '4px',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer'
+                          fontSize: '0.65rem',
+                          cursor: 'pointer',
+                          fontWeight: '500'
                         }}
                       >
-                        Edit Details
+                        Edit
                       </button>
                     )}
                     {user.role !== 'admin' ? (
                       <button
                         onClick={() => handleDeleteUser(user.email)}
-                        className={styles.deleteButton}
                         disabled={isLoading}
-                        style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.2)',
+                          color: '#ef4444',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          padding: '3px 6px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.65rem',
+                          fontWeight: '500'
+                        }}
                       >
                         Delete
                       </button>
                     ) : (
-                      <span className={styles.adminLabel} style={{ fontSize: '0.75rem' }}>Protected</span>
+                      <span style={{
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        fontSize: '0.65rem',
+                        fontStyle: 'italic'
+                      }}>Protected</span>
                     )}
                   </div>
                 </td>
@@ -294,169 +539,348 @@ export function UserManagement() {
       </div>
 
       {isAddModalOpen && (
-        <div className={styles.modal}>
-          <div className={styles.modalContent}>
-            <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>Add New User</h3>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(20px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '1rem',
+            width: '95%',
+            maxWidth: '900px',
+            maxHeight: '95vh',
+            overflow: 'hidden',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
+          }}>
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1rem 1.5rem',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+              background: 'rgba(102, 126, 234, 0.2)'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                color: '#ffffff',
+                margin: 0
+              }}>Add New User</h3>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className={styles.closeButton}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  padding: '0',
+                  width: '30px',
+                  height: '30px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '50%'
+                }}
               >
                 ×
               </button>
             </div>
 
-            <div className={styles.modalBody}>
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>Name</label>
-                <input
-                  type="text"
-                  value={newUser.name}
-                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                  className={styles.input}
-                  placeholder="Enter user name"
-                />
-              </div>
-
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>Email</label>
-                <input
-                  type="email"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  className={styles.input}
-                  placeholder="Enter email address"
-                />
-              </div>
-
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>Password</label>
-                <input
-                  type="password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  className={styles.input}
-                  placeholder="Enter password (min 6 characters)"
-                />
-              </div>
-
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>Role</label>
-                <select
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value as UserRole })}
-                  className={styles.select}
-                >
-                  <option value="marketing">Marketing</option>
-                  <option value="processing">Processing</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Employee Details Section */}
-            <div style={{ 
-              marginTop: '1.5rem', 
-              paddingTop: '1.5rem', 
-              borderTop: '1px solid rgba(255, 255, 255, 0.1)' 
+            {/* Body */}
+            <div style={{
+              padding: '1.5rem',
+              maxHeight: 'calc(95vh - 140px)',
+              overflowY: 'auto'
             }}>
-              <h4 style={{ color: '#ffffff', margin: '0 0 1rem 0', fontSize: '1rem' }}>
-                Employee Details (Optional)
-              </h4>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className={styles.inputGroup}>
-                  <label className={styles.label}>Designation</label>
+              {/* Grid Layout for All Fields */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                {/* Basic Info */}
+                <div>
+                  <label style={{ display: 'block', color: '#ffffff', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newUser.name}
+                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                    placeholder="Enter user name"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '0.5rem',
+                      color: '#ffffff',
+                      fontSize: '1rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', color: '#ffffff', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    placeholder="Enter email address"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '0.5rem',
+                      color: '#ffffff',
+                      fontSize: '1rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', color: '#ffffff', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    placeholder="Enter password (min 6 characters)"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '0.5rem',
+                      color: '#ffffff',
+                      fontSize: '1rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', color: '#ffffff', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    Role *
+                  </label>
+                  <select
+                    value={newUser.role}
+                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value as UserRole })}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '0.5rem',
+                      color: '#ffffff',
+                      fontSize: '1rem'
+                    }}
+                  >
+                    <option value="marketing" style={{ backgroundColor: '#1a1a2e', color: '#ffffff' }}>Marketing</option>
+                    <option value="processing" style={{ backgroundColor: '#1a1a2e', color: '#ffffff' }}>Processing</option>
+                  </select>
+                </div>
+
+                {/* Employee Details */}
+                <div>
+                  <label style={{ display: 'block', color: '#ffffff', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    Designation
+                  </label>
                   <input
                     type="text"
                     value={newUser.designation}
                     onChange={(e) => setNewUser({ ...newUser, designation: e.target.value })}
-                    className={styles.input}
                     placeholder="e.g., Marketing Executive"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '0.5rem',
+                      color: '#ffffff',
+                      fontSize: '1rem'
+                    }}
                   />
                 </div>
 
-                <div className={styles.inputGroup}>
-                  <label className={styles.label}>Monthly Salary (₹)</label>
+                <div>
+                  <label style={{ display: 'block', color: '#ffffff', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    Monthly Salary (₹)
+                  </label>
                   <input
                     type="number"
                     min="0"
                     step="500"
                     value={newUser.monthly_salary_inr || ''}
                     onChange={(e) => setNewUser({ ...newUser, monthly_salary_inr: parseFloat(e.target.value) || 0 })}
-                    className={styles.input}
                     placeholder="Enter monthly salary"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '0.5rem',
+                      color: '#ffffff',
+                      fontSize: '1rem'
+                    }}
                   />
                 </div>
 
-                <div className={styles.inputGroup}>
-                  <label className={styles.label}>Joining Date</label>
+                <div>
+                  <label style={{ display: 'block', color: '#ffffff', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    Joining Date
+                  </label>
                   <input
                     type="date"
                     value={newUser.joining_date}
                     onChange={(e) => setNewUser({ ...newUser, joining_date: e.target.value })}
-                    className={styles.input}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '0.5rem',
+                      color: '#ffffff',
+                      fontSize: '1rem'
+                    }}
                   />
                 </div>
 
-                <div className={styles.inputGroup}>
-                  <label className={styles.label}>PAN Number</label>
+                <div>
+                  <label style={{ display: 'block', color: '#ffffff', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    PAN Number
+                  </label>
                   <input
                     type="text"
                     value={newUser.pan_no}
                     onChange={(e) => setNewUser({ ...newUser, pan_no: e.target.value.toUpperCase() })}
-                    className={styles.input}
                     placeholder="e.g., AXXPX0000X"
                     maxLength={10}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '0.5rem',
+                      color: '#ffffff',
+                      fontSize: '1rem'
+                    }}
                   />
                 </div>
 
-                <div className={styles.inputGroup}>
-                  <label className={styles.label}>Bank Name</label>
+                <div>
+                  <label style={{ display: 'block', color: '#ffffff', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    Bank Name
+                  </label>
                   <input
                     type="text"
                     value={newUser.bank_name}
                     onChange={(e) => setNewUser({ ...newUser, bank_name: e.target.value })}
-                    className={styles.input}
                     placeholder="e.g., State Bank of India"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '0.5rem',
+                      color: '#ffffff',
+                      fontSize: '1rem'
+                    }}
                   />
                 </div>
 
-                <div className={styles.inputGroup}>
-                  <label className={styles.label}>Bank Account Number</label>
+                <div>
+                  <label style={{ display: 'block', color: '#ffffff', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    Bank Account Number
+                  </label>
                   <input
                     type="text"
                     value={newUser.bank_account}
                     onChange={(e) => setNewUser({ ...newUser, bank_account: e.target.value })}
-                    className={styles.input}
                     placeholder="Enter bank account number"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '0.5rem',
+                      color: '#ffffff',
+                      fontSize: '1rem'
+                    }}
                   />
                 </div>
 
-                <div className={styles.inputGroup}>
-                  <label className={styles.label}>IFSC Code</label>
+                <div>
+                  <label style={{ display: 'block', color: '#ffffff', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    IFSC Code
+                  </label>
                   <input
                     type="text"
                     value={newUser.ifsc_code}
                     onChange={(e) => setNewUser({ ...newUser, ifsc_code: e.target.value.toUpperCase() })}
-                    className={styles.input}
                     placeholder="e.g., SBIN0001234"
                     maxLength={11}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '0.5rem',
+                      color: '#ffffff',
+                      fontSize: '1rem'
+                    }}
                   />
                 </div>
               </div>
             </div>
 
-            <div className={styles.modalFooter}>
+            {/* Footer */}
+            <div style={{
+              display: 'flex',
+              gap: '1rem',
+              padding: '1rem 1.5rem',
+              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+              justifyContent: 'flex-end',
+              background: 'rgba(0, 0, 0, 0.1)'
+            }}>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className={styles.cancelButton}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  color: '#ffffff',
+                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '0.75rem',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddUser}
                 disabled={isLoading}
-                className={styles.saveButton}
+                style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '0.75rem',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  opacity: isLoading ? 0.6 : 1
+                }}
               >
                 {isLoading ? 'Adding...' : 'Add User'}
               </button>

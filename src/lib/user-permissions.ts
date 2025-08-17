@@ -228,17 +228,41 @@ export async function addUser(name: string, email: string, password: string, rol
   }
 
   try {
-    // Create user in Supabase (this already checks for existence)
-    const { createUser } = await import('@/lib/auth-supabase');
-    const result = await createUser(email, password, name, role);
+    // Use server-side API endpoint for user creation
+    const response = await fetch('/api/create-user-server', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        fullName: name,
+        role
+      })
+    });
+
+    const result = await response.json();
     
     if (!result.success) {
-      console.error('Supabase user creation failed:', result.error);
+      console.error('Server-side user creation failed:', result.error);
+      console.error('Failed at step:', result.step);
+      console.error('Error details:', result);
       return false;
     }
 
+    console.log('User created successfully:', result);
+
     // Sync users from Supabase to get the latest list including the new user
     await syncUsersFromSupabase();
+
+    // Refresh team members cache for todos
+    try {
+      const { refreshTeamMembersCache } = await import('@/lib/team-members-api');
+      refreshTeamMembersCache();
+    } catch (error) {
+      console.log('Note: Could not refresh team members cache:', error);
+    }
 
     return true;
   } catch (error) {

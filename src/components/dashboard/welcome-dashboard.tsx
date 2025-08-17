@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { User } from '@/types/auth';
 import { canUserAccessRouteSupabase } from '@/lib/supabase-permissions';
-import { getCurrentUser } from '@/lib/auth-supabase';
 import { createClient } from '@/lib/supabase/client';
 import { Logo } from '@/components/ui/logo';
 import { ProfileIconDropdown } from '@/components/profile/profile-icon-dropdown';
+import { TodaysTodos } from './todays-todos';
 import styles from './welcome-dashboard.module.css';
 
 interface WelcomeDashboardProps {
@@ -15,9 +16,10 @@ interface WelcomeDashboardProps {
 }
 
 export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {}) {
+  const { data: session, status } = useSession();
   const [user, setUser] = useState<User | null>(propUser || null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [isLoading, setIsLoading] = useState(!propUser);
+  const [isLoading, setIsLoading] = useState(!propUser && status === 'loading');
   const [accessibleActions, setAccessibleActions] = useState<typeof quickActions>([]);
   const router = useRouter();
 
@@ -29,15 +31,25 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
         return;
       }
 
-      try {
-        const currentUser = await getCurrentUser();
-        if (currentUser) {
-          setUser(currentUser);
-        }
-      } catch (error) {
-        console.error('Error loading user:', error);
-      } finally {
+      // Use NextAuth session for user data
+      if (status === 'authenticated' && session?.user) {
+        const sessionUser: User = {
+          id: session.user.id || '',
+          email: session.user.email || '',
+          name: session.user.name || '',
+          role: session.user.role as any,
+          profileIcon: session.user.image,
+          teamMember: session.user.teamMember,
+          isExternal: session.user.isExternal
+        };
+        setUser(sessionUser);
         setIsLoading(false);
+        return;
+      }
+
+      if (status === 'unauthenticated') {
+        setIsLoading(false);
+        return;
       }
     }
 
@@ -49,7 +61,7 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
     }, 60000);
 
     return () => clearInterval(timer);
-  }, [propUser]);
+  }, [propUser, session, status]);
 
   // Dynamic permission checking function
   const updateAccessibleActions = useCallback(async () => {
@@ -288,6 +300,9 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
           ))}
         </div>
       </section>
+
+      {/* Today's Tasks */}
+      <TodaysTodos />
 
       {/* Quick Actions */}
       <section className={styles.actionsSection}>

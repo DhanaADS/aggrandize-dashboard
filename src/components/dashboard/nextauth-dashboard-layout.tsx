@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/lib/auth-nextauth';
 import { NextAuthDashboardNav } from './nextauth-dashboard-nav';
+import { TaskNotificationPopup } from '@/components/notifications/task-notification-popup';
 import styles from './dashboard-layout.module.css';
 
 interface NextAuthDashboardLayoutProps {
@@ -36,6 +37,7 @@ export function NextAuthDashboardLayout({ children }: NextAuthDashboardLayoutPro
   return (
     <div className={styles.dashboardContainer}>
       <NextAuthDashboardNav />
+      <TaskNotificationPopup />
       <main className={styles.mainContent}>
         <div className={styles.contentWrapper}>
           {children}

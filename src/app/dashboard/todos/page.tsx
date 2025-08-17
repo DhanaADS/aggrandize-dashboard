@@ -1,104 +1,48 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useAuth } from '@/lib/auth-nextauth';
+import TaskChatContainer from '@/components/todos/TaskChatContainer';
+import NotificationCenter from '@/components/todos/NotificationCenter';
+import styles from './todos.module.css';
 
 export default function TodosPage() {
-  const { user, isAdmin, isTeamMember } = useAuth();
+  const { user, isTeamMember } = useAuth();
 
-  return (
-    <div style={{ padding: '2rem' }}>
-      <div style={{ 
-        background: 'rgba(255, 255, 255, 0.08)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.12)',
-        borderRadius: '20px',
-        padding: '2rem',
-        color: '#ffffff'
-      }}>
-        <h1 style={{ 
-          fontSize: '2rem', 
-          fontWeight: '700',
-          marginBottom: '1rem',
-          background: 'linear-gradient(135deg, #00ff88, #00d4ff)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text'
-        }}>
-          🚀 Team Todos
-        </h1>
-        
-        <p style={{ 
-          color: 'rgba(255, 255, 255, 0.8)',
-          marginBottom: '2rem',
-          fontSize: '1.1rem'
-        }}>
-          Welcome to the AGGRANDIZE team task management system!
-        </p>
-
-        <div style={{
-          background: 'rgba(0, 255, 136, 0.1)',
-          border: '1px solid rgba(0, 255, 136, 0.3)',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          marginBottom: '2rem'
-        }}>
-          <h3 style={{ 
-            color: '#00ff88',
-            marginBottom: '1rem',
-            fontSize: '1.2rem'
-          }}>
-            ✅ Google OAuth Authentication Active
-          </h3>
-          
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '1rem',
-            marginTop: '1rem'
-          }}>
-            <div>
-              <strong>User:</strong> {user?.name}
-            </div>
-            <div>
-              <strong>Email:</strong> {user?.email}
-            </div>
-            <div>
-              <strong>Role:</strong> {user?.role}
-            </div>
-            <div>
-              <strong>Team Member:</strong> {isTeamMember ? '✅ Yes' : '❌ No'}
-            </div>
-            <div>
-              <strong>Admin:</strong> {isAdmin ? '👑 Yes' : '👤 No'}
-            </div>
-          </div>
-        </div>
-
-        <div style={{
-          background: 'rgba(59, 130, 246, 0.1)',
-          border: '1px solid rgba(59, 130, 246, 0.3)',
-          borderRadius: '12px',
-          padding: '1.5rem'
-        }}>
-          <h3 style={{ 
-            color: '#3b82f6',
-            marginBottom: '1rem'
-          }}>
-            🎯 Coming Soon: Todo Features
-          </h3>
-          <ul style={{ 
-            listStyle: 'none', 
-            padding: 0,
-            color: 'rgba(255, 255, 255, 0.8)'
-          }}>
-            <li style={{ marginBottom: '0.5rem' }}>📋 Task Creation & Assignment</li>
-            <li style={{ marginBottom: '0.5rem' }}>👥 Team Collaboration</li>
-            <li style={{ marginBottom: '0.5rem' }}>📅 Calendar Integration</li>
-            <li style={{ marginBottom: '0.5rem' }}>📊 Progress Analytics</li>
-            <li style={{ marginBottom: '0.5rem' }}>🔔 Smart Notifications</li>
-          </ul>
+  if (!user || !isTeamMember) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center p-8 bg-white/8 backdrop-blur-xl border border-white/12 rounded-2xl">
+          <h2 className="text-red-400 text-xl mb-4">Access Denied</h2>
+          <p className="text-white/70">
+            You need to be a team member to access the todos.
+          </p>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className={styles.container} style={{ 
+      height: 'calc(100vh - 160px)', // Account for navigation header (~160px)
+      maxHeight: 'calc(100vh - 160px)', 
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'relative',
+      margin: '-2rem -1.5rem', // Remove default dashboard layout padding
+      padding: '0',
+      background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(20, 20, 40, 0.9))'
+    }}>
+      <Suspense fallback={
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <p>Loading tasks...</p>
+        </div>
+      }>
+        <TaskChatContainer />
+      </Suspense>
     </div>
   );
 }
+

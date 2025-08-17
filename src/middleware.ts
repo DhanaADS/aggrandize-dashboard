@@ -1,66 +1,82 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { withAuth } from 'next-auth/middleware';
+import { NextResponse } from 'next/server';
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
+export default withAuth(
+  function middleware(req) {
+    const token = req.nextauth.token;
+    const path = req.nextUrl.pathname;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          response = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          )
-        },
-      },
+    // Redirect authenticated users away from login page
+    if (path === '/login' && token) {
+      return NextResponse.redirect(new URL('/dashboard', req.url));
     }
-  )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    // Check if user is team member
+    if (path.startsWith('/dashboard') && token && !token.teamMember) {
+      return NextResponse.redirect(new URL('/unauthorized', req.url));
+    }
 
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth') &&
-    !request.nextUrl.pathname.startsWith('/forgot-password') &&
-    !request.nextUrl.pathname.startsWith('/reset-password') &&
-    !request.nextUrl.pathname.startsWith('/api/scryptr') &&
-    !request.nextUrl.pathname.startsWith('/api/scrape') &&
-    !request.nextUrl.pathname.startsWith('/api/health') &&
-    !request.nextUrl.pathname.startsWith('/api/mailforge/track')
-  ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+    // Role-based route protection
+    if (token && path.startsWith('/dashboard/')) {
+      const userRole = token.role as string;
+      
+      // Admin access
+      if (path.startsWith('/dashboard/admin') && userRole !== 'admin') {
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
+      
+      // Payment access (admin only for now)
+      if (path.startsWith('/dashboard/payments') && userRole !== 'admin') {
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
+      
+      // Processing team access
+      if (path.startsWith('/dashboard/processing') && !['admin', 'processing'].includes(userRole)) {
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
+      
+      // Marketing team access to orders and inventory
+      if (path.startsWith('/dashboard/order') && !['admin', 'marketing'].includes(userRole)) {
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
+      
+      if (path.startsWith('/dashboard/inventory') && !['admin', 'marketing'].includes(userRole)) {
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
+    }
+
+    return NextResponse.next();
+  },
+  {
+    callbacks: {
+      authorized: ({ token, req }) => {
+        const path = req.nextUrl.pathname;
+        
+        // Allow access to login page and public routes
+        if (path === '/login' || path === '/' || path.startsWith('/api/auth') || path.startsWith('/unauthorized')) {
+          return true;
+        }
+        
+        // Allow API routes that don't need auth
+        if (path.startsWith('/api/scryptr') || path.startsWith('/api/scrape') || path.startsWith('/api/health') || path.startsWith('/api/mailforge/track')) {
+          return true;
+        }
+        
+        // Require authentication for dashboard routes
+        if (path.startsWith('/dashboard')) {
+          return !!token;
+        }
+        
+        return true;
+      },
+    },
   }
-
-  return response
-}
+);
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ]
-}
+    '/dashboard/:path*',
+    '/login',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+};
