@@ -38,10 +38,15 @@ export function NextAuthDashboardNav() {
       return isAdmin;
     }
     if (tab.permission) {
-      return hasPermission(tab.permission as any);
+      const hasAccess = hasPermission(tab.permission as any);
+      console.log(`🔍 Tab ${tab.id} (${tab.permission}): ${hasAccess} for user ${user?.email}`);
+      console.log(`🔍 User permissions:`, user?.permissions);
+      return hasAccess;
     }
     return true;
   });
+
+  console.log(`🔍 Available tabs for ${user?.email}:`, availableTabs.map(t => t.id));
 
   const handleLogout = async () => {
     await logout();

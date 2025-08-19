@@ -48,8 +48,8 @@ const DEFAULT_USERS: UserPermissions[] = [
     userId: '3',
     email: 'saravana@aggrandizedigital.com',
     name: 'Saravana',
-    role: 'marketing',
-    permissions: DEFAULT_ROLE_PERMISSIONS.marketing
+    role: 'admin',
+    permissions: DEFAULT_ROLE_PERMISSIONS.admin
   },
   {
     userId: '4',
@@ -180,6 +180,42 @@ export function updateUserPermissions(email: string, permissions: RolePermission
   } catch (error) {
     console.error('Error saving user permissions:', error);
     throw error;
+  }
+}
+
+export async function updateUserPermissionsInDatabase(email: string, permissions: RolePermissions): Promise<boolean> {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  try {
+    console.log(`🔧 Frontend: Updating permissions for ${email}:`, permissions);
+
+    const response = await fetch('/api/user/permissions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, permissions })
+    });
+
+    console.log(`📡 Response status: ${response.status}`);
+    const result = await response.json();
+    console.log(`📡 Response data:`, result);
+    
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+
+    // Force session refresh
+    try {
+      await fetch('/api/refresh-session', { method: 'POST' });
+    } catch (e) {
+      console.log('Session refresh failed:', e);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to update permissions in database:', error);
+    return false;
   }
 }
 

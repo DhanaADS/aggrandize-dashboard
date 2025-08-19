@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getAllUserPermissionsFromSupabase, updateUserPermissionsInSupabase } from '@/lib/supabase-permissions';
+import { updateUserPermissionsInDatabase } from '@/lib/user-permissions';
 import { RolePermissions, UserPermissions } from '@/types/auth';
 import styles from './admin-settings.module.css';
 
@@ -37,18 +38,23 @@ export function AdminSettings() {
     setMessage('');
 
     try {
-      // Save all user permissions to Supabase
+      // Save all user permissions to the database using the new API
       const savePromises = users.map(user => 
-        updateUserPermissionsInSupabase(user.email, user.permissions)
+        updateUserPermissionsInDatabase(user.email, user.permissions)
       );
       
       const results = await Promise.all(savePromises);
-      const failures = results.filter(result => !result.success);
+      const failures = results.filter(result => !result);
       
       if (failures.length > 0) {
         setMessage(`Error saving ${failures.length} users`);
       } else {
-        setMessage('Settings saved successfully!');
+        setMessage('Settings saved successfully! Navigation will update after refresh.');
+        
+        // Force page reload after a delay to refresh session
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       }
       
       setTimeout(() => setMessage(''), 3000);

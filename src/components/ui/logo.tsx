@@ -1,6 +1,6 @@
 'use client';
 
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import styles from './logo.module.css';
@@ -9,23 +9,51 @@ interface LogoProps {
   variant?: 'default' | 'white' | 'compact';
   size?: 'small' | 'medium' | 'large';
   showText?: boolean;
+  animated?: boolean;
+  state?: 'idle' | 'loading' | 'success';
+  onClick?: () => void;
 }
 
 export const Logo: FC<LogoProps> = ({ 
   variant = 'default', 
   size = 'medium',
-  showText = true 
+  showText = true,
+  animated = false,
+  state = 'idle',
+  onClick
 }) => {
   const router = useRouter();
+  const [isClicked, setIsClicked] = useState(false);
 
   const handleLogoClick = () => {
-    router.push('/dashboard');
+    setIsClicked(true);
+    setTimeout(() => setIsClicked(false), 300);
+    
+    if (onClick) {
+      onClick();
+    } else {
+      router.push('/dashboard');
+    }
   };
+
+  // Build CSS classes based on state and props
+  const logoClasses = [
+    styles.logo,
+    styles[variant],
+    styles[size],
+    state === 'loading' && styles.logoLoading,
+    state === 'success' && styles.logoSuccess,
+    animated && styles.logoTextAnimated,
+    isClicked && styles.logoClicked
+  ].filter(Boolean).join(' ');
 
   return (
     <div 
-      className={`${styles.logo} ${styles[variant]} ${styles[size]}`}
+      className={logoClasses}
       onClick={handleLogoClick}
+      role="button"
+      tabIndex={0}
+      aria-label="AGGRANDIZE Dashboard Logo"
     >
       {/* Logo Icon - Using PNG logo */}
       <div className={styles.logoIcon}>
@@ -45,6 +73,7 @@ export const Logo: FC<LogoProps> = ({
           <span className={styles.logoTagline}>Dashboard</span>
         </div>
       )}
+      
     </div>
   );
 };

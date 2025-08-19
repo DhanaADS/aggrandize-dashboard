@@ -3,13 +3,16 @@
   align-items: center;
   gap: 0.75rem;
   cursor: pointer;
-  transition: all 0.3s ease;
   user-select: none;
+  position: relative;
+  /* Remove all transitions and animations */
 }
 
 .logo:hover {
-  transform: translateY(-1px);
+  /* Remove hover animations */
 }
+
+/* All animations and overlays removed for clean styling */
 
 /* Logo Icon */
 .logoIcon {
@@ -23,24 +26,12 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  transition: all 0.3s ease;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
-}
-
-.logo:hover .logoImage {
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.3));
-  transform: scale(1.05);
 }
 
 /* Legacy SVG styles for fallback */
 .logoSvg {
-  transition: all 0.3s ease;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
-}
-
-.logo:hover .logoSvg {
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.3));
-  transform: scale(1.05);
 }
 
 /* Logo Text */
@@ -51,29 +42,36 @@
 }
 
 .logoName {
-  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 1.8rem;
   font-weight: 900;
-  color: #6366f1;
+  background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #cbd5e1 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   letter-spacing: -0.01em;
   line-height: 1;
   text-transform: uppercase;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .logoTagline {
-  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 1.1rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: rgba(255, 255, 255, 0.7);
   text-transform: uppercase;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.62em;
   margin-top: -2px;
+  width: 100%;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 /* Size Variants */
 .small .logoIcon {
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
 }
 
 .small .logoName {
@@ -82,11 +80,12 @@
 
 .small .logoTagline {
   font-size: 0.85rem;
+  letter-spacing: 0.58em;
 }
 
 .medium .logoIcon {
-  width: 48px;
-  height: 48px;
+  width: 72px;
+  height: 72px;
 }
 
 .medium .logoName {
@@ -95,11 +94,12 @@
 
 .medium .logoTagline {
   font-size: 1rem;
+  letter-spacing: 0.6em;
 }
 
 .large .logoIcon {
-  width: 64px;
-  height: 64px;
+  width: 96px;
+  height: 96px;
 }
 
 .large .logoName {
@@ -108,22 +108,23 @@
 
 .large .logoTagline {
   font-size: 1.3rem;
+  letter-spacing: 0.64em;
 }
 
 /* Legacy SVG size variants */
 .small .logoSvg {
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
 }
 
 .medium .logoSvg {
-  width: 48px;
-  height: 48px;
+  width: 72px;
+  height: 72px;
 }
 
 .large .logoSvg {
-  width: 64px;
-  height: 64px;
+  width: 96px;
+  height: 96px;
 }
 
 /* Color Variants */
@@ -158,5 +159,6 @@
   
   .logoTagline {
     font-size: 0.95rem;
+    letter-spacing: 0.59em;
   }
 }
