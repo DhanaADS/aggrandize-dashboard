@@ -93,7 +93,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`🔧 Updating permissions for ${email}:`, normalizedPermissions);
 
-    const { data, error } = await supabase
+    // First, try to update existing user
+    const { data: updateData, error: updateError } = await supabase
       .from('user_profiles')
       .update({ 
         individual_permissions: normalizedPermissions,
@@ -102,13 +103,24 @@ export async function POST(request: NextRequest) {
       .eq('email', email)
       .select();
 
-    if (error) {
-      console.error('❌ Database update error:', error);
+    if (updateError) {
+      console.error('❌ Database update error:', updateError);
       return NextResponse.json({ 
         error: 'Failed to update permissions',
-        details: error.message 
+        details: updateError.message 
       }, { status: 500 });
     }
+
+    // If no rows were updated, user doesn't exist yet
+    if (!updateData || updateData.length === 0) {
+      console.log(`⚠️ User ${email} not found in user_profiles. Cannot create permissions without user profile.`);
+      return NextResponse.json({ 
+        error: 'User profile not found. User must log in first to create their profile.',
+        details: 'The user needs to sign in at least once before permissions can be set.'
+      }, { status: 404 });
+    }
+
+    const data = updateData;
 
     console.log(`✅ Successfully updated permissions for ${email}:`, data);
 
