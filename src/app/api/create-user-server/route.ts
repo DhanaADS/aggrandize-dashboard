@@ -19,6 +19,79 @@ export async function POST(request: Request) {
       }
     );
     
+    // Check if user already exists in Auth or Profiles
+    console.log('Checking if user already exists...');
+    
+    // Check Auth users first
+    const { data: existingAuthUsers, error: authCheckError } = await supabase.auth.admin.listUsers();
+    const existingAuthUser = existingAuthUsers?.users?.find(u => u.email === email);
+    
+    if (existingAuthUser) {
+      console.log(`Auth user already exists for ${email}`);
+      // Check if they have a complete profile
+      const { data: authUserProfile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', existingAuthUser.id)
+        .single();
+        
+      if (authUserProfile) {
+        return NextResponse.json({
+          success: false,
+          step: 'duplicate_check',
+          error: 'User already exists with complete profile. They just need to log in.'
+        });
+      } else {
+        // Auth user exists but no profile - create the profile
+        console.log(`Auth user exists but no profile found. Creating profile for ${email}`);
+        const { data: newProfile, error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: existingAuthUser.id,
+            email: email,
+            full_name: fullName,
+            role: role,
+            profile_image_source: 'emoji',
+            profile_icon: 'smiley'
+          })
+          .select()
+          .single();
+
+        if (profileError) {
+          console.error('Failed to create profile for existing auth user:', profileError);
+          return NextResponse.json({
+            success: false,
+            step: 'profile_creation_for_existing_auth',
+            error: 'Failed to create profile for existing user',
+            details: profileError.message
+          });
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: 'Profile created for existing auth user',
+          user: {
+            id: existingAuthUser.id,
+            email: email,
+            name: fullName,
+            role: role
+          }
+        });
+      }
+    }
+    
+    // Check if profile exists (for team members created manually)
+    const { data: existingUserProfile } = await supabase
+      .from('user_profiles')
+      .select('email, full_name')
+      .eq('email', email)
+      .single();
+      
+    if (existingUserProfile) {
+      console.log(`Profile exists for ${email}, converting to full user...`);
+      // This is a team member with just a profile - convert to full user
+    }
+    
     // Step 1: Create user in Supabase Auth
     console.log('Step 1: Creating auth user...');
     
