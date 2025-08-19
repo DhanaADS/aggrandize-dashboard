@@ -111,81 +111,80 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // If no rows were updated, user doesn't exist yet - try UPSERT for team members
+    // If no rows were updated, try a direct permissions-only update (user might exist but UPDATE didn't work)
     if (!updateData || updateData.length === 0) {
-      console.log(`⚠️ User ${email} not found in user_profiles. Attempting UPSERT...`);
+      console.log(`⚠️ Initial update failed for ${email}. Trying permissions-only update...`);
       
-      // Determine user role based on email (same logic as NextAuth)
-      let userRole = 'member';
-      if (['dhana@aggrandizedigital.com', 'saravana@aggrandizedigital.com'].includes(email)) {
-        userRole = 'admin';
-      } else if (['veera@aggrandizedigital.com', 'saran@aggrandizedigital.com'].includes(email)) {
-        userRole = 'marketing';
-      } else if (['abbas@aggrandizedigital.com', 'gokul@aggrandizedigital.com'].includes(email)) {
-        userRole = 'processing';
-      } else if (!email.endsWith('@aggrandizedigital.com')) {
-        // For external users, don't create profile automatically
-        return NextResponse.json({ 
-          error: 'User profile not found. User must log in first to create their profile.',
-          details: 'The user needs to sign in at least once before permissions can be set.'
-        }, { status: 404 });
-      }
-      
-      // Generate name from email
-      const fullName = email.split('@')[0].split('.').map(part => 
-        part.charAt(0).toUpperCase() + part.slice(1)
-      ).join(' ');
-      
-      console.log(`🔧 Attempting UPSERT for ${email} with role ${userRole} and name ${fullName}`);
-      
-      // Try UPSERT operation with comprehensive profile data including UUID
-      const { data: upsertData, error: upsertError } = await supabase
+      // Try just updating the permissions field
+      const { data: permissionUpdateData, error: permissionUpdateError } = await supabase
         .from('user_profiles')
-        .upsert({
-          id: crypto.randomUUID(),
-          email: email,
-          full_name: fullName,
-          role: userRole,
+        .update({ 
           individual_permissions: normalizedPermissions,
-          profile_image_source: 'emoji',
-          profile_icon: 'smiley',
-          profile_image_url: null,
-          profile_image_thumbnail: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          last_login: null
-        }, { 
-          onConflict: 'email',
-          ignoreDuplicates: false 
+          updated_at: new Date().toISOString()
         })
+        .eq('email', email)
         .select();
         
-      if (upsertError) {
-        console.error('❌ UPSERT failed, trying basic permissions update:', upsertError);
+      if (permissionUpdateError || !permissionUpdateData || permissionUpdateData.length === 0) {
+        console.log(`⚠️ Permissions update also failed. User ${email} may not exist yet.`);
         
-        // Fallback: Just update permissions for existing user with minimal data
-        const { data: fallbackData, error: fallbackError } = await supabase
+        // Only create profile for @aggrandizedigital.com emails
+        if (!email.endsWith('@aggrandizedigital.com')) {
+          return NextResponse.json({ 
+            error: 'User profile not found. User must log in first to create their profile.',
+            details: 'External users need to sign in at least once before permissions can be set.'
+          }, { status: 404 });
+        }
+        
+        // Determine user role based on email (same logic as NextAuth)
+        let userRole = 'member';
+        if (['dhana@aggrandizedigital.com', 'saravana@aggrandizedigital.com'].includes(email)) {
+          userRole = 'admin';
+        } else if (['veera@aggrandizedigital.com', 'saran@aggrandizedigital.com'].includes(email)) {
+          userRole = 'marketing';
+        } else if (['abbas@aggrandizedigital.com', 'gokul@aggrandizedigital.com'].includes(email)) {
+          userRole = 'processing';
+        }
+        
+        // Generate name from email
+        const fullName = email.split('@')[0].split('.').map(part => 
+          part.charAt(0).toUpperCase() + part.slice(1)
+        ).join(' ');
+        
+        console.log(`🆕 Creating new profile for ${email} with role ${userRole}`);
+        
+        // Create new profile
+        const { data: insertData, error: insertError } = await supabase
           .from('user_profiles')
-          .update({ 
+          .insert({
+            id: crypto.randomUUID(),
+            email: email,
+            full_name: fullName,
+            role: userRole,
             individual_permissions: normalizedPermissions,
-            updated_at: new Date().toISOString()
+            profile_image_source: 'emoji',
+            profile_icon: 'smiley',
+            profile_image_url: null,
+            profile_image_thumbnail: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_login: null
           })
-          .eq('email', email)
           .select();
           
-        if (fallbackError) {
-          console.error('❌ Fallback update also failed:', fallbackError);
+        if (insertError) {
+          console.error('❌ Profile creation failed:', insertError);
           return NextResponse.json({ 
-            error: 'Failed to update permissions - user profile may not exist',
-            details: `Please ensure ${email} logs in at least once to create their profile.`
+            error: 'Failed to create user profile',
+            details: insertError.message 
           }, { status: 500 });
         }
         
-        console.log(`✅ Fallback update successful for ${email}:`, fallbackData);
-        var data = fallbackData;
+        console.log(`✅ Created new profile for ${email}:`, insertData);
+        var data = insertData;
       } else {
-        console.log(`✅ UPSERT successful for ${email}:`, upsertData);
-        var data = upsertData;
+        console.log(`✅ Permissions update successful for ${email}:`, permissionUpdateData);
+        var data = permissionUpdateData;
       }
     } else {
       var data = updateData;
