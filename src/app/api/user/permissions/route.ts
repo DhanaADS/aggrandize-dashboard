@@ -111,9 +111,9 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // If no rows were updated, user doesn't exist yet - create minimal profile for team members
+    // If no rows were updated, user doesn't exist yet - try UPSERT for team members
     if (!updateData || updateData.length === 0) {
-      console.log(`⚠️ User ${email} not found in user_profiles. Creating minimal profile...`);
+      console.log(`⚠️ User ${email} not found in user_profiles. Attempting UPSERT...`);
       
       // Determine user role based on email (same logic as NextAuth)
       let userRole = 'member';
@@ -136,29 +136,57 @@ export async function POST(request: NextRequest) {
         part.charAt(0).toUpperCase() + part.slice(1)
       ).join(' ');
       
-      console.log(`🔧 Creating profile for ${email} with role ${userRole} and name ${fullName}`);
+      console.log(`🔧 Attempting UPSERT for ${email} with role ${userRole} and name ${fullName}`);
       
-      // Create minimal user profile without id (let database handle it)
-      const { data: insertData, error: insertError } = await supabase
+      // Try UPSERT operation with comprehensive profile data including UUID
+      const { data: upsertData, error: upsertError } = await supabase
         .from('user_profiles')
-        .insert({
+        .upsert({
+          id: crypto.randomUUID(),
           email: email,
           full_name: fullName,
           role: userRole,
-          individual_permissions: normalizedPermissions
+          individual_permissions: normalizedPermissions,
+          profile_image_source: 'emoji',
+          profile_icon: 'smiley',
+          profile_image_url: null,
+          profile_image_thumbnail: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_login: null
+        }, { 
+          onConflict: 'email',
+          ignoreDuplicates: false 
         })
         .select();
         
-      if (insertError) {
-        console.error('❌ Failed to create user profile:', insertError);
-        return NextResponse.json({ 
-          error: 'Failed to create user profile',
-          details: insertError.message 
-        }, { status: 500 });
+      if (upsertError) {
+        console.error('❌ UPSERT failed, trying basic permissions update:', upsertError);
+        
+        // Fallback: Just update permissions for existing user with minimal data
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('user_profiles')
+          .update({ 
+            individual_permissions: normalizedPermissions,
+            updated_at: new Date().toISOString()
+          })
+          .eq('email', email)
+          .select();
+          
+        if (fallbackError) {
+          console.error('❌ Fallback update also failed:', fallbackError);
+          return NextResponse.json({ 
+            error: 'Failed to update permissions - user profile may not exist',
+            details: `Please ensure ${email} logs in at least once to create their profile.`
+          }, { status: 500 });
+        }
+        
+        console.log(`✅ Fallback update successful for ${email}:`, fallbackData);
+        var data = fallbackData;
+      } else {
+        console.log(`✅ UPSERT successful for ${email}:`, upsertData);
+        var data = upsertData;
       }
-      
-      console.log(`✅ Created minimal profile for ${email}:`, insertData);
-      var data = insertData;
     } else {
       var data = updateData;
     }
