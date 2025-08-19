@@ -373,11 +373,12 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
           // Add the new todo to the list if it's relevant to current user
           const newTodo = payload.new as Todo;
           
-          // Check if user should see this todo (created by them, assigned to them, or team todo)
-          const isRelevant = newTodo.created_by === user.email ||
-                           newTodo.assigned_to === user.email ||
-                           newTodo.assigned_to_array?.includes(user.email) ||
-                           newTodo.is_team_todo;
+          // SECURITY: Only show tasks that user created OR is specifically assigned to
+          const isCreator = newTodo.created_by === user.email;
+          const isAssigned = newTodo.assigned_to === user.email ||
+                            newTodo.assigned_to_array?.includes(user.email);
+          
+          const isRelevant = isCreator || isAssigned;
           
           if (isRelevant) {
             setTodos(prevTodos => {
@@ -417,23 +418,19 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
           const updatedTodo = payload.new as Todo;
           const oldTodo = payload.old as Todo;
           
-          // Check if user should see this updated todo (new relevance)
-          const isRelevantNow = updatedTodo.created_by === user.email ||
-                               updatedTodo.assigned_to === user.email ||
-                               updatedTodo.assigned_to_array?.includes(user.email) ||
-                               updatedTodo.is_team_todo;
-          
-          // Check if user was relevant before (old relevance)  
-          const wasRelevantBefore = oldTodo.created_by === user.email ||
-                                   oldTodo.assigned_to === user.email ||
-                                   oldTodo.assigned_to_array?.includes(user.email) ||
-                                   oldTodo.is_team_todo;
-          
-          // Check if this is a new assignment for current user
-          const wasAssignedBefore = oldTodo.assigned_to === user.email || 
-                                   oldTodo.assigned_to_array?.includes(user.email);
-          const isAssignedNow = updatedTodo.assigned_to === user.email || 
+          // SECURITY: Check current access (creator or assigned)
+          const isCreatorNow = updatedTodo.created_by === user.email;
+          const isAssignedNow = updatedTodo.assigned_to === user.email ||
                                updatedTodo.assigned_to_array?.includes(user.email);
+          const isRelevantNow = isCreatorNow || isAssignedNow;
+          
+          // SECURITY: Check previous access (creator or assigned)
+          const wasCreatorBefore = oldTodo.created_by === user.email;
+          const wasAssignedBefore = oldTodo.assigned_to === user.email ||
+                                   oldTodo.assigned_to_array?.includes(user.email);
+          const wasRelevantBefore = wasCreatorBefore || wasAssignedBefore;
+          
+          // Check if this is a new assignment for current user  
           const isNewAssignment = !wasAssignedBefore && isAssignedNow;
           
           console.log('📊 Assignment analysis:', {
@@ -656,24 +653,15 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
       setLoading(true);
       console.log('🔄 Loading todos for user:', user?.email);
       
-      const allTodos = await todosApi.getTodos();
-      console.log('📋 All todos from database:', allTodos.length);
+      // SECURITY: Use secure API that only returns accessible todos
+      const userAccessibleTodos = await todosApi.getTodosForUser(user.email);
+      console.log('📋 User-accessible todos:', userAccessibleTodos.length);
       
-      // Filter todos relevant to current user (same logic as real-time subscription)
-      const userRelevantTodos = allTodos.filter(todo => {
-        const isRelevant = todo.created_by === user?.email ||
-                          todo.assigned_to === user?.email ||
-                          todo.assigned_to_array?.includes(user?.email || '') ||
-                          todo.is_team_todo;
-        return isRelevant;
-      });
+      setTodos(userAccessibleTodos);
       
-      console.log('📋 User-relevant todos:', userRelevantTodos.length, 'out of', allTodos.length);
-      setTodos(userRelevantTodos);
-      
-      // Load unread counts for relevant todos only
-      if (user?.email && userRelevantTodos.length > 0) {
-        const todoIds = userRelevantTodos.map(todo => todo.id);
+      // Load unread counts for accessible todos only
+      if (user?.email && userAccessibleTodos.length > 0) {
+        const todoIds = userAccessibleTodos.map(todo => todo.id);
         const counts = await unreadMessagesApi.getUnreadCounts(todoIds, user.email);
         setUnreadCounts(counts);
       }

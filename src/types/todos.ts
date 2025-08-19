@@ -40,6 +40,8 @@ export interface Todo {
   // Timestamps
   created_at: string;
   updated_at: string;
+  last_edited_at?: string; // When task was last edited
+  last_edited_by?: string; // Who last edited the task
 }
 
 // Individual assignee status tracking
@@ -65,9 +67,12 @@ export interface TodoComment {
 export interface TodoAttachment {
   id: string;
   todo_id: string;
+  comment_id?: string;
   file_name: string;
   file_url: string;
-  file_size?: number;
+  file_type: string; // Category: image, pdf, document, etc.
+  file_size: number;
+  thumbnail_url?: string;
   uploaded_by: string; // User email
   created_at: string;
 }
@@ -225,12 +230,12 @@ export const STATUS_CONFIG: Record<TodoStatus, {
   order: number;
   emoji: string; // For quick reactions
 }> = {
-  assigned: { label: 'Assigned', color: '#6b7280', icon: '📋', order: 1, emoji: '📝' },
-  in_progress: { label: 'Processing', color: '#3b82f6', icon: '⚡', order: 2, emoji: '⚡' },
-  pending_approval: { label: 'Pending Approval', color: '#f59e0b', icon: '⏳', order: 3, emoji: '⏳' },
-  done: { label: 'Completed', color: '#10b981', icon: '✅', order: 4, emoji: '✅' },
-  blocked: { label: 'Blocked', color: '#ef4444', icon: '🚫', order: 5, emoji: '🚫' },
-  cancelled: { label: 'Cancelled', color: '#6b7280', icon: '❌', order: 6, emoji: '❌' }
+  assigned: { label: 'ASSIGNED', color: '#6b7280', icon: '📋', order: 1, emoji: '📝' },
+  in_progress: { label: 'PROCESSING', color: '#3b82f6', icon: '⚡', order: 2, emoji: '⚡' },
+  pending_approval: { label: 'PENDING', color: '#f59e0b', icon: '⏳', order: 3, emoji: '⏳' },
+  done: { label: 'DONE', color: '#10b981', icon: '✅', order: 4, emoji: '✅' },
+  blocked: { label: 'BLOCKED', color: '#ef4444', icon: '🚫', order: 5, emoji: '🚫' },
+  cancelled: { label: 'CANCELLED', color: '#6b7280', icon: '❌', order: 6, emoji: '❌' }
 };
 
 export const CATEGORY_CONFIG: Record<TodoCategory, { 

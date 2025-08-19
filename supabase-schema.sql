@@ -4,6 +4,11 @@ create table user_profiles (
   email text unique not null,
   full_name text not null,
   role text not null check (role in ('admin', 'marketing', 'processing')),
+  profile_icon text,
+  profile_image_url text,
+  profile_image_source text default 'emoji' check (profile_image_source in ('gmail', 'upload', 'emoji')),
+  profile_image_thumbnail text,
+  last_login timestamp with time zone,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -60,6 +65,32 @@ $$ language plpgsql;
 create trigger on_user_profile_updated
   before update on public.user_profiles
   for each row execute procedure public.handle_updated_at();
+
+-- Create storage bucket for profile avatars
+insert into storage.buckets (id, name, public) 
+values ('profile-avatars', 'profile-avatars', true);
+
+-- Storage policies for profile avatars
+create policy "Users can upload their own avatar" on storage.objects
+  for insert with check (
+    bucket_id = 'profile-avatars' 
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Users can update their own avatar" on storage.objects
+  for update using (
+    bucket_id = 'profile-avatars' 
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Users can delete their own avatar" on storage.objects
+  for delete using (
+    bucket_id = 'profile-avatars' 
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Anyone can view profile avatars" on storage.objects
+  for select using (bucket_id = 'profile-avatars');
 
 -- Create workflow_templates table for Scryptr
 create table workflow_templates (

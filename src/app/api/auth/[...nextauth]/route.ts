@@ -147,8 +147,19 @@ export const authOptions = {
           
           console.log(`🔍 Session callback for ${session.user.email}:`, userProfile);
           
-          if (userProfile?.individual_permissions) {
-            // Use individual permissions if they exist
+          // Admin users always get full permissions regardless of individual settings
+          if (session.user.role === 'admin') {
+            console.log(`👑 Admin user detected: ${session.user.email} - granting full permissions`);
+            session.user.permissions = {
+              canAccessOrder: true,
+              canAccessProcessing: true,
+              canAccessInventory: true,
+              canAccessTools: true,
+              canAccessPayments: true,
+              canAccessTodos: true
+            };
+          } else if (userProfile?.individual_permissions) {
+            // Use individual permissions for non-admin users
             console.log(`✅ Using custom permissions for ${session.user.email}:`, userProfile.individual_permissions);
             session.user.permissions = {
               canAccessOrder: userProfile.individual_permissions.canAccessOrder ?? false,

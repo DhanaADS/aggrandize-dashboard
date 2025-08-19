@@ -119,8 +119,8 @@ export const getTeamMemberName = (email: string): string => {
 
 export const getAllTeamMembers = () => [
   { email: 'dhana@aggrandizedigital.com', name: 'Dhana', role: 'admin' },
+  { email: 'saravana@aggrandizedigital.com', name: 'Saravana', role: 'admin' },
   { email: 'veera@aggrandizedigital.com', name: 'Veera', role: 'marketing' },
-  { email: 'saravana@aggrandizedigital.com', name: 'Saravana', role: 'marketing' },
   { email: 'saran@aggrandizedigital.com', name: 'Saran', role: 'marketing' },
   { email: 'abbas@aggrandizedigital.com', name: 'Abbas', role: 'processing' },
   { email: 'gokul@aggrandizedigital.com', name: 'Gokul', role: 'processing' }

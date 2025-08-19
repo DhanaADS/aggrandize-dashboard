@@ -76,17 +76,35 @@ export function ProfileIconSelector({
 
 interface ProfileIconDisplayProps {
   iconId?: string;
+  icon?: string; // Backward compatibility 
   size?: 'small' | 'medium' | 'large';
   className?: string;
+  avatarUrl?: string | null;
 }
 
 export function ProfileIconDisplay({ 
-  iconId = DEFAULT_PROFILE_ICON, 
+  iconId = DEFAULT_PROFILE_ICON,
+  icon, // Backward compatibility
   size = 'medium',
-  className = ''
+  className = '',
+  avatarUrl
 }: ProfileIconDisplayProps) {
-  const icon = PROFILE_ICONS.find(i => i.id === iconId);
-  const emoji = icon?.emoji || PROFILE_ICONS.find(i => i.id === DEFAULT_PROFILE_ICON)?.emoji;
+  // If avatarUrl is provided, show the image instead of emoji
+  if (avatarUrl) {
+    return (
+      <div className={`${styles.profileIcon} ${styles[size]} ${className}`}>
+        <img 
+          src={avatarUrl} 
+          alt="Profile" 
+          className={styles.avatarImage}
+        />
+      </div>
+    );
+  }
+
+  // Otherwise show emoji icon
+  const profileIcon = PROFILE_ICONS.find(i => i.id === (iconId || icon));
+  const emoji = profileIcon?.emoji || PROFILE_ICONS.find(i => i.id === DEFAULT_PROFILE_ICON)?.emoji;
 
   return (
     <div className={`${styles.profileIcon} ${styles[size]} ${className}`}>

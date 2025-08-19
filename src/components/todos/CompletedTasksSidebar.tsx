@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Todo, TeamMember, PRIORITY_CONFIG, STATUS_CONFIG } from '@/types/todos';
+import { CheckCircle, RotateCcw, User, Clipboard, Archive, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface CompletedTasksSidebarProps {
   completedTasks: Todo[];
@@ -112,9 +113,9 @@ export default function CompletedTasksSidebar({
     <div style={{
       width: isCollapsed ? '60px' : '320px',
       height: '100%', // Use container height
-      background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(20, 20, 40, 0.9))',
+      background: '#2a2a2a',
       backdropFilter: 'blur(20px)',
-      borderRight: '1px solid rgba(255, 255, 255, 0.1)',
+      borderRight: '1px solid #333333',
       display: 'flex',
       flexDirection: 'column',
       transition: 'width 0.3s ease',
@@ -141,15 +142,16 @@ export default function CompletedTasksSidebar({
               gap: '0.5rem'
             }}>
               <span style={{
-                background: 'linear-gradient(135deg, #10b981, #059669)',
+                background: 'rgba(255, 255, 255, 0.1)',
                 padding: '0.25rem',
                 borderRadius: '0.5rem',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '0.75rem',
-                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
-              }}>✅</span>
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#a0a0a0'
+              }}><CheckCircle size={16} color="#a0a0a0" strokeWidth={3} /></span>
               Completed Tasks
             </h3>
             <p style={{
@@ -183,7 +185,7 @@ export default function CompletedTasksSidebar({
           }}
           title={isCollapsed ? 'Expand' : 'Collapse'}
         >
-          {isCollapsed ? '→' : '←'}
+          {isCollapsed ? <ChevronRight size={20} color="#a0a0a0" strokeWidth={3} /> : <ChevronLeft size={20} color="#a0a0a0" strokeWidth={3} />}
         </button>
       </div>
 
@@ -295,7 +297,7 @@ export default function CompletedTasksSidebar({
                 padding: '2rem 1rem',
                 color: 'rgba(255, 255, 255, 0.6)'
               }}>
-                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📭</div>
+                <div style={{ marginBottom: '0.5rem' }}><Archive size={40} color="#a0a0a0" strokeWidth={3} /></div>
                 <p style={{ fontSize: '0.875rem', margin: 0 }}>
                   No completed tasks{selectedMonth ? ` for ${getMonthDisplayName(selectedMonth)}` : ''}
                 </p>
@@ -361,8 +363,8 @@ export default function CompletedTasksSidebar({
                         height: '20px',
                         borderRadius: '50%',
                         background: isMyTask 
-                          ? 'linear-gradient(135deg, #00ff88, #00d4ff)' 
-                          : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+                          ? 'rgba(255, 255, 255, 0.15)' 
+                          : 'rgba(160, 160, 160, 0.15)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -408,8 +410,8 @@ export default function CompletedTasksSidebar({
                           alignItems: 'center',
                           gap: '0.25rem'
                         }}>
-                          {isMyTask && <span title="Created by me">👤</span>}
-                          {isAssignedToMe && <span title="Assigned to me">📋</span>}
+                          {isMyTask && <User size={14} title="Created by me" color="#a0a0a0" strokeWidth={3} />}
+                          {isAssignedToMe && <Clipboard size={14} title="Assigned to me" color="#a0a0a0" strokeWidth={3} />}
                         </div>
                       </div>
                       
@@ -421,7 +423,7 @@ export default function CompletedTasksSidebar({
                             onRestoreTask(task.id);
                           }}
                           style={{
-                            background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                            background: 'rgba(255, 255, 255, 0.1)',
                             border: 'none',
                             borderRadius: '0.25rem',
                             padding: '0.25rem 0.5rem',
@@ -444,7 +446,7 @@ export default function CompletedTasksSidebar({
                           }}
                           title="Restore task to active status"
                         >
-                          🔄 Restore
+                          <RotateCcw size={14} color="#a0a0a0" strokeWidth={3} style={{ marginRight: '4px' }} /> Restore
                         </button>
                       )}
                     </div>
@@ -466,22 +468,25 @@ export default function CompletedTasksSidebar({
           gap: '1rem'
         }}>
           <div style={{
-            background: 'linear-gradient(135deg, #10b981, #059669)',
+            background: 'rgba(255, 255, 255, 0.1)',
             padding: '0.75rem',
             borderRadius: '1rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '1.25rem',
-            boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+            border: '1px solid rgba(255, 255, 255, 0.2)'
           }}>
-            ✅
+            <CheckCircle size={28} color="#a0a0a0" strokeWidth={3} />
           </div>
           <div style={{
-            color: 'rgba(255, 255, 255, 0.6)',
-            fontSize: '0.7rem',
+            color: 'rgba(255, 255, 255, 0.8)',
+            fontSize: '0.85rem',
+            fontWeight: 600,
             transform: 'rotate(-90deg)',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            textAlign: 'center',
+            letterSpacing: '0.05em'
           }}>
             {completedTasks.length} completed
           </div>

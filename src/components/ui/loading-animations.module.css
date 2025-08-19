@@ -1,0 +1,430 @@
+/* =========================================
+   MODERN LOADING ANIMATIONS - AGGRANDIZE
+   ========================================= */
+
+/* ============= MINIMAL LOGO LOADING ============= */
+.minimalLogoContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #0a0a0a;
+  gap: 2rem;
+}
+
+.logoWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.minimalLogo {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  animation: minimalLogoAnimation 2s ease-in-out infinite;
+  filter: brightness(1) contrast(1);
+}
+
+@keyframes minimalLogoAnimation {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.9;
+  }
+  25% {
+    transform: scale(1.1) rotate(5deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05) rotate(0deg);
+    opacity: 0.95;
+  }
+  75% {
+    transform: scale(1.1) rotate(-5deg);
+    opacity: 1;
+  }
+}
+
+.minimalText {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+  font-weight: 400;
+  text-align: center;
+  animation: textFade 2s ease-in-out infinite;
+}
+
+@keyframes textFade {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Base loading container */
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+}
+
+.loaderWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============= PULSE WAVE LOADER ============= */
+.pulseWave {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pulseDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00ff88, #00d4ff);
+  animation: pulseWaveAnimation 1.4s ease-in-out infinite;
+}
+
+.pulseDot:nth-child(1) { animation-delay: 0s; }
+.pulseDot:nth-child(2) { animation-delay: 0.2s; }
+.pulseDot:nth-child(3) { animation-delay: 0.4s; }
+.pulseDot:nth-child(4) { animation-delay: 0.6s; }
+.pulseDot:nth-child(5) { animation-delay: 0.8s; }
+
+@keyframes pulseWaveAnimation {
+  0%, 80%, 100% { 
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% { 
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+/* ============= GRADIENT RING LOADER ============= */
+.gradientRing {
+  width: 50px;
+  height: 50px;
+  border: 4px solid transparent;
+  border-radius: 50%;
+  position: relative;
+  background: conic-gradient(from 0deg, #00ff88, #00d4ff, #3b82f6, #00ff88);
+  animation: gradientRingRotate 2s linear infinite;
+  padding: 2px;
+}
+
+.gradientRing::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: #0a0a0a;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.gradientRing::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  background: conic-gradient(from 0deg, transparent, #00ff88, transparent);
+  border-radius: 50%;
+  filter: blur(8px);
+  opacity: 0.7;
+  z-index: -1;
+}
+
+@keyframes gradientRingRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ============= MORPHING SHAPES LOADER ============= */
+.morphingShapes {
+  width: 60px;
+  height: 60px;
+  position: relative;
+}
+
+.morphingShape {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #00ff88, #00d4ff);
+  border-radius: 20% 50% 30% 70%;
+  animation: morphingAnimation 3s ease-in-out infinite;
+}
+
+.morphingShape:nth-child(1) {
+  animation-delay: 0s;
+  opacity: 0.8;
+}
+
+.morphingShape:nth-child(2) {
+  animation-delay: 1s;
+  opacity: 0.6;
+  transform: rotate(120deg);
+}
+
+.morphingShape:nth-child(3) {
+  animation-delay: 2s;
+  opacity: 0.4;
+  transform: rotate(240deg);
+}
+
+@keyframes morphingAnimation {
+  0%, 100% {
+    border-radius: 20% 50% 30% 70%;
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    border-radius: 70% 30% 50% 20%;
+    transform: scale(1.1) rotate(90deg);
+  }
+  50% {
+    border-radius: 30% 70% 20% 50%;
+    transform: scale(0.9) rotate(180deg);
+  }
+  75% {
+    border-radius: 50% 20% 70% 30%;
+    transform: scale(1.05) rotate(270deg);
+  }
+}
+
+/* ============= PARTICLE SYSTEM LOADER ============= */
+.particleSystem {
+  width: 80px;
+  height: 80px;
+  position: relative;
+}
+
+.particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #00ff88;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #00ff88;
+}
+
+/* Particle positions and animations */
+.particle:nth-child(1) {
+  top: 10%;
+  left: 50%;
+  animation: particleFloat1 2s ease-in-out infinite;
+}
+
+.particle:nth-child(2) {
+  top: 30%;
+  left: 80%;
+  background: #00d4ff;
+  box-shadow: 0 0 10px #00d4ff;
+  animation: particleFloat2 2.5s ease-in-out infinite;
+}
+
+.particle:nth-child(3) {
+  top: 70%;
+  left: 70%;
+  animation: particleFloat3 1.8s ease-in-out infinite;
+}
+
+.particle:nth-child(4) {
+  top: 80%;
+  left: 30%;
+  background: #3b82f6;
+  box-shadow: 0 0 10px #3b82f6;
+  animation: particleFloat4 2.2s ease-in-out infinite;
+}
+
+.particle:nth-child(5) {
+  top: 40%;
+  left: 20%;
+  animation: particleFloat5 1.6s ease-in-out infinite;
+}
+
+.particle:nth-child(6) {
+  top: 60%;
+  left: 50%;
+  background: #00d4ff;
+  box-shadow: 0 0 10px #00d4ff;
+  animation: particleFloat6 2.8s ease-in-out infinite;
+}
+
+@keyframes particleFloat1 {
+  0%, 100% { transform: translateY(0px) translateX(0px) scale(1); opacity: 0.7; }
+  50% { transform: translateY(-20px) translateX(10px) scale(1.3); opacity: 1; }
+}
+
+@keyframes particleFloat2 {
+  0%, 100% { transform: translateY(0px) translateX(0px) scale(1); opacity: 0.6; }
+  50% { transform: translateY(15px) translateX(-15px) scale(1.2); opacity: 1; }
+}
+
+@keyframes particleFloat3 {
+  0%, 100% { transform: translateY(0px) translateX(0px) scale(1); opacity: 0.8; }
+  50% { transform: translateY(-10px) translateX(20px) scale(1.1); opacity: 1; }
+}
+
+@keyframes particleFloat4 {
+  0%, 100% { transform: translateY(0px) translateX(0px) scale(1); opacity: 0.5; }
+  50% { transform: translateY(-25px) translateX(-10px) scale(1.4); opacity: 1; }
+}
+
+@keyframes particleFloat5 {
+  0%, 100% { transform: translateY(0px) translateX(0px) scale(1); opacity: 0.7; }
+  50% { transform: translateY(12px) translateX(25px) scale(1.2); opacity: 1; }
+}
+
+@keyframes particleFloat6 {
+  0%, 100% { transform: translateY(0px) translateX(0px) scale(1); opacity: 0.6; }
+  50% { transform: translateY(-18px) translateX(-8px) scale(1.3); opacity: 1; }
+}
+
+/* ============= LIQUID BLOB LOADER ============= */
+.liquidBlob {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #00ff88, #00d4ff);
+  border-radius: 50%;
+  position: relative;
+  animation: liquidBlobAnimation 3s ease-in-out infinite;
+}
+
+.liquidBlob::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
+  background: linear-gradient(135deg, #00ff88, #00d4ff);
+  border-radius: 50%;
+  filter: blur(10px);
+  opacity: 0.7;
+  z-index: -1;
+  animation: liquidBlobGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes liquidBlobAnimation {
+  0%, 100% {
+    border-radius: 50% 30% 70% 40%;
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    border-radius: 30% 70% 40% 50%;
+    transform: rotate(90deg) scale(1.1);
+  }
+  50% {
+    border-radius: 70% 40% 50% 30%;
+    transform: rotate(180deg) scale(0.9);
+  }
+  75% {
+    border-radius: 40% 50% 30% 70%;
+    transform: rotate(270deg) scale(1.05);
+  }
+}
+
+@keyframes liquidBlobGlow {
+  0% { opacity: 0.5; transform: scale(1); }
+  100% { opacity: 0.9; transform: scale(1.1); }
+}
+
+/* ============= MINIMAL PROFESSIONAL LOADER ============= */
+.minimal {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top: 3px solid #00ff88;
+  border-radius: 50%;
+  animation: minimalSpin 1s linear infinite;
+  position: relative;
+}
+
+.minimal::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border: 2px solid transparent;
+  border-top: 2px solid #00d4ff;
+  border-radius: 50%;
+  animation: minimalSpin 1.5s linear infinite reverse;
+}
+
+@keyframes minimalSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ============= LOADING TEXT ANIMATIONS ============= */
+.loadingText {
+  margin-top: 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+}
+
+.loadingTextAnimated {
+  animation: loadingTextPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes loadingTextPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* ============= SIZES ============= */
+.small .pulseDot { width: 8px; height: 8px; }
+.small .gradientRing { width: 30px; height: 30px; }
+.small .morphingShapes { width: 35px; height: 35px; }
+.small .particleSystem { width: 50px; height: 50px; }
+.small .liquidBlob { width: 35px; height: 35px; }
+.small .minimal { width: 25px; height: 25px; }
+
+.large .pulseDot { width: 16px; height: 16px; gap: 12px; }
+.large .gradientRing { width: 70px; height: 70px; }
+.large .morphingShapes { width: 80px; height: 80px; }
+.large .particleSystem { width: 100px; height: 100px; }
+.large .liquidBlob { width: 80px; height: 80px; }
+.large .minimal { width: 60px; height: 60px; }
+
+/* ============= RESPONSIVE & ACCESSIBILITY ============= */
+@media (prefers-reduced-motion: reduce) {
+  .pulseDot,
+  .gradientRing,
+  .morphingShape,
+  .particle,
+  .liquidBlob,
+  .minimal,
+  .loadingTextAnimated {
+    animation-duration: 3s;
+    animation-timing-function: ease-in-out;
+  }
+}
+
+/* ============= THEME VARIANTS ============= */
+.dark {
+  --primary: #00ff88;
+  --secondary: #00d4ff;
+  --tertiary: #3b82f6;
+  --background: #0a0a0a;
+}
+
+.light {
+  --primary: #059669;
+  --secondary: #0891b2;
+  --tertiary: #2563eb;
+  --background: #ffffff;
+}

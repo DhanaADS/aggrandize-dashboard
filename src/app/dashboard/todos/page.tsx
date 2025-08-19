@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import { useAuth } from '@/lib/auth-nextauth';
-import TaskChatContainer from '@/components/todos/TaskChatContainer';
+import TraditionalTaskContainer from '@/components/todos/TraditionalTaskContainer';
 import NotificationCenter from '@/components/todos/NotificationCenter';
 import styles from './todos.module.css';
 
@@ -32,7 +32,7 @@ export default function TodosPage() {
       position: 'relative',
       margin: '-2rem -1.5rem', // Remove default dashboard layout padding
       padding: '0',
-      background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(20, 20, 40, 0.9))'
+      background: '#1a1a1a' // Match gaming theme background
     }}>
       <Suspense fallback={
         <div className={styles.loading}>
@@ -40,7 +40,7 @@ export default function TodosPage() {
           <p>Loading tasks...</p>
         </div>
       }>
-        <TaskChatContainer />
+        <TraditionalTaskContainer />
       </Suspense>
     </div>
   );

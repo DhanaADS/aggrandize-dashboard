@@ -57,9 +57,12 @@ export function LoginForm() {
     <div className={`${styles.container} login-container`}>
       <div className={styles.card}>
         <div className={styles.header}>
-          <h1 className={styles.title}>AGGRANDIZE</h1>
+          <div className={styles.brandLogo}>
+            <img src="/logo.png" alt="AGGRANDIZE" className={styles.logoImage} />
+          </div>
+          <h1 className={styles.title}>Sign In</h1>
           <p className={styles.subtitle}>
-            Welcome back! Sign in to access your dashboard
+            Access your workspace
           </p>
         </div>
 

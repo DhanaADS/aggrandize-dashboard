@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAllUsers, addUser, deleteUser, syncUsersFromSupabase } from '@/lib/user-permissions';
+import { getAllUsers, addUser, deleteUser, syncUsersFromSupabase, updateUserPermissions } from '@/lib/user-permissions';
 import { getEmployees, updateEmployee } from '@/lib/employees-api-client';
 import { UserPermissions, UserRole } from '@/types/auth';
 import { UserProfile } from '@/types/finance';

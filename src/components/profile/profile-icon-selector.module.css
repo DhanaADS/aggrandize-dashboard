@@ -199,6 +199,15 @@
   filter: grayscale(0);
 }
 
+.profileIcon .avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  position: relative;
+  z-index: 1;
+}
+
 /* Sizes */
 .profileIcon.small {
   width: 32px;

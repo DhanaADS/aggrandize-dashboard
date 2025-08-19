@@ -11,22 +11,32 @@
 
 /* Web3 Dark Theme */
 html {
-  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%) !important;
+  background: #1a1a1a !important;
   height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0 !important;
   padding: 0 !important;
-  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%) !important;
+  background: #1a1a1a !important;
   font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
   color: #ffffff !important;
   min-height: 100vh !important;
+  width: 100vw !important;
   line-height: 1.6 !important;
   font-weight: 400;
+  border: none !important;
+  outline: none !important;
+  overflow-x: hidden !important;
 }
 
-/* Next.js containers */
+/* Next.js containers - aggressive reset */
 #__next,
 #__next > div,
 #__next > div > div,
@@ -35,6 +45,20 @@ main,
 main > div {
   background: transparent !important;
   min-height: 100vh !important;
+  width: 100vw !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  overflow-x: hidden !important;
+}
+
+/* Targeted border removal for layout containers only */
+html,
+body,
+#__next,
+#__next > div:first-child {
+  border: none !important;
+  outline: none !important;
 }
 
 /* Dashboard layout specific */
@@ -137,23 +161,29 @@ input::placeholder {
   color: rgba(255, 255, 255, 0.4) !important;
 }
 
-/* Scrollbar styling */
+/* Hide all scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 0px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
+  background: transparent;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+/* Firefox scrollbar */
+html {
+  scrollbar-width: none;
+}
+
+/* For all elements */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 /* Smooth animations */

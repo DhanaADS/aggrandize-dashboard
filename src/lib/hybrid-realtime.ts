@@ -6,7 +6,9 @@ export class HybridRealtimeService {
   private channel: any = null;
   private isConnected = false;
   private pollingInterval: NodeJS.Timeout | null = null;
+  private todoPollingInterval: NodeJS.Timeout | null = null;
   private lastCommentId: string | null = null;
+  private lastTodoUpdateTime: string = new Date().toISOString();
   private usePolling = false;
 
   async initialize(userEmail: string) {
@@ -31,9 +33,9 @@ export class HybridRealtimeService {
       try {
         let hasResolved = false;
         
-        // Set up real-time channel
+        // Set up real-time channel for both comments and todos
         this.channel = this.supabase
-          .channel('hybrid-comments')
+          .channel('hybrid-realtime')
           .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
@@ -41,6 +43,30 @@ export class HybridRealtimeService {
           }, (payload) => {
             console.log('📡 Real-time comment received:', payload.new);
             this.handleNewComment(payload.new);
+          })
+          .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'todos'
+          }, (payload) => {
+            console.log('📡 Real-time todo update received:', payload.new);
+            this.handleTodoUpdate(payload.new);
+          })
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'todos'
+          }, (payload) => {
+            console.log('📡 Real-time todo insert received:', payload.new);
+            this.handleTodoInsert(payload.new);
+          })
+          .on('postgres_changes', {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'todos'
+          }, (payload) => {
+            console.log('📡 Real-time todo delete received:', payload.old);
+            this.handleTodoDelete(payload.old);
           })
           .subscribe((status) => {
             console.log(`📡 Hybrid real-time status: ${status}`);
@@ -100,9 +126,15 @@ export class HybridRealtimeService {
     this.pollingInterval = setInterval(() => {
       this.pollForNewComments();
     }, 1000);
+
+    // Start polling for todo updates every 2000ms (slightly less frequent)
+    this.todoPollingInterval = setInterval(() => {
+      this.pollForTodoUpdates();
+    }, 2000);
     
-    // Do initial poll immediately
+    // Do initial polls immediately
     this.pollForNewComments();
+    this.pollForTodoUpdates();
 
     console.log('✅ Polling mode initialized');
   }
@@ -164,6 +196,57 @@ export class HybridRealtimeService {
     localStorage.setItem('last_comment_time', time);
   }
 
+  private async pollForTodoUpdates() {
+    try {
+      // Get recently updated todos to catch status changes and other updates
+      const { data, error } = await this.supabase
+        .from('todos')
+        .select('*')
+        .gte('updated_at', this.getLastTodoUpdateTime())
+        .order('updated_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.warn('Todo polling error:', error.message);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        // Filter out todos that we've already processed
+        const lastSeenTime = this.getLastTodoUpdateTime();
+        const updatedTodos = data.filter(todo => 
+          new Date(todo.updated_at).getTime() > new Date(lastSeenTime).getTime()
+        );
+
+        if (updatedTodos.length > 0) {
+          console.log(`📩 ${updatedTodos.length} todo update(s) detected via polling`);
+          
+          // Process each updated todo (oldest first)
+          updatedTodos.reverse().forEach(todo => {
+            console.log('📨 Processing todo update:', todo.id, 'status:', todo.status);
+            this.handleTodoUpdate(todo);
+          });
+
+          // Update our tracking
+          this.setLastTodoUpdateTime(data[0].updated_at);
+        }
+      }
+
+    } catch (error) {
+      console.warn('Todo polling failed:', error);
+    }
+  }
+
+  private getLastTodoUpdateTime(): string {
+    // Keep track of last todo update time for polling
+    return localStorage.getItem('last_todo_update_time') || new Date(Date.now() - 60000).toISOString();
+  }
+
+  private setLastTodoUpdateTime(time: string) {
+    localStorage.setItem('last_todo_update_time', time);
+    this.lastTodoUpdateTime = time;
+  }
+
   private handleNewComment(comment: any) {
     console.log('🚀 Dispatching hybrid comment event:', {
       id: comment.id, 
@@ -187,6 +270,51 @@ export class HybridRealtimeService {
     console.log('📡 Single hybrid-comment event dispatched for comment:', comment.id);
   }
 
+  private handleTodoUpdate(todo: any) {
+    console.log('🚀 Dispatching hybrid todo update event:', {
+      id: todo.id,
+      status: todo.status,
+      title: todo.title,
+      updatedAt: todo.updated_at
+    });
+
+    // Dispatch event for todo updates (status changes, edits, etc.)
+    window.dispatchEvent(new CustomEvent('hybrid-todo-update', {
+      detail: { todo }
+    }));
+
+    console.log('📡 Hybrid todo update event dispatched for todo:', todo.id);
+  }
+
+  private handleTodoInsert(todo: any) {
+    console.log('🚀 Dispatching hybrid todo insert event:', {
+      id: todo.id,
+      title: todo.title,
+      createdBy: todo.created_by
+    });
+
+    // Dispatch event for new todos
+    window.dispatchEvent(new CustomEvent('hybrid-todo-insert', {
+      detail: { todo }
+    }));
+
+    console.log('📡 Hybrid todo insert event dispatched for todo:', todo.id);
+  }
+
+  private handleTodoDelete(todo: any) {
+    console.log('🚀 Dispatching hybrid todo delete event:', {
+      id: todo.id,
+      title: todo.title
+    });
+
+    // Dispatch event for deleted todos
+    window.dispatchEvent(new CustomEvent('hybrid-todo-delete', {
+      detail: { todo }
+    }));
+
+    console.log('📡 Hybrid todo delete event dispatched for todo:', todo.id);
+  }
+
   async cleanup() {
     try {
       if (this.channel) {
@@ -197,6 +325,11 @@ export class HybridRealtimeService {
       if (this.pollingInterval) {
         clearInterval(this.pollingInterval);
         this.pollingInterval = null;
+      }
+
+      if (this.todoPollingInterval) {
+        clearInterval(this.todoPollingInterval);
+        this.todoPollingInterval = null;
       }
       
       this.isConnected = false;

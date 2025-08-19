@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/auth-nextauth';
 import { NextAuthDashboardNav } from './nextauth-dashboard-nav';
 import { TaskNotificationPopup } from '@/components/notifications/task-notification-popup';
+import { MinimalLogoLoading } from '@/components/ui/LoadingSpinner';
 import styles from './dashboard-layout.module.css';
 
 interface NextAuthDashboardLayoutProps {
@@ -13,14 +14,7 @@ export function NextAuthDashboardLayout({ children }: NextAuthDashboardLayoutPro
   const { isLoading, isAuthenticated, user } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.loadingSpinner}>
-          <div className={styles.spinner}></div>
-          <p className={styles.loadingText}>Loading dashboard...</p>
-        </div>
-      </div>
-    );
+    return <MinimalLogoLoading text="Loading your dashboard..." />;
   }
 
   if (!isAuthenticated || !user) {

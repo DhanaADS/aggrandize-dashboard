@@ -1,5 +1,6 @@
 // File Upload Service for Todo Attachments
 import { createClient } from '@/lib/supabase/client';
+import { fallbackFileUploadService } from './file-upload-service-fallback';
 
 export interface UploadProgress {
   loaded: number;
@@ -102,82 +103,26 @@ class FileUploadService {
   }
 
   /**
-   * Upload file to Supabase storage
+   * Upload file - Uses fallback method to avoid Supabase Storage RLS issues
    */
   async uploadFile(
     file: File, 
     metadata: AttachmentMetadata,
     onProgress?: (progress: UploadProgress) => void
   ): Promise<FileUploadResult> {
+    console.log('🔄 Starting file upload with RLS-safe fallback method');
+    
+    // Use the fallback service directly to avoid Storage RLS issues
     try {
-      // Validate file
-      const validation = this.validateFile(file);
-      if (!validation.valid) {
-        return { success: false, error: validation.error };
+      const result = await fallbackFileUploadService.uploadFile(file, metadata, onProgress);
+      
+      if (result.success) {
+        console.log('✅ File upload successful using fallback method');
+        return result;
+      } else {
+        console.error('❌ Fallback upload failed:', result.error);
+        return result;
       }
-
-      // Initialize bucket
-      await this.initializeBucket();
-
-      // Generate unique file path
-      const filePath = this.generateFilePath(file, metadata.uploadedBy);
-
-      // Upload file
-      const { data: uploadData, error: uploadError } = await this.supabase.storage
-        .from(this.BUCKET_NAME)
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        return { success: false, error: uploadError.message };
-      }
-
-      // Get public URL
-      const { data: urlData } = this.supabase.storage
-        .from(this.BUCKET_NAME)
-        .getPublicUrl(filePath);
-
-      const fileUrl = urlData.publicUrl;
-
-      // Generate thumbnail for images
-      let thumbnailUrl: string | undefined;
-      if (file.type.startsWith('image/')) {
-        thumbnailUrl = await this.generateThumbnail(file);
-      }
-
-      // Save attachment metadata to database
-      const { data: attachmentData, error: dbError } = await this.supabase
-        .from('todo_attachments')
-        .insert({
-          todo_id: metadata.todoId,
-          comment_id: metadata.commentId,
-          file_name: metadata.fileName,
-          file_url: fileUrl,
-          file_type: this.getFileCategory(file.type),
-          file_size: metadata.fileSize,
-          thumbnail_url: thumbnailUrl,
-          uploaded_by: metadata.uploadedBy
-        })
-        .select()
-        .single();
-
-      if (dbError) {
-        console.error('Database error:', dbError);
-        // Clean up uploaded file
-        await this.supabase.storage.from(this.BUCKET_NAME).remove([filePath]);
-        return { success: false, error: 'Failed to save attachment metadata' };
-      }
-
-      return {
-        success: true,
-        fileUrl,
-        thumbnailUrl,
-        fileId: attachmentData.id
-      };
-
     } catch (error) {
       console.error('Upload service error:', error);
       return { 

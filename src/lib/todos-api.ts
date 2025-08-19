@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/client';
 import { 
   Todo, 
   TodoComment, 
+  TodoAttachment,
   CreateTodoRequest, 
   UpdateTodoRequest, 
   TodoFilters,
@@ -13,6 +14,26 @@ import {
 } from '@/types/todos';
 
 const supabase = createClient();
+
+// Helper function to check if user can edit a todo (creator-only)
+export async function canUserEditTodo(todoId: string, userEmail: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('todos')
+      .select('created_by')
+      .eq('id', todoId)
+      .single();
+
+    if (error || !data) {
+      return false;
+    }
+
+    return data.created_by === userEmail;
+  } catch (error) {
+    console.error('Error checking edit permissions:', error);
+    return false;
+  }
+}
 
 // Helper function to build filter query
 function buildFilterQuery(baseQuery: any, filters: TodoFilters) {
@@ -59,7 +80,7 @@ function buildFilterQuery(baseQuery: any, filters: TodoFilters) {
 
 // Todo CRUD Operations
 export const todosApi = {
-  // Get all todos with optional filtering
+  // Get all todos with optional filtering (ADMIN USE ONLY - no user filtering)
   async getTodos(filters: TodoFilters = {}): Promise<Todo[]> {
     try {
       let query = supabase
@@ -86,6 +107,123 @@ export const todosApi = {
       return todos;
     } catch (error) {
       console.error('API Error - getTodos:', error);
+      throw error;
+    }
+  },
+
+  // Get todos for a specific user (SECURITY: Only creator and assigned users can view)
+  async getTodosForUser(userEmail: string, filters: TodoFilters = {}): Promise<Todo[]> {
+    try {
+      console.log('🔒 Getting todos for user with security filtering:', userEmail);
+      
+      // APPROACH 1: Try with multiple separate queries and merge results
+      const [createdTodos, assignedToTodos, assignedArrayTodos] = await Promise.all([
+        // Get todos created by user
+        supabase
+          .from('todos')
+          .select('*')
+          .eq('created_by', userEmail)
+          .order('created_at', { ascending: false }),
+          
+        // Get todos assigned to user (single assignment)
+        supabase
+          .from('todos')
+          .select('*')
+          .eq('assigned_to', userEmail)
+          .order('created_at', { ascending: false }),
+          
+        // Get todos where user is in assigned array
+        supabase
+          .from('todos')
+          .select('*')
+          .contains('assigned_to_array', [userEmail])
+          .order('created_at', { ascending: false })
+      ]);
+
+      // Check for errors
+      if (createdTodos.error) {
+        console.error('❌ Error fetching created todos:', createdTodos.error);
+        throw new Error(`Failed to fetch created todos: ${createdTodos.error.message}`);
+      }
+      
+      if (assignedToTodos.error) {
+        console.error('❌ Error fetching assigned todos:', assignedToTodos.error);
+        throw new Error(`Failed to fetch assigned todos: ${assignedToTodos.error.message}`);
+      }
+      
+      if (assignedArrayTodos.error) {
+        console.error('❌ Error fetching array assigned todos:', assignedArrayTodos.error);
+        throw new Error(`Failed to fetch array assigned todos: ${assignedArrayTodos.error.message}`);
+      }
+
+      // Merge and deduplicate results
+      const allTodos = [
+        ...(createdTodos.data || []),
+        ...(assignedToTodos.data || []),
+        ...(assignedArrayTodos.data || [])
+      ];
+
+      // Remove duplicates by ID
+      const uniqueTodos = allTodos.filter((todo, index, self) => 
+        index === self.findIndex(t => t.id === todo.id)
+      );
+
+      console.log('📊 Security query results:', {
+        userEmail,
+        createdCount: createdTodos.data?.length || 0,
+        assignedCount: assignedToTodos.data?.length || 0,
+        arrayAssignedCount: assignedArrayTodos.data?.length || 0,
+        totalUnique: uniqueTodos.length
+      });
+
+      // Debug: Log each todo's relevance to current user
+      uniqueTodos.forEach(todo => {
+        const isCreator = todo.created_by === userEmail;
+        const isAssigned = todo.assigned_to === userEmail;
+        const isInArray = todo.assigned_to_array && todo.assigned_to_array.includes(userEmail);
+        console.log(`📋 Todo "${todo.title}": creator=${isCreator}, assigned=${isAssigned}, inArray=${isInArray}`);
+      });
+
+      // Apply additional filters if provided
+      let filteredTodos = uniqueTodos;
+      if (Object.keys(filters).length > 0) {
+        // Apply filters manually since we can't use buildFilterQuery with merged results
+        filteredTodos = uniqueTodos.filter(todo => {
+          if (filters.status && filters.status.length > 0 && !filters.status.includes(todo.status)) {
+            return false;
+          }
+          if (filters.priority && filters.priority.length > 0 && !filters.priority.includes(todo.priority)) {
+            return false;
+          }
+          if (filters.category && filters.category.length > 0 && !filters.category.includes(todo.category)) {
+            return false;
+          }
+          if (filters.search) {
+            const searchLower = filters.search.toLowerCase();
+            if (!todo.title.toLowerCase().includes(searchLower) && 
+                !(todo.description || '').toLowerCase().includes(searchLower)) {
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+
+      // Sort by created_at descending
+      filteredTodos.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      // Migrate legacy 'todo' status to 'assigned' in the response
+      const todos = filteredTodos.map(todo => {
+        if (todo.status === 'todo') {
+          return { ...todo, status: 'assigned' };
+        }
+        return todo;
+      });
+
+      console.log(`🔒 SECURITY RESULT: User ${userEmail} has access to ${todos.length} todos`);
+      return todos;
+    } catch (error) {
+      console.error('API Error - getTodosForUser:', error);
       throw error;
     }
   },
@@ -214,6 +352,83 @@ export const todosApi = {
       return data;
     } catch (error) {
       console.error('API Error - updateTodo:', error);
+      throw error;
+    }
+  },
+
+  // Edit a todo (creator-only with edit tracking)
+  async editTodo(id: string, updates: UpdateTodoRequest, editorEmail: string): Promise<Todo> {
+    try {
+      // First check if the user is the creator
+      const { data: todo, error: fetchError } = await supabase
+        .from('todos')
+        .select('created_by')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch todo: ${fetchError.message}`);
+      }
+
+      if (todo.created_by !== editorEmail) {
+        throw new Error('Only the creator can edit this task');
+      }
+
+      // Try to add edit tracking, but handle gracefully if columns don't exist
+      const editUpdates: any = { ...updates };
+
+      // Handle completion status
+      if (editUpdates.status === 'done' && editUpdates.progress === undefined) {
+        editUpdates.progress = 100;
+      }
+      
+      if (editUpdates.status === 'done') {
+        editUpdates.completed_at = new Date().toISOString();
+      } else if (editUpdates.status && editUpdates.status !== 'done') {
+        editUpdates.completed_at = null;
+      }
+
+      // First try with edit tracking columns
+      try {
+        editUpdates.last_edited_at = new Date().toISOString();
+        editUpdates.last_edited_by = editorEmail;
+        
+        const { data, error } = await supabase
+          .from('todos')
+          .update(editUpdates)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        console.log('✅ Todo edited successfully with edit tracking by:', editorEmail);
+        return data;
+      } catch (trackingError: any) {
+        console.warn('⚠️ Edit tracking columns not available, updating without tracking:', trackingError.message);
+        
+        // Remove tracking fields and try again
+        delete editUpdates.last_edited_at;
+        delete editUpdates.last_edited_by;
+        
+        const { data, error } = await supabase
+          .from('todos')
+          .update(editUpdates)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) {
+          throw new Error(`Failed to edit todo: ${error.message}`);
+        }
+
+        console.log('✅ Todo edited successfully (without tracking) by:', editorEmail);
+        return data;
+      }
+    } catch (error) {
+      console.error('API Error - editTodo:', error);
       throw error;
     }
   },
@@ -834,6 +1049,99 @@ export const unreadMessagesApi = {
     } catch (error) {
       console.error('API Error - getLastReadTime:', error);
       return null;
+    }
+  }
+};
+
+// File Attachments API
+export const todoAttachmentsApi = {
+  // Get all attachments for a specific todo
+  async getTaskAttachments(todoId: string): Promise<TodoAttachment[]> {
+    try {
+      console.log('🔄 Fetching attachments for todo:', todoId);
+      
+      // First try using the secure function
+      const { data, error } = await supabase
+        .rpc('get_todo_attachments', { p_todo_id: todoId });
+
+      if (error) {
+        console.warn('RPC function failed, trying direct table access:', error);
+        
+        // Fallback to direct table access
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('todo_attachments')
+          .select('*')
+          .eq('todo_id', todoId)
+          .order('created_at', { ascending: false });
+
+        if (fallbackError) {
+          console.error('Error fetching attachments:', fallbackError);
+          throw new Error(`Failed to fetch attachments: ${fallbackError.message}`);
+        }
+
+        console.log('✅ Loaded attachments (fallback):', fallbackData?.length || 0);
+        return fallbackData || [];
+      }
+
+      console.log('✅ Loaded attachments (RPC):', data?.length || 0);
+      return data || [];
+    } catch (error) {
+      console.error('API Error - getTaskAttachments:', error);
+      throw error;
+    }
+  },
+
+  // Get attachments for a specific comment
+  async getCommentAttachments(commentId: string): Promise<TodoAttachment[]> {
+    try {
+      const { data, error } = await supabase
+        .from('todo_attachments')
+        .select('*')
+        .eq('comment_id', commentId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching comment attachments:', error);
+        throw new Error(`Failed to fetch comment attachments: ${error.message}`);
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('API Error - getCommentAttachments:', error);
+      throw error;
+    }
+  },
+
+  // Delete an attachment
+  async deleteAttachment(attachmentId: string): Promise<boolean> {
+    try {
+      // Try using the secure function first
+      const { data, error } = await supabase
+        .rpc('delete_attachment', { p_attachment_id: attachmentId });
+
+      if (error) {
+        console.warn('RPC delete failed, trying direct table access:', error);
+        
+        // Fallback to direct table access
+        const { error: fallbackError } = await supabase
+          .from('todo_attachments')
+          .delete()
+          .eq('id', attachmentId);
+
+        if (fallbackError) {
+          console.error('Error deleting attachment:', fallbackError);
+          throw new Error(`Failed to delete attachment: ${fallbackError.message}`);
+        }
+
+        console.log('✅ Attachment deleted (fallback):', attachmentId);
+        return true;
+      }
+
+      console.log('✅ Attachment deleted (RPC):', attachmentId);
+      return data || true;
+    } catch (error) {
+      console.error('API Error - deleteAttachment:', error);
+      throw error;
     }
   }
 };

@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Todo, TeamMember, TodoStatus, PRIORITY_CONFIG, STATUS_CONFIG } from '@/types/todos';
+import { Play, Check, Clock, RotateCcw, Edit, X, FileText, Zap, AlertCircle, CheckCircle, Ban, XCircle } from 'lucide-react';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 interface TaskBubbleProps {
   todo: Todo;
@@ -10,6 +12,7 @@ interface TaskBubbleProps {
   onStatusUpdate: (todoId: string, status: TodoStatus) => Promise<void>;
   onRequestCompletion?: (todoId: string) => Promise<void>;
   onSelect?: () => void;
+  onEdit?: (todoId: string) => void;
   onDelete?: (todoId: string) => Promise<void>;
   index: number; // Add index for row numbering and styling
   unreadCount?: number; // Add unread count for messages
@@ -22,6 +25,7 @@ export default function TaskBubble({
   onStatusUpdate,
   onRequestCompletion,
   onSelect,
+  onEdit,
   onDelete,
   index,
   unreadCount = 0
@@ -70,8 +74,7 @@ export default function TaskBubble({
       console.log('Status update successful');
     } catch (error) {
       console.error('Failed to update status:', error);
-      // Show user-friendly error message
-      alert(`Failed to update task status. This might be a temporary database issue. Please try again in a moment.`);
+      // Error logged silently, no popup notification
     } finally {
       setIsUpdating(false);
     }
@@ -93,50 +96,68 @@ export default function TaskBubble({
     }
   };
 
+  const getStatusIcon = (status: TodoStatus) => {
+    switch (status) {
+      case 'assigned': return <FileText size={18} color="#a0a0a0" strokeWidth={3} />;
+      case 'in_progress': return <Play size={18} color="#a0a0a0" strokeWidth={3} />;
+      case 'pending_approval': return <Clock size={18} color="#a0a0a0" strokeWidth={3} />;
+      case 'done': return <CheckCircle size={18} color="#a0a0a0" strokeWidth={3} />;
+      case 'blocked': return <Ban size={18} color="#a0a0a0" strokeWidth={3} />;
+      case 'cancelled': return <XCircle size={18} color="#a0a0a0" strokeWidth={3} />;
+      default: return <FileText size={18} color="#a0a0a0" strokeWidth={3} />;
+    }
+  };
+
   return (
     <div 
       style={{
         display: 'flex',
         alignItems: 'stretch',
-        padding: '0.75rem 1rem',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-        background: index % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'rgba(255, 255, 255, 0.03)',
-        transition: 'all 0.2s ease',
+        padding: '0.75rem 1.5rem',
+        background: 'transparent',
+        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         cursor: 'pointer',
-        minHeight: '60px',
-        borderLeft: index % 2 === 0 ? '3px solid rgba(0, 255, 136, 0.3)' : '3px solid rgba(59, 130, 246, 0.3)'
+        minHeight: '64px',
+        position: 'relative'
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02))';
+        e.currentTarget.style.transform = 'translateX(2px)';
+        e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = index % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'rgba(255, 255, 255, 0.03)';
+        e.currentTarget.style.background = 'transparent';
+        e.currentTarget.style.transform = 'translateX(0)';
+        e.currentTarget.style.boxShadow = 'none';
       }}
       onClick={onSelect}
     >
       {/* Task Number */}
       <div style={{
-        width: '40px',
+        width: '50px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: 'rgba(255, 255, 255, 0.5)',
+        color: '#a0a0a0',
         fontSize: '0.875rem',
-        fontWeight: 500,
-        minHeight: '60px'
+        fontWeight: 600,
+        minHeight: '64px',
+        flexShrink: 0
       }}>
         {index + 1}
       </div>
 
       {/* Task Title */}
       <div style={{
-        flex: 1,
-        minWidth: 0,
-        paddingLeft: '0.75rem',
+        flex: '1 1 280px',
+        minWidth: '280px',
+        maxWidth: '320px',
+        paddingRight: '1rem',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
-        minHeight: '60px'
+        minHeight: '64px',
+        overflow: 'hidden'
       }}>
         <div style={{
           display: 'flex',
@@ -145,13 +166,14 @@ export default function TaskBubble({
         }}>
           <div style={{
             color: '#ffffff',
-            fontSize: '0.875rem',
-            fontWeight: 500,
+            fontSize: '0.9rem',
+            fontWeight: 600,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            lineHeight: '1.2',
-            flex: 1
+            lineHeight: '1.3',
+            flex: 1,
+            letterSpacing: '0.02em'
           }}>
             {todo.title}
           </div>
@@ -208,45 +230,37 @@ export default function TaskBubble({
             </div>
           )}
         </div>
-        {todo.description && (
-          <div style={{
-            color: 'rgba(255, 255, 255, 0.6)',
-            fontSize: '0.75rem',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            marginTop: '0.25rem',
-            lineHeight: '1.2'
-          }}>
-            {todo.description}
-          </div>
-        )}
       </div>
 
       {/* Status Badge */}
       <div style={{
-        width: '100px',
+        width: '120px',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '60px'
+        minHeight: '64px',
+        flexShrink: 0
       }}>
         <div style={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '0.5rem',
-          padding: '0.25rem 0.75rem',
-          borderRadius: '12px',
-          fontSize: '0.75rem',
-          fontWeight: 600,
+          justifyContent: 'center',
+          padding: '0.4rem 0.6rem',
+          borderRadius: '6px',
+          fontSize: '0.65rem',
+          fontWeight: 700,
           textTransform: 'uppercase',
           letterSpacing: '0.5px',
-          background: statusConfig.color === '#10b981' ? '#10b981' :
-                     statusConfig.color === '#3b82f6' ? '#3b82f6' :
-                     statusConfig.color === '#f59e0b' ? '#f59e0b' :
-                     statusConfig.color === '#ef4444' ? '#ef4444' :
-                     statusConfig.color === '#6b7280' ? '#6b7280' : '#8b5cf6',
-          color: '#ffffff'
+          textAlign: 'center',
+          whiteSpace: 'nowrap',
+          background: statusConfig.color === '#10b981' ? 'linear-gradient(135deg, #10b981, #059669)' :
+                     statusConfig.color === '#3b82f6' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' :
+                     statusConfig.color === '#f59e0b' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
+                     statusConfig.color === '#ef4444' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
+                     statusConfig.color === '#6b7280' ? 'linear-gradient(135deg, #6b7280, #4b5563)' : 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+          color: '#ffffff',
+          border: `1px solid ${statusConfig.color}40`,
+          boxShadow: `0 2px 8px ${statusConfig.color}30`
         }}>
           {statusConfig.label}
         </div>
@@ -254,11 +268,12 @@ export default function TaskBubble({
 
       {/* Assigned To - Multiple Icons */}
       <div style={{
-        width: '100px',
+        width: '140px',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '60px'
+        minHeight: '64px',
+        flexShrink: 0
       }}>
         {getAssigneeDisplay().length > 0 ? (
           <div style={{
@@ -268,32 +283,24 @@ export default function TaskBubble({
             flexWrap: 'wrap',
             justifyContent: 'center'
           }}>
-            {getAssigneeDisplay().slice(0, 3).map((name, index) => (
-              <div
-                key={index}
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  background: index === 0 
-                    ? 'linear-gradient(135deg, #00ff88, #00d4ff)'
-                    : index === 1 
-                    ? 'linear-gradient(135deg, #8b5cf6, #ec4899)'
-                    : 'linear-gradient(135deg, #f59e0b, #ef4444)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  fontSize: '0.65rem',
-                  fontWeight: 600,
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
-                }}
-                title={name} // Show name on hover
-              >
-                {name.charAt(0).toUpperCase()}
-              </div>
-            ))}
+            {(() => {
+              // Get email addresses for assigned users
+              const assignedEmails = todo.assigned_to_array || (todo.assigned_to ? [todo.assigned_to] : []);
+              
+              return assignedEmails.slice(0, 3).map((email, index) => {
+                const member = teamMembers.find(m => m.email === email);
+                const name = member ? member.name : email.split('@')[0];
+                
+                return (
+                  <UserAvatar 
+                    key={email}
+                    userEmail={email}
+                    userName={name}
+                    size="small"
+                  />
+                );
+              });
+            })()}
             {getAssigneeDisplay().length > 3 && (
               <div style={{
                 width: '20px',
@@ -316,7 +323,7 @@ export default function TaskBubble({
           </div>
         ) : (
           <span style={{
-            color: 'rgba(255, 255, 255, 0.5)',
+            color: '#707070',
             fontSize: '0.75rem'
           }}>-</span>
         )}
@@ -324,96 +331,43 @@ export default function TaskBubble({
 
       {/* Created By */}
       <div style={{
-        width: '100px',
+        width: '120px',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '60px'
+        minHeight: '64px',
+        flexShrink: 0
       }}>
         {(() => {
           const creatorMember = teamMembers.find(m => m.email === todo.created_by);
           const creatorName = creatorMember ? creatorMember.name : todo.created_by.split('@')[0];
-          const creatorInitials = creatorName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
           
           return (
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.25rem'
+              justifyContent: 'center'
             }}>
-              <div style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #6b7280, #4b5563)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                fontSize: '0.75rem',
-                fontWeight: 600
-              }}>
-                {creatorInitials}
-              </div>
-              <span style={{
-                color: 'rgba(255, 255, 255, 0.8)',
-                fontSize: '0.75rem',
-                maxWidth: '60px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
-              }}>
-                {creatorName}
-              </span>
+              <UserAvatar 
+                userEmail={todo.created_by}
+                userName={creatorName}
+                size="small"
+              />
             </div>
           );
         })()}
       </div>
 
-      {/* Timestamp */}
-      <div style={{
-        width: '100px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '60px'
-      }}>
-        <div style={{
-          textAlign: 'center'
-        }}>
-          <div style={{
-            color: 'rgba(255, 255, 255, 0.8)',
-            fontSize: '0.75rem',
-            fontWeight: 500
-          }}>
-            {new Date(todo.created_at).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric'
-            })}
-          </div>
-          <div style={{
-            color: 'rgba(255, 255, 255, 0.5)',
-            fontSize: '0.65rem',
-            marginTop: '0.125rem'
-          }}>
-            {new Date(todo.created_at).toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: true
-            })}
-          </div>
-        </div>
-      </div>
 
       {/* Enhanced Actions - Always visible */}
       <div style={{
-        width: '120px',
+        width: '140px',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
         gap: '0.25rem',
-        paddingRight: '0.5rem',
-        minHeight: '60px'
+        minHeight: '64px',
+        flexShrink: 0
       }}>
         {canUpdateStatus ? (
           <>
@@ -431,7 +385,7 @@ export default function TaskBubble({
                     style={{
                       padding: '0.25rem 0.5rem',
                       borderRadius: '4px',
-                      background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                      background: 'rgba(255, 255, 255, 0.1)',
                       border: 'none',
                       cursor: isUpdating ? 'default' : 'pointer',
                       opacity: isUpdating ? 0.5 : 1,
@@ -450,7 +404,7 @@ export default function TaskBubble({
                       e.currentTarget.style.transform = 'scale(1)';
                     }}
                   >
-                    ⚡ Start
+                    <Play size={16} color="#a0a0a0" strokeWidth={3} style={{ marginRight: '6px' }} /> Start
                   </button>
                 )}
                 
@@ -464,7 +418,7 @@ export default function TaskBubble({
                     style={{
                       padding: '0.25rem 0.5rem',
                       borderRadius: '4px',
-                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                      background: 'rgba(255, 255, 255, 0.1)',
                       border: 'none',
                       cursor: isUpdating ? 'default' : 'pointer',
                       opacity: isUpdating ? 0.5 : 1,
@@ -483,7 +437,7 @@ export default function TaskBubble({
                       e.currentTarget.style.transform = 'scale(1)';
                     }}
                   >
-                    ⏳ Complete
+                    <Check size={16} color="#a0a0a0" strokeWidth={3} style={{ marginRight: '6px' }} /> Complete
                   </button>
                 )}
 
@@ -497,13 +451,13 @@ export default function TaskBubble({
                     color: '#f59e0b',
                     fontWeight: 600
                   }}>
-                    ⏳ Awaiting
+                    <Clock size={16} color="#a0a0a0" strokeWidth={3} style={{ marginRight: '6px' }} /> Awaiting
                   </div>
                 )}
               </div>
             ) : isTaskCreator ? (
               // Creator actions: Full control including approval
-              <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '0.15rem', alignItems: 'center', flexWrap: 'nowrap' }}>
                 {/* Status progression buttons */}
                 {todo.status === 'assigned' && (
                   <button
@@ -513,14 +467,19 @@ export default function TaskBubble({
                     }}
                     disabled={isUpdating}
                     style={{
-                      padding: '0.25rem',
-                      borderRadius: '4px',
+                      padding: '0.2rem',
+                      borderRadius: '3px',
                       background: 'transparent',
                       border: 'none',
                       cursor: isUpdating ? 'default' : 'pointer',
                       opacity: isUpdating ? 0.5 : 1,
-                      fontSize: '0.75rem',
-                      transition: 'all 0.2s ease'
+                      fontSize: '0.7rem',
+                      transition: 'all 0.2s ease',
+                      minWidth: '24px',
+                      height: '24px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
                     title="Mark as Processing"
                     onMouseEnter={(e) => {
@@ -532,7 +491,7 @@ export default function TaskBubble({
                       e.currentTarget.style.background = 'transparent';
                     }}
                   >
-                    ⚡
+                    <Play size={16} color="#a0a0a0" strokeWidth={3} />
                   </button>
                 )}
 
@@ -547,7 +506,7 @@ export default function TaskBubble({
                       style={{
                         padding: '0.25rem 0.5rem',
                         borderRadius: '4px',
-                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        background: 'rgba(255, 255, 255, 0.1)',
                         border: 'none',
                         cursor: isUpdating ? 'default' : 'pointer',
                         opacity: isUpdating ? 0.5 : 1,
@@ -566,7 +525,7 @@ export default function TaskBubble({
                         e.currentTarget.style.transform = 'scale(1)';
                       }}
                     >
-                      ✅ Approve
+                      <Check size={16} color="#a0a0a0" strokeWidth={3} style={{ marginRight: '6px' }} /> Approve
                     </button>
                     <button
                       onClick={(e) => {
@@ -597,7 +556,7 @@ export default function TaskBubble({
                         e.currentTarget.style.color = 'rgba(239, 68, 68, 0.7)';
                       }}
                     >
-                      ↩️
+                      <RotateCcw size={16} color="#a0a0a0" strokeWidth={3} />
                     </button>
                   </>
                 )}
@@ -611,14 +570,19 @@ export default function TaskBubble({
                     }}
                     disabled={isUpdating}
                     style={{
-                      padding: '0.25rem',
-                      borderRadius: '4px',
+                      padding: '0.2rem',
+                      borderRadius: '3px',
                       background: 'transparent',
                       border: 'none',
                       cursor: isUpdating ? 'default' : 'pointer',
                       opacity: isUpdating ? 0.5 : 1,
-                      fontSize: '0.75rem',
-                      transition: 'all 0.2s ease'
+                      fontSize: '0.7rem',
+                      transition: 'all 0.2s ease',
+                      minWidth: '24px',
+                      height: '24px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
                     title="Mark as Completed"
                     onMouseEnter={(e) => {
@@ -630,12 +594,49 @@ export default function TaskBubble({
                       e.currentTarget.style.background = 'transparent';
                     }}
                   >
-                    ✅
+                    <Check size={16} color="#a0a0a0" strokeWidth={3} />
+                  </button>
+                )}
+
+                {/* Edit button - Only task creator can edit */}
+                {onEdit && canEditTask && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(todo.id);
+                    }}
+                    disabled={isUpdating}
+                    style={{
+                      padding: '0.25rem',
+                      borderRadius: '4px',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: isUpdating ? 'default' : 'pointer',
+                      opacity: isUpdating ? 0.5 : 1,
+                      fontSize: '0.75rem',
+                      color: 'rgba(59, 130, 246, 0.7)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    title="Edit Task"
+                    onMouseEnter={(e) => {
+                      if (!isUpdating) {
+                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                        e.currentTarget.style.color = '#3b82f6';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isUpdating) {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'rgba(59, 130, 246, 0.7)';
+                      }
+                    }}
+                  >
+                    <Edit size={16} color="#a0a0a0" strokeWidth={3} />
                   </button>
                 )}
 
                 {/* Delete button - Only task creator can delete */}
-                {onDelete && (
+                {onDelete && canDeleteTask && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -667,7 +668,7 @@ export default function TaskBubble({
                       }
                     }}
                   >
-                    🗑️
+                    <X size={16} color="#a0a0a0" strokeWidth={3} />
                   </button>
                 )}
               </div>
@@ -704,7 +705,7 @@ export default function TaskBubble({
                       }
                     }}
                   >
-                    {config.emoji}
+                    {getStatusIcon(status as TodoStatus)}
                   </button>
                 ))}
               </>

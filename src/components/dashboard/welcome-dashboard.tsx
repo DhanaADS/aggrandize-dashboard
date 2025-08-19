@@ -251,15 +251,7 @@ export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {})
       <section className={styles.hero}>
         <div className={styles.heroBackground}>
           <div className={styles.heroGradient}></div>
-          <div className={styles.heroParticles}>
-            {[...Array(20)].map((_, i) => (
-              <div key={i} className={styles.particle} style={{
-                left: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                animationDuration: `${3 + Math.random() * 2}s`
-              }}></div>
-            ))}
-          </div>
+          {/* Particles removed for cleaner UI */}
         </div>
         
         <div className={styles.heroContent}>

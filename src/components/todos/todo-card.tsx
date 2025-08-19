@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Todo, UpdateTodoRequest, PRIORITY_CONFIG, STATUS_CONFIG, CATEGORY_CONFIG } from '@/types/todos';
 import { todoUtils } from '@/lib/todos-api';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import styles from './todo-card.module.css';
 
 interface TodoCardProps {
@@ -167,7 +168,12 @@ export function TodoCard({
       {/* Assignee */}
       {showAssignee && todo.assigned_to && (
         <div className={styles.assignee}>
-          👤 Assigned to: <strong>{todoUtils.getTeamMemberName(todo.assigned_to)}</strong>
+          <UserAvatar 
+            userId={todo.assigned_to}
+            userName={todoUtils.getTeamMemberName(todo.assigned_to)}
+            size="small"
+            showName={true}
+          />
         </div>
       )}
 
@@ -184,8 +190,14 @@ export function TodoCard({
       {showDetails && (
         <div className={styles.details}>
           <div className={styles.metadata}>
-            <div>
-              <strong>Created by:</strong> {todoUtils.getTeamMemberName(todo.created_by)}
+            <div className={styles.createdBy}>
+              <strong>Created by:</strong> 
+              <UserAvatar 
+                userId={todo.created_by}
+                userName={todoUtils.getTeamMemberName(todo.created_by)}
+                size="small"
+                showName={true}
+              />
             </div>
             <div>
               <strong>Created:</strong> {new Date(todo.created_at).toLocaleDateString()}
