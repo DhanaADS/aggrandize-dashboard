@@ -3,18 +3,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-nextauth';
-import { todosApi, enhancedTodosApi, unreadMessagesApi, todoMigration } from '@/lib/todos-api';
+import { todosApi, enhancedTodosApi, unreadMessagesApi, todoMigration, todoAttachmentsApi } from '@/lib/todos-api';
 import { getTeamMembersCached } from '@/lib/team-members-api';
 import { createClient } from '@/lib/supabase/client';
 import { fileUploadService } from '@/lib/file-upload-service';
-import { Todo, CreateTodoRequest, TeamMember, TodoStatus, TodoPriority, PRIORITY_CONFIG } from '@/types/todos';
+import { Todo, TodoAttachment, CreateTodoRequest, UpdateTodoRequest, TeamMember, TodoStatus, TodoPriority, PRIORITY_CONFIG, STATUS_CONFIG } from '@/types/todos';
 import TaskBubble from './TaskBubble';
 import CommentThread from './CommentThread';
 import FileAttachmentZone from './FileAttachmentZone';
 import CompletedTasksSidebar from './CompletedTasksSidebar';
+import EditTaskModal from './EditTaskModal';
 import { notificationSounds } from '@/lib/notification-sounds';
 import { realtimePresence } from '@/lib/realtime-presence';
 import { hybridRealtime } from '@/lib/hybrid-realtime';
+import { Home, Users, Plus, Clipboard, Sparkles, ChevronRight } from 'lucide-react';
 
 interface TaskChatContainerProps {
   className?: string;
@@ -26,6 +28,8 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
   const searchParams = useSearchParams();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
+  const [taskAttachments, setTaskAttachments] = useState<TodoAttachment[]>([]);
+  const [loadingAttachments, setLoadingAttachments] = useState(false);
   
   // Separate active and completed tasks
   const activeTasks = todos.filter(todo => todo.status !== 'done');
@@ -50,6 +54,20 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
   
   // Unread message tracking
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  // Edit modal state
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  // View state - controls whether to show task table or task details
+  const [showTaskDetails, setShowTaskDetails] = useState(false);
+  
+  // Menu state management
+  const [activeMenu, setActiveMenu] = useState<'task-manager' | 'completed-tasks' | 'chat'>('task-manager');
+  
+  // Panel state management
+  const [isMyTasksPanelCollapsed, setIsMyTasksPanelCollapsed] = useState(false);
+  const [showChatPanel, setShowChatPanel] = useState(false);
 
   // Enhanced file drag and drop handlers
   const handleDragOver = (e: React.DragEvent) => {
@@ -103,7 +121,7 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
       console.log(`✅ ${validFiles.length} file(s) added successfully`);
     } else if (files.length > 0) {
       // Show error for invalid files
-      alert('Please upload valid file types: PDF, DOC, DOCX, or Images');
+      console.log('Please upload valid file types: PDF, DOC, DOCX, or Images');
     }
   };
 
@@ -290,7 +308,23 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
     }
   }, []);
 
-  // Load selected todo from URL params (no scroll locking)
+  // Load task attachments function
+  const loadTaskAttachments = async (todoId: string) => {
+    try {
+      setLoadingAttachments(true);
+      console.log('🔄 Loading attachments for task:', todoId);
+      const attachments = await todoAttachmentsApi.getTaskAttachments(todoId);
+      setTaskAttachments(attachments);
+      console.log('✅ Loaded attachments:', attachments.length);
+    } catch (error) {
+      console.error('Failed to load task attachments:', error);
+      setTaskAttachments([]);
+    } finally {
+      setLoadingAttachments(false);
+    }
+  };
+
+  // Load selected todo from URL params and load attachments
   useEffect(() => {
     const taskId = searchParams.get('task');
     if (taskId && todos.length > 0) {
@@ -298,9 +332,12 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
       if (todo) {
         setSelectedTodo(todo);
         markTaskAsRead(taskId);
+        // Load attachments for the selected task
+        loadTaskAttachments(taskId);
       }
     } else {
       setSelectedTodo(null);
+      setTaskAttachments([]);
     }
   }, [searchParams, todos]);
 
@@ -380,30 +417,56 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
           const updatedTodo = payload.new as Todo;
           const oldTodo = payload.old as Todo;
           
-          // Check if user should see this updated todo
-          const isRelevant = updatedTodo.created_by === user.email ||
-                           updatedTodo.assigned_to === user.email ||
-                           updatedTodo.assigned_to_array?.includes(user.email) ||
-                           updatedTodo.is_team_todo;
+          // Check if user should see this updated todo (new relevance)
+          const isRelevantNow = updatedTodo.created_by === user.email ||
+                               updatedTodo.assigned_to === user.email ||
+                               updatedTodo.assigned_to_array?.includes(user.email) ||
+                               updatedTodo.is_team_todo;
+          
+          // Check if user was relevant before (old relevance)  
+          const wasRelevantBefore = oldTodo.created_by === user.email ||
+                                   oldTodo.assigned_to === user.email ||
+                                   oldTodo.assigned_to_array?.includes(user.email) ||
+                                   oldTodo.is_team_todo;
+          
+          // Check if this is a new assignment for current user
+          const wasAssignedBefore = oldTodo.assigned_to === user.email || 
+                                   oldTodo.assigned_to_array?.includes(user.email);
+          const isAssignedNow = updatedTodo.assigned_to === user.email || 
+                               updatedTodo.assigned_to_array?.includes(user.email);
+          const isNewAssignment = !wasAssignedBefore && isAssignedNow;
+          
+          console.log('📊 Assignment analysis:', {
+            wasRelevantBefore,
+            isRelevantNow,
+            wasAssignedBefore,
+            isAssignedNow,
+            isNewAssignment,
+            todoTitle: updatedTodo.title
+          });
           
           setTodos(prevTodos => {
             const existingIndex = prevTodos.findIndex(todo => todo.id === updatedTodo.id);
             
             if (existingIndex !== -1) {
               // Todo exists in list
-              if (isRelevant) {
+              if (isRelevantNow) {
                 // Update existing todo
                 const newTodos = [...prevTodos];
                 newTodos[existingIndex] = updatedTodo;
                 
+                // Play sound for new assignments
+                if (isNewAssignment) {
+                  console.log('🎵 Playing assignment sound for newly assigned task:', updatedTodo.title);
+                  notificationSounds.playAssignment?.();
+                }
+                
                 // Play sound for status changes involving current user
-                if (oldTodo.status !== updatedTodo.status) {
-                  if (updatedTodo.assigned_to === user.email || updatedTodo.assigned_to_array?.includes(user.email)) {
-                    if (updatedTodo.status === 'done') {
-                      notificationSounds.playSuccess?.();
-                    } else if (updatedTodo.status === 'in_progress') {
-                      notificationSounds.playProgress?.();
-                    }
+                if (oldTodo.status !== updatedTodo.status && isAssignedNow) {
+                  if (updatedTodo.status === 'done') {
+                    notificationSounds.playSuccess?.();
+                  } else if (updatedTodo.status === 'in_progress') {
+                    notificationSounds.playProgress?.();
                   }
                 }
                 
@@ -415,10 +478,11 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
                 return prevTodos.filter(todo => todo.id !== updatedTodo.id);
               }
             } else {
-              // Todo doesn't exist but now relevant (e.g., newly assigned)
-              if (isRelevant) {
+              // Todo doesn't exist in list but now relevant (e.g., newly assigned)
+              if (isRelevantNow) {
                 console.log('✨ Adding newly relevant todo:', updatedTodo.title);
-                if (updatedTodo.assigned_to === user.email || updatedTodo.assigned_to_array?.includes(user.email)) {
+                if (isNewAssignment) {
+                  console.log('🎵 Playing assignment sound for newly added task:', updatedTodo.title);
                   notificationSounds.playAssignment?.();
                 }
                 return [updatedTodo, ...prevTodos];
@@ -507,7 +571,7 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
         userEmail: user?.email, 
         isCreating 
       });
-      alert('Please enter a task name');
+      console.log('Please enter a task name');
       return;
     }
 
@@ -542,8 +606,16 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
         );
       }
 
-      // Optimistic update - add task immediately for instant feedback
-      setTodos(prevTodos => [newTodo, ...prevTodos]);
+      // Optimistic update - add task immediately for instant feedback with deduplication
+      setTodos(prevTodos => {
+        // Check if task already exists to prevent duplicates
+        if (prevTodos.find(t => t.id === newTodo.id)) {
+          console.log('⚠️ Task already exists in list, skipping optimistic update');
+          return prevTodos;
+        }
+        console.log('✅ Adding new task via optimistic update:', newTodo.title);
+        return [newTodo, ...prevTodos];
+      });
       
       // Play creation success sound
       notificationSounds.playSuccess?.();
@@ -572,7 +644,7 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
       // No manual refresh needed - realtime subscription handles updates for other users
     } catch (error) {
       console.error('Failed to create task:', error);
-      alert(`Failed to create task: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+      // Error logged silently, no popup notification
     } finally {
       setIsCreating(false);
     }
@@ -582,16 +654,26 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
   const loadTodos = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Loading todos...');
+      console.log('🔄 Loading todos for user:', user?.email);
       
-      const todosList = await todosApi.getTodos();
-      console.log('📋 Loaded todos:', todosList);
+      const allTodos = await todosApi.getTodos();
+      console.log('📋 All todos from database:', allTodos.length);
       
-      setTodos(todosList);
+      // Filter todos relevant to current user (same logic as real-time subscription)
+      const userRelevantTodos = allTodos.filter(todo => {
+        const isRelevant = todo.created_by === user?.email ||
+                          todo.assigned_to === user?.email ||
+                          todo.assigned_to_array?.includes(user?.email || '') ||
+                          todo.is_team_todo;
+        return isRelevant;
+      });
       
-      // Load unread counts for all todos
-      if (user?.email && todosList.length > 0) {
-        const todoIds = todosList.map(todo => todo.id);
+      console.log('📋 User-relevant todos:', userRelevantTodos.length, 'out of', allTodos.length);
+      setTodos(userRelevantTodos);
+      
+      // Load unread counts for relevant todos only
+      if (user?.email && userRelevantTodos.length > 0) {
+        const todoIds = userRelevantTodos.map(todo => todo.id);
         const counts = await unreadMessagesApi.getUnreadCounts(todoIds, user.email);
         setUnreadCounts(counts);
       }
@@ -746,7 +828,7 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
 
       // Only creators and assignees can update status
       if (!isCreator && !isAssignee) {
-        alert('You can only update status of tasks you created or are assigned to.');
+        console.log('You can only update status of tasks you created or are assigned to.');
         return;
       }
 
@@ -785,7 +867,7 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
                         (todo.assigned_to_array && todo.assigned_to_array.includes(user.email));
 
       if (!isAssignee) {
-        alert('Only assigned team members can request completion.');
+        console.log('Only assigned team members can request completion.');
         return;
       }
 
@@ -808,10 +890,10 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
       const creatorName = taskCreator ? taskCreator.name : todo.created_by.split('@')[0];
       
       console.log('✅ Completion requested successfully');
-      alert(`Completion request sent to ${creatorName} for approval.`);
+      console.log(`Completion request sent to ${creatorName} for approval.`);
     } catch (error) {
       console.error('❌ Failed to request completion:', error);
-      alert('Failed to request completion. Please try again.');
+      // Error logged silently, no popup notification
     }
   };
 
@@ -841,6 +923,49 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
     }
   };
 
+  const handleEditTask = (todoId: string) => {
+    console.log('✏️ Opening edit modal for task:', todoId);
+    const todo = todos.find(t => t.id === todoId);
+    if (todo && todo.created_by === user?.email) {
+      setEditingTodo(todo);
+      setShowEditModal(true);
+    } else {
+      console.log('Only the task creator can edit this task.');
+    }
+  };
+
+  const handleSaveEditedTask = async (todoId: string, updates: UpdateTodoRequest) => {
+    console.log('💾 Saving edited task:', todoId, updates);
+    try {
+      // Use the new editTodo API function with creator permissions
+      const updatedTodo = await todosApi.editTodo(todoId, updates, user?.email || '');
+      
+      // Optimistic update in the UI
+      setTodos(prevTodos => 
+        prevTodos.map(todo => 
+          todo.id === todoId ? updatedTodo : todo
+        )
+      );
+
+      // Update selected todo if it's the one being edited
+      if (selectedTodo?.id === todoId) {
+        setSelectedTodo(updatedTodo);
+      }
+      
+      console.log('✅ Task edited successfully with edit tracking');
+      
+      // Refresh todos to ensure data consistency
+      await loadTodos();
+    } catch (error) {
+      console.error('❌ Failed to edit task:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to edit task';
+      console.error('Edit task error:', errorMessage);
+      
+      // Refresh data on error to ensure consistency
+      await loadTodos();
+    }
+  };
+
   const handleRestoreTask = async (todoId: string) => {
     console.log('🔄 Restoring task:', todoId);
     try {
@@ -853,7 +978,7 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
                         (task.assigned_to_array && task.assigned_to_array.includes(user.email));
 
       if (!isCreator && !isAssignee) {
-        alert('You can only restore tasks you created or are assigned to.');
+        console.log('You can only restore tasks you created or are assigned to.');
         return;
       }
 
@@ -887,11 +1012,11 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
         notificationSounds.playAssignment?.();
         
         console.log('✅ Task restored with instant optimistic update:', task.title);
-        alert('Task has been restored to active status.');
+        console.log('Task has been restored to active status.');
       }
     } catch (error) {
       console.error('❌ Failed to restore task:', error);
-      alert('Failed to restore task. Please try again.');
+      // Error logged silently, no popup notification
     }
   };
 
@@ -961,7 +1086,7 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
           height: '80px',
           minHeight: '80px',
           maxHeight: '80px',
-          background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(20, 20, 40, 0.4))',
+          background: '#2a2a2a',
           backdropFilter: 'blur(10px)',
           boxSizing: 'border-box'
         }}>
@@ -974,14 +1099,12 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
             width: '40px',
             height: '40px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #00ff88, #00d4ff)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '1.125rem',
-            boxShadow: '0 4px 12px rgba(0, 255, 136, 0.3)'
+            fontSize: '1.125rem'
           }}>
-            ⚡
+            <Users size={28} color="#a0a0a0" strokeWidth={3} />
           </div>
           <div>
             <h1 style={{
@@ -1014,12 +1137,13 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
         }}>
           {/* Tasks List Sidebar */}
           <div style={{
-            width: '280px',
+            width: isMyTasksPanelCollapsed ? '60px' : '280px',
             borderRight: '1px solid rgba(255, 255, 255, 0.1)',
             display: 'flex',
             flexDirection: 'column',
             height: '100%',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            transition: 'width 0.3s ease',
           }}>
             {/* Navigation Icons */}
             <div style={{
@@ -1033,8 +1157,7 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
               height: '80px',
               minHeight: '80px',
               maxHeight: '80px',
-              background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(20, 20, 40, 0.4))',
-              backdropFilter: 'blur(10px)',
+              background: '#2a2a2a',
               boxSizing: 'border-box'
             }}>
             <div style={{
@@ -1049,34 +1172,95 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
                   router.replace(`/dashboard/todos`, { scroll: false });
                 }}
                 style={{
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  color: 'rgba(255, 255, 255, 0.8)',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#a0a0a0',
                   cursor: 'pointer',
                   padding: '0.5rem',
-                  borderRadius: '0.75rem',
-                  transition: 'all 0.3s ease',
+                  borderRadius: '0.5rem',
+                  transition: 'all 0.2s ease',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '1.25rem',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                  fontSize: '1.1rem'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 212, 255, 0.2))';
+                  e.currentTarget.style.background = '#404040';
                   e.currentTarget.style.color = '#ffffff';
-                  e.currentTarget.style.transform = 'scale(1.1)';
-                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 255, 136, 0.3)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))';
-                  e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#a0a0a0';
                 }}
                 title="Go to Todo Home"
               >
-                🏠
+                <Home size={24} color="#a0a0a0" strokeWidth={3} />
+              </button>
+
+              {/* Create New Task Button */}
+              <button
+                onClick={() => setShowCreateTaskModal(true)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#a0a0a0',
+                  cursor: 'pointer',
+                  padding: '0.5rem',
+                  borderRadius: '0.5rem',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.1rem'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#404040';
+                  e.currentTarget.style.color = '#ffffff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#a0a0a0';
+                }}
+                title="Create New Task"
+              >
+                <Plus size={24} color="#a0a0a0" strokeWidth={3} />
+              </button>
+
+              {/* Collapse/Expand My Tasks Panel Button */}
+              <button
+                onClick={() => setIsMyTasksPanelCollapsed(!isMyTasksPanelCollapsed)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#a0a0a0',
+                  cursor: 'pointer',
+                  padding: '0.5rem',
+                  borderRadius: '0.5rem',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.1rem'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#404040';
+                  e.currentTarget.style.color = '#ffffff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#a0a0a0';
+                }}
+                title={isMyTasksPanelCollapsed ? 'Expand My Tasks Panel' : 'Collapse My Tasks Panel'}
+              >
+                <ChevronRight 
+                  size={20} 
+                  color="#a0a0a0" 
+                  strokeWidth={3} 
+                  style={{ 
+                    transform: isMyTasksPanelCollapsed ? 'rotate(0deg)' : 'rotate(180deg)',
+                    transition: 'transform 0.3s ease'
+                  }} 
+                />
               </button>
             </div>
           </div>
@@ -1088,18 +1272,20 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
             flexDirection: 'column',
             overflow: 'hidden'
           }}>
-            <div style={{
-              padding: '0.75rem',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-              flexShrink: 0
-            }}>
-              <h3 style={{
-                color: '#ffffff',
-                fontWeight: 500,
-                fontSize: '0.875rem',
-                margin: 0
-              }}>My Tasks</h3>
-            </div>
+            {!isMyTasksPanelCollapsed ? (
+              <>
+                <div style={{
+                  padding: '0.75rem',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                  flexShrink: 0
+                }}>
+                  <h3 style={{
+                    color: '#ffffff',
+                    fontWeight: 500,
+                    fontSize: '0.875rem',
+                    margin: 0
+                  }}>My Tasks</h3>
+                </div>
             
             {/* Scrollable Task List */}
             <div 
@@ -1121,7 +1307,7 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
                 {sortTodosByPriority([...activeTasks])
                   .map(todo => (
                 <button
-                  key={todo.id}
+                  key={`sidebar-${todo.id}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     
@@ -1173,14 +1359,15 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
                     }}>
                       <p style={{
                         color: '#ffffff',
-                        fontSize: '0.8rem',
-                        fontWeight: 500,
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
                         margin: 0,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
-                        lineHeight: '1.3',
-                        flex: 1
+                        lineHeight: '1.4',
+                        flex: 1,
+                        letterSpacing: '0.02em'
                       }}>
                         {todo.title}
                       </p>
@@ -1224,79 +1411,593 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
                   ))}
                 </div>
               </div>
-            </div>
+              </>
+            ) : (
+              /* Collapsed State - Minimal View */
+              <div style={{
+                padding: '1rem 0',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '1rem',
+                flex: 1,
+                justifyContent: 'center'
+              }}>
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  padding: '0.75rem',
+                  borderRadius: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.25rem',
+                  border: '1px solid rgba(255, 255, 255, 0.2)'
+                }}>
+                  <Clipboard size={28} color="#a0a0a0" strokeWidth={3} />
+                </div>
+                <div style={{
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  transform: 'rotate(-90deg)',
+                  whiteSpace: 'nowrap',
+                  textAlign: 'center',
+                  letterSpacing: '0.05em'
+                }}>
+                  {activeTasks.length} active tasks
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Chat Area */}
+          {/* === MAIN CONTENT AREA STARTS HERE === */}
+          <div style={{
+            width: '10px',
+            background: 'linear-gradient(to right, lime, yellow)',
+            flexShrink: 0
+          }}>
+            {/* Visual separator to debug layout */}
+          </div>
+
+          {/* Main Content Area - 4-Column Layout when task selected */}
           <div style={{
             flex: 1,
             display: 'flex',
-            flexDirection: 'column',
-            minWidth: '600px',
             height: '100%',
-            overflow: 'hidden'
+            overflow: 'hidden',
           }}>
-          {selectedTodo ? (
-            <>
-              {/* Selected Task Chat Interface */}
+            {/* Main Content - Task Table or Task Details */}
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}>
+              {showTaskDetails && selectedTodo ? (
+                /* Full-Screen Task Details View */
+                <div style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                  background: 'linear-gradient(135deg, rgba(42, 42, 42, 0.95), rgba(36, 36, 36, 0.95))',
+                  margin: '0 1.5rem 1.5rem 1.5rem',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(20px)'
+                }}>
+                  {/* Task Details Header */}
+                  <div style={{
+                    padding: '1.5rem',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexShrink: 0
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '1rem'
+                    }}>
+                      <button
+                        onClick={() => {
+                          setShowTaskDetails(false);
+                          setSelectedTodo(null);
+                          setShowChatPanel(false);
+                          setIsMyTasksPanelCollapsed(false);
+                        }}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          color: 'rgba(255, 255, 255, 0.8)',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                        }}
+                        title="Back to Task List"
+                      >
+                        <ChevronRight size={16} color="#a0a0a0" strokeWidth={3} style={{ transform: 'rotate(180deg)' }} />
+                        Back to Tasks
+                      </button>
+                      
+                      <h1 style={{
+                        color: '#ffffff',
+                        fontSize: '1.5rem',
+                        fontWeight: 600,
+                        margin: 0
+                      }}>
+                        Task Details
+                      </h1>
+                    </div>
+
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}>
+                      {/* Priority Badge */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.375rem 0.75rem',
+                        borderRadius: '8px',
+                        background: PRIORITY_CONFIG[selectedTodo.priority].bgColor,
+                        border: `1px solid ${PRIORITY_CONFIG[selectedTodo.priority].borderColor}`
+                      }}>
+                        <span>{PRIORITY_CONFIG[selectedTodo.priority].icon}</span>
+                        <span style={{
+                          color: PRIORITY_CONFIG[selectedTodo.priority].color,
+                          fontWeight: 600,
+                          fontSize: '0.875rem'
+                        }}>
+                          {PRIORITY_CONFIG[selectedTodo.priority].label}
+                        </span>
+                      </div>
+
+                      {/* Status Badge */}
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        padding: '0.375rem 0.75rem',
+                        borderRadius: '8px',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        background: STATUS_CONFIG[selectedTodo.status].color === '#10b981' ? 'linear-gradient(135deg, #10b981, #059669)' :
+                                   STATUS_CONFIG[selectedTodo.status].color === '#3b82f6' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' :
+                                   STATUS_CONFIG[selectedTodo.status].color === '#f59e0b' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
+                                   STATUS_CONFIG[selectedTodo.status].color === '#ef4444' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
+                                   'linear-gradient(135deg, #6b7280, #4b5563)',
+                        color: '#ffffff',
+                        border: `1px solid ${STATUS_CONFIG[selectedTodo.status].color}40`
+                      }}>
+                        {STATUS_CONFIG[selectedTodo.status].label}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Task Details Content */}
+                  <div style={{
+                    flex: 1,
+                    padding: '2rem',
+                    overflow: 'auto'
+                  }}>
+                    {/* Task Title */}
+                    <div style={{ marginBottom: '2rem' }}>
+                      <h2 style={{
+                        color: '#ffffff',
+                        fontSize: '2rem',
+                        fontWeight: 700,
+                        margin: 0,
+                        lineHeight: '1.2',
+                        letterSpacing: '-0.02em'
+                      }}>
+                        {selectedTodo.title}
+                      </h2>
+                    </div>
+
+                    {/* Task Description */}
+                    {selectedTodo.description && (
+                      <div style={{ marginBottom: '2rem' }}>
+                        <label style={{
+                          color: 'rgba(255, 255, 255, 0.6)',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.1em',
+                          marginBottom: '0.75rem',
+                          display: 'block'
+                        }}>
+                          Description
+                        </label>
+                        <div style={{
+                          color: 'rgba(255, 255, 255, 0.9)',
+                          fontSize: '1.125rem',
+                          lineHeight: '1.7',
+                          whiteSpace: 'pre-wrap',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          padding: '1.5rem',
+                          borderRadius: '12px',
+                          border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }}>
+                          {selectedTodo.description}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Task Meta Information Grid */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                      gap: '2rem',
+                      marginBottom: '2rem'
+                    }}>
+                      {/* Created By */}
+                      <div>
+                        <label style={{
+                          color: 'rgba(255, 255, 255, 0.6)',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.1em',
+                          marginBottom: '0.75rem',
+                          display: 'block'
+                        }}>
+                          Created By
+                        </label>
+                        <div style={{
+                          color: '#ffffff',
+                          fontSize: '1.125rem',
+                          fontWeight: 500
+                        }}>
+                          {teamMembers.find(m => m.email === selectedTodo.created_by)?.name || selectedTodo.created_by.split('@')[0]}
+                        </div>
+                      </div>
+
+                      {/* Created Date */}
+                      <div>
+                        <label style={{
+                          color: 'rgba(255, 255, 255, 0.6)',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.1em',
+                          marginBottom: '0.75rem',
+                          display: 'block'
+                        }}>
+                          Created
+                        </label>
+                        <div style={{
+                          color: 'rgba(255, 255, 255, 0.8)',
+                          fontSize: '1.125rem',
+                          fontWeight: 500
+                        }}>
+                          {new Date(selectedTodo.created_at).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Assigned To */}
+                    {selectedTodo.assigned_to_array && selectedTodo.assigned_to_array.length > 0 && (
+                      <div style={{ marginBottom: '2rem' }}>
+                        <label style={{
+                          color: 'rgba(255, 255, 255, 0.6)',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.1em',
+                          marginBottom: '0.75rem',
+                          display: 'block'
+                        }}>
+                          Assigned To
+                        </label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                          {selectedTodo.assigned_to_array.map(email => (
+                            <div key={email} style={{
+                              background: 'rgba(59, 130, 246, 0.15)',
+                              color: '#60a5fa',
+                              padding: '0.5rem 1rem',
+                              borderRadius: '12px',
+                              fontSize: '1rem',
+                              fontWeight: 500,
+                              border: '1px solid rgba(59, 130, 246, 0.3)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem'
+                            }}>
+                              <div style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                color: '#ffffff'
+                              }}>
+                                {(teamMembers.find(m => m.email === email)?.name || email).charAt(0).toUpperCase()}
+                              </div>
+                              {teamMembers.find(m => m.email === email)?.name || email.split('@')[0]}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Task Table View */
+                <>
+                  {activeTasks.length === 0 ? (
+                    <div style={{
+                      padding: '2rem',
+                      textAlign: 'center',
+                      color: 'rgba(255, 255, 255, 0.6)'
+                    }}>
+                      No active tasks
+                    </div>
+                  ) : (
+                    <div style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      height: '100%',
+                      background: 'linear-gradient(135deg, rgba(42, 42, 42, 0.95), rgba(36, 36, 36, 0.95))',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      margin: '0 1.5rem 1.5rem 1.5rem',
+                      overflow: 'hidden',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+                      backdropFilter: 'blur(20px)'
+                    }}>
+                      {/* Task Table Header - Professional */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '1rem 1.5rem',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.15em',
+                        color: 'rgba(255, 255, 255, 0.8)',
+                        flexShrink: 0
+                      }}>
+                        {/* Task Number */}
+                        <div style={{
+                          width: '50px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          #
+                        </div>
+                        
+                        {/* Task Title */}
+                        <div style={{
+                          flex: '1 1 280px',
+                          minWidth: '280px',
+                          maxWidth: '320px',
+                          paddingRight: '1rem',
+                          flexShrink: 0
+                        }}>
+                          TASK
+                        </div>
+                        
+                        {/* Status Badge */}
+                        <div style={{
+                          width: '110px',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          flexShrink: 0
+                        }}>
+                          STATUS
+                        </div>
+                        
+                        {/* Assigned To */}
+                        <div style={{
+                          width: '120px',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          flexShrink: 0
+                        }}>
+                          ASSIGNED
+                        </div>
+                        
+                        {/* Created By */}
+                        <div style={{
+                          width: '100px',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          flexShrink: 0
+                        }}>
+                          CREATOR
+                        </div>
+                        
+                        {/* Actions */}
+                        <div style={{
+                          width: '120px',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          paddingRight: '0.5rem',
+                          flexShrink: 0
+                        }}>
+                          ACTIONS
+                        </div>
+                      </div>
+
+                      {/* Task Rows Container - Professional Scrollable */}
+                      <div 
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        style={{
+                          flex: 1,
+                          overflowY: 'auto',
+                          overflowX: 'hidden',
+                          WebkitOverflowScrolling: 'touch',
+                          touchAction: 'pan-y'
+                        }}
+                        className="professional-table-scroll">
+                        {sortTodosByPriority([...activeTasks])
+                          .map((todo, index) => (
+                            <div key={`row-${todo.id}`} style={{
+                              borderBottom: index === activeTasks.length - 1 ? 'none' : '1px solid rgba(255, 255, 255, 0.06)'
+                            }}>
+                              <TaskBubble
+                                key={`bubble-${todo.id}`}
+                                todo={todo}
+                                currentUser={user.email || ''}
+                                teamMembers={teamMembers}
+                                onStatusUpdate={handleStatusUpdate}
+                                onRequestCompletion={handleRequestCompletion}
+                                onSelect={() => {
+                                  setSelectedTodo(todo);
+                                  setShowTaskDetails(true);
+                                  setShowChatPanel(true);
+                                  setIsMyTasksPanelCollapsed(true);
+                                }}
+                                onEdit={handleEditTask}
+                                onDelete={handleDeleteTask}
+                                index={index}
+                                unreadCount={unreadCounts[todo.id] || 0}
+                              />
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            
+
+          </div>
+
+            {/* Right-Side Chat Panel */}
+            {showChatPanel && selectedTodo && (
               <div style={{
+                width: '400px',
+                height: '100%',
+                background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(20, 20, 40, 0.95))',
+                borderLeft: '1px solid rgba(255, 255, 255, 0.2)',
                 display: 'flex',
                 flexDirection: 'column',
-                height: '100%', // Use full container height, not viewport
-                background: 'rgba(255, 255, 255, 0.02)'
+                overflow: 'hidden',
+                backdropFilter: 'blur(20px)',
+                transition: 'width 0.3s ease'
               }}>
-                {/* Task Header */}
+                {/* Chat Header */}
                 <div style={{
                   padding: '1rem',
                   borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                  background: 'rgba(255, 255, 255, 0.05)',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between'
+                  justifyContent: 'space-between',
+                  flexShrink: 0,
+                  background: 'rgba(255, 255, 255, 0.05)'
                 }}>
-                  <div>
-                    <h2 style={{
-                      color: '#ffffff',
-                      fontSize: '1.2rem',
-                      fontWeight: 600,
-                      margin: 0,
-                      marginBottom: '0.25rem'
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem'
+                  }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      background: PRIORITY_CONFIG[selectedTodo.priority].color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.9rem'
                     }}>
-                      💬 {selectedTodo.title}
-                    </h2>
-                    <p style={{
-                      color: 'rgba(255, 255, 255, 0.7)',
-                      fontSize: '0.875rem',
-                      margin: 0
-                    }}>
-                      Created by {selectedTodo.created_by} • Priority: {selectedTodo.priority}
-                    </p>
+                      {PRIORITY_CONFIG[selectedTodo.priority].icon}
+                    </div>
+                    <div>
+                      <h4 style={{
+                        color: '#ffffff',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        margin: 0,
+                        lineHeight: '1.3'
+                      }}>
+                        {selectedTodo.title.length > 30 ? `${selectedTodo.title.substring(0, 30)}...` : selectedTodo.title}
+                      </h4>
+                      <p style={{
+                        color: 'rgba(255, 255, 255, 0.6)',
+                        fontSize: '0.75rem',
+                        margin: 0,
+                        marginTop: '0.125rem'
+                      }}>
+                        Task Discussion
+                      </p>
+                    </div>
                   </div>
+
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      
-                      setSelectedTodo(null);
-                      const params = new URLSearchParams(searchParams.toString());
-                      params.delete('task');
-                      router.replace(`?${params.toString()}`, { scroll: false });
+                    onClick={() => {
+                      setShowChatPanel(false);
+                      setIsMyTasksPanelCollapsed(false);
                     }}
                     style={{
-                      background: 'rgba(255, 255, 255, 0.1)',
+                      background: 'transparent',
                       border: 'none',
-                      color: 'rgba(255, 255, 255, 0.7)',
-                      padding: '0.5rem',
-                      borderRadius: '0.25rem',
+                      color: 'rgba(255, 255, 255, 0.6)',
                       cursor: 'pointer',
-                      fontSize: '1rem'
+                      fontSize: '1.25rem',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '4px',
+                      transition: 'all 0.2s ease'
                     }}
-                    title="Close chat"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                      e.currentTarget.style.color = '#ffffff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)';
+                    }}
+                    title="Close Chat"
                   >
-                    ✕
+                    ×
                   </button>
                 </div>
 
-                {/* Chat Container */}
+                {/* Chat Content */}
                 <div style={{
                   flex: 1,
                   overflow: 'hidden',
@@ -1308,316 +2009,30 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
                     currentUser={user?.email || ''}
                     teamMembers={teamMembers}
                     onNewComment={() => {
-                      // Refresh unread counts when new comment is added
                       setRefreshUnreadTrigger(prev => prev + 1);
                     }}
                     onMarkAsRead={() => {
-                      // Mark task as read when user views the comments
                       markTaskAsRead(selectedTodo.id);
                     }}
                   />
                 </div>
               </div>
-            </>
-          ) : (
-            /* Main Chat Interface */
-            <>
-              {/* Create Task Button */}
-              <div style={{
-                padding: '1rem',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                background: 'rgba(255, 255, 255, 0.02)',
-                display: 'flex',
-                justifyContent: 'center'
-              }}>
-                <button
-                  onClick={() => setShowCreateTaskModal(true)}
-                  style={{
-                    background: 'linear-gradient(135deg, #00ff88, #00d4ff)',
-                    color: '#000000',
-                    padding: '0.75rem 1.5rem',
-                    borderRadius: '2rem',
-                    fontWeight: 600,
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontSize: '0.875rem',
-                    boxShadow: '0 8px 25px rgba(0, 255, 136, 0.4)',
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'scale(1.05) translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 12px 35px rgba(0, 255, 136, 0.5)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'scale(1) translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 8px 25px rgba(0, 255, 136, 0.4)';
-                  }}
-                >
-                  <span style={{
-                    background: 'linear-gradient(135deg, #ffffff, #f0f0f0)',
-                    padding: '0.25rem',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.75rem',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
-                  }}>✨</span>
-                  Create New Task
-                </button>
-              </div>
+            )}
 
-              {/* Enhanced File Input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.svg,.webp"
-                style={{ display: 'none' }}
-                onChange={handleFileSelection}
-              />
-
-              {/* Task Table */}
-              <div 
-                ref={chatContainerRef}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  height: '100%', // Use container's remaining space
-                  background: 'rgba(0, 0, 0, 0.2)',
-                  borderRadius: '0.5rem',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  margin: '0.5rem',
-                  overflow: 'hidden'
-                }}
-              >
-                {loading ? (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%'
-                  }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{
-                        width: '32px',
-                        height: '32px',
-                        border: '2px solid rgba(255, 255, 255, 0.3)',
-                        borderTop: '2px solid #00ff88',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite',
-                        margin: '0 auto 1rem auto'
-                      }} />
-                      <p style={{
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        margin: 0
-                      }}>Loading tasks...</p>
-                    </div>
-                  </div>
-                ) : todos.length === 0 ? (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%'
-                  }}>
-                    <div style={{
-                      textAlign: 'center',
-                      maxWidth: '400px'
-                    }}>
-                      <div style={{
-                        fontSize: '4rem',
-                        marginBottom: '1rem',
-                        background: 'linear-gradient(135deg, #00ff88, #00d4ff)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent'
-                      }}>
-                        📋
-                      </div>
-                      <h2 style={{
-                        color: '#ffffff',
-                        fontSize: '1.5rem',
-                        fontWeight: 600,
-                        marginBottom: '0.5rem'
-                      }}>
-                        No tasks yet
-                      </h2>
-                      <p style={{
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        marginBottom: '2rem',
-                        lineHeight: '1.5'
-                      }}>
-                        Create your first task to get started with team collaboration!
-                      </p>
-                      <button
-                        onClick={() => setShowCreateTaskModal(true)}
-                        style={{
-                          background: 'linear-gradient(135deg, #00ff88, #00d4ff)',
-                          color: '#000000',
-                          padding: '0.75rem 2rem',
-                          borderRadius: '2rem',
-                          fontWeight: 600,
-                          border: 'none',
-                          cursor: 'pointer',
-                          transition: 'all 0.3s ease',
-                          fontSize: '0.875rem'
-                        }}
-                      >
-                        ✨ Create First Task
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {/* Enhanced Table Header */}
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '0.75rem 1rem',
-                      borderBottom: '2px solid rgba(255, 255, 255, 0.1)',
-                      background: 'rgba(0, 0, 0, 0.8)',
-                      backdropFilter: 'blur(10px)',
-                      position: 'sticky',
-                      top: 0,
-                      zIndex: 10,
-                      borderTopLeftRadius: '0.5rem',
-                      borderTopRightRadius: '0.5rem'
-                    }}>
-                      {/* # Column */}
-                      <div style={{
-                        width: '40px',
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                      }}>
-                        #
-                      </div>
-
-                      {/* TASK Column */}
-                      <div style={{
-                        flex: 1,
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                      }}>
-                        TASK
-                      </div>
-
-                      {/* STATUS Column */}
-                      <div style={{
-                        width: '100px',
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        textAlign: 'center'
-                      }}>
-                        STATUS
-                      </div>
-
-                      {/* ASSIGNED TO Column */}
-                      <div style={{
-                        width: '100px',
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        textAlign: 'center'
-                      }}>
-                        ASSIGNED TO
-                      </div>
-
-                      {/* CREATED BY Column */}
-                      <div style={{
-                        width: '100px',
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        textAlign: 'center'
-                      }}>
-                        CREATED BY
-                      </div>
-
-                      {/* TIMESTAMP Column */}
-                      <div style={{
-                        width: '100px',
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        textAlign: 'center'
-                      }}>
-                        TIMESTAMP
-                      </div>
-
-                      {/* ACTIONS Column */}
-                      <div style={{
-                        width: '120px',
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        textAlign: 'center'
-                      }}>
-                        ACTIONS
-                      </div>
-                    </div>
-
-                    {/* Task Rows Container - Scrollable */}
-                    <div 
-                      onTouchStart={handleTouchStart}
-                      onTouchMove={handleTouchMove}
-                      onTouchEnd={handleTouchEnd}
-                      style={{
-                        flex: 1,
-                        overflowY: 'auto',
-                        overflowX: 'hidden',
-                        padding: '0.5rem',
-                        WebkitOverflowScrolling: 'touch',
-                        touchAction: 'pan-y' // Allow vertical scrolling
-                      }}>
-                      {sortTodosByPriority([...activeTasks])
-                        .map((todo, index) => (
-                        <TaskBubble
-                          key={todo.id}
-                          todo={todo}
-                          currentUser={user.email || ''}
-                          teamMembers={teamMembers}
-                          onStatusUpdate={handleStatusUpdate}
-                          onRequestCompletion={handleRequestCompletion}
-                          onSelect={() => {
-                            const params = new URLSearchParams(searchParams.toString());
-                            params.set('task', todo.id);
-                            router.replace(`?${params.toString()}`, { scroll: false });
-                          }}
-                          onDelete={handleDeleteTask}
-                          index={index}
-                          unreadCount={unreadCounts[todo.id] || 0}
-                        />
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
-          )}
         </div>
+
+      </div>
+
+        {/* File input for uploads */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.svg,.webp"
+          style={{ display: 'none' }}
+          onChange={handleFileSelection}
+        />
+
       </div>
 
       {/* Create Task Modal */}
@@ -1647,7 +2062,7 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
               boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
               display: 'flex',
               flexDirection: 'column',
-              overflow: 'hidden' // Let the content area handle scrolling
+              overflow: 'hidden'
             }}>
             {/* Modal Header - Sticky */}
             <div style={{
@@ -1676,7 +2091,7 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
                   justifyContent: 'center',
                   fontSize: '1rem',
                   boxShadow: '0 4px 15px rgba(0, 255, 136, 0.3)'
-                }}>✨</span>
+                }}><Sparkles size={20} color="#a0a0a0" strokeWidth={3} /></span>
                 Create New Task
               </h2>
               <button
@@ -1686,649 +2101,58 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
                   border: 'none',
                   color: 'rgba(255, 255, 255, 0.6)',
                   cursor: 'pointer',
-                  fontSize: '1.5rem',
-                  padding: '0.5rem',
-                  borderRadius: '0.5rem',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                  e.currentTarget.style.color = '#ffffff';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'none';
-                  e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)';
+                  fontSize: '1.5rem'
                 }}
               >
                 ×
               </button>
             </div>
 
-            {/* Scrollable Form Container */}
-            <div 
-              className="modal-scroll"
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              style={{
-                flex: 1,
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                scrollBehavior: 'smooth',
-                WebkitOverflowScrolling: 'touch',
-                touchAction: 'pan-y', // Allow vertical scrolling only
-                padding: '0 2rem 2rem 2rem',
-                position: 'relative'
-              }}>
-              {/* Modal Form */}
-              <form onSubmit={(e) => {
-                console.log('Modal form submit triggered!');
-                handleCreateTask(e);
-              }} style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1.5rem',
-                paddingTop: '1rem'
-              }}>
-              {/* Task Name */}
-              <div>
-                <label style={{
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  display: 'block',
-                  marginBottom: '0.5rem'
-                }}>
-                  Task Name *
-                </label>
-                <input
-                  type="text"
-                  value={taskName}
-                  onChange={(e) => setTaskName(e.target.value)}
-                  placeholder="Enter task name..."
-                  required
-                  maxLength={100}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '0.75rem',
-                    padding: '1rem',
-                    color: '#ffffff',
-                    fontSize: '0.875rem',
-                    outline: 'none',
-                    transition: 'all 0.3s ease',
-                    boxSizing: 'border-box'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = 'rgba(0, 255, 136, 0.5)';
-                    e.target.style.background = 'rgba(255, 255, 255, 0.15)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                    e.target.style.background = 'rgba(255, 255, 255, 0.1)';
-                  }}
-                />
-                <div style={{
-                  fontSize: '0.75rem',
-                  color: 'rgba(255, 255, 255, 0.5)',
-                  textAlign: 'right',
-                  marginTop: '0.25rem'
-                }}>
-                  {taskName.length}/100
-                </div>
-              </div>
-
-              {/* Task Description */}
-              <div>
-                <label style={{
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  display: 'block',
-                  marginBottom: '0.5rem'
-                }}>
-                  Task Description
-                </label>
-                <textarea
-                  value={taskDescription}
-                  onChange={(e) => setTaskDescription(e.target.value)}
-                  placeholder="Detailed description of the task..."
-                  rows={4}
-                  maxLength={500}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '0.75rem',
-                    padding: '1rem',
-                    color: '#ffffff',
-                    fontSize: '0.875rem',
-                    lineHeight: '1.5',
-                    resize: 'vertical',
-                    outline: 'none',
-                    transition: 'all 0.3s ease',
-                    boxSizing: 'border-box'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = 'rgba(0, 255, 136, 0.5)';
-                    e.target.style.background = 'rgba(255, 255, 255, 0.15)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                    e.target.style.background = 'rgba(255, 255, 255, 0.1)';
-                  }}
-                />
-                <div style={{
-                  fontSize: '0.75rem',
-                  color: 'rgba(255, 255, 255, 0.5)',
-                  textAlign: 'right',
-                  marginTop: '0.25rem'
-                }}>
-                  {taskDescription.length}/500
-                </div>
-              </div>
-
-              {/* Priority Selector */}
-              <div>
-                <label style={{
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  display: 'block',
-                  marginBottom: '0.5rem'
-                }}>
-                  Priority
-                </label>
-                <select
-                  value={taskPriority}
-                  onChange={(e) => setTaskPriority(e.target.value as TodoPriority)}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '0.5rem',
-                    padding: '0.75rem',
-                    color: '#ffffff',
-                    fontSize: '0.875rem',
-                    outline: 'none'
-                  }}
-                >
-                  <option value="low" style={{ background: '#1a1a2e', color: '#ffffff' }}>
-                    🟢 Low
-                  </option>
-                  <option value="medium" style={{ background: '#1a1a2e', color: '#ffffff' }}>
-                    🟡 Normal
-                  </option>
-                  <option value="high" style={{ background: '#1a1a2e', color: '#ffffff' }}>
-                    🟠 High
-                  </option>
-                  <option value="urgent" style={{ background: '#1a1a2e', color: '#ffffff' }}>
-                    🔴 Urgent
-                  </option>
-                </select>
-              </div>
-
-              {/* Team Assignment */}
-              <div>
-                <label style={{
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  display: 'block',
-                  marginBottom: '0.5rem'
-                }}>
-                  Assign to Team Members
-                </label>
-                <div style={{
-                  position: 'relative'
-                }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)}
-                    style={{
-                      width: '100%',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      borderRadius: '0.75rem',
-                      padding: '1rem',
-                      color: '#ffffff',
-                      fontSize: '0.875rem',
-                      outline: 'none',
-                      transition: 'all 0.3s ease',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      boxSizing: 'border-box'
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = 'rgba(0, 255, 136, 0.5)';
-                      e.target.style.background = 'rgba(255, 255, 255, 0.15)';
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                      e.target.style.background = 'rgba(255, 255, 255, 0.1)';
-                    }}
-                  >
-                    <span>
-                      {selectedAssignees.length === 0
-                        ? 'Select team members...'
-                        : `${selectedAssignees.length} member${selectedAssignees.length > 1 ? 's' : ''} selected`}
-                    </span>
-                    <span style={{ transform: showAssigneeDropdown ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                      ▼
-                    </span>
-                  </button>
-                  
-                  {showAssigneeDropdown && (
-                    <div
-                      ref={assigneeDropdownRef}
-                      style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        right: 0,
-                        zIndex: 1000,
-                        background: 'rgba(20, 20, 40, 0.95)',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        borderRadius: '0.75rem',
-                        marginTop: '0.5rem',
-                        maxHeight: '200px',
-                        overflowY: 'auto',
-                        backdropFilter: 'blur(10px)'
-                      }}>
-                      {teamMembers.map((member) => (
-                        <label
-                          key={member.email}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '0.75rem',
-                            cursor: 'pointer',
-                            transition: 'background 0.2s',
-                            borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedAssignees.includes(member.email)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedAssignees([...selectedAssignees, member.email]);
-                              } else {
-                                setSelectedAssignees(selectedAssignees.filter(email => email !== member.email));
-                              }
-                            }}
-                            style={{
-                              marginRight: '0.75rem',
-                              accentColor: '#00ff88'
-                            }}
-                          />
-                          <div>
-                            <div style={{
-                              color: '#ffffff',
-                              fontSize: '0.875rem',
-                              fontWeight: 500
-                            }}>
-                              {member.name}
-                            </div>
-                            <div style={{
-                              color: 'rgba(255, 255, 255, 0.6)',
-                              fontSize: '0.75rem'
-                            }}>
-                              {member.email}
-                            </div>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {selectedAssignees.length > 0 && (
-                  <div style={{ marginTop: '0.5rem', position: 'relative' }}>
-                    <div 
-                      className="assignee-scroll"
-                      onTouchStart={handleTouchStart}
-                      onTouchMove={handleTouchMove}
-                      onTouchEnd={handleTouchEnd}
-                      style={{
-                        display: 'flex',
-                        flexWrap: 'nowrap', // Force horizontal scroll instead of wrap
-                        gap: '0.5rem',
-                        overflowX: 'auto',
-                        overflowY: 'hidden',
-                        scrollBehavior: 'smooth',
-                        paddingBottom: '0.5rem',
-                        paddingRight: '0.5rem',
-                        WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
-                        touchAction: 'pan-x', // Allow horizontal scrolling only
-                        scrollbarWidth: 'thin', // Firefox
-                        msOverflowStyle: 'auto', // IE/Edge
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        borderRadius: '0.5rem',
-                        padding: '0.5rem',
-                        border: '1px solid rgba(255, 255, 255, 0.1)'
-                      }}>
-                    {selectedAssignees.map((email) => {
-                      const member = teamMembers.find(m => m.email === email);
-                      return (
-                        <div
-                          key={email}
-                          style={{
-                            background: 'rgba(0, 255, 136, 0.2)',
-                            border: '1px solid rgba(0, 255, 136, 0.3)',
-                            borderRadius: '1rem',
-                            padding: '0.25rem 0.75rem',
-                            fontSize: '0.75rem',
-                            color: '#ffffff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            flexShrink: 0, // Prevent shrinking on mobile
-                            minWidth: 'fit-content', // Ensure full content is visible
-                            transition: 'all 0.2s ease',
-                            touchAction: 'auto' // Allow natural scrolling
-                          }}
-                        >
-                          {member ? member.name : email}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedAssignees(selectedAssignees.filter(e => e !== email));
-                            }}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: 'rgba(255, 255, 255, 0.8)',
-                              cursor: 'pointer',
-                              padding: '0',
-                              marginLeft: '0.25rem'
-                            }}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      );
-                    })}
-                    </div>
-                    {selectedAssignees.length > 3 && (
-                      <div style={{
-                        position: 'absolute',
-                        right: '0.5rem',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.8))',
-                        padding: '0.25rem',
-                        borderRadius: '0.25rem',
-                        fontSize: '0.75rem',
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        pointerEvents: 'none'
-                      }}>
-                        →
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* File Attachments */}
-              <div>
-                <label style={{
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  display: 'block',
-                  marginBottom: '0.5rem'
-                }}>
-                  File Attachments
-                </label>
-                <div
-                  data-drop-zone="true"
-                  style={{
-                    border: `2px dashed ${isDragOver ? 'rgba(0, 255, 136, 0.8)' : 'rgba(255, 255, 255, 0.3)'}`,
-                    borderRadius: '0.75rem',
-                    padding: '1.5rem',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    background: isDragOver ? 'rgba(0, 255, 136, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-                    transform: isDragOver ? 'scale(1.02)' : 'scale(1)',
-                    boxShadow: isDragOver ? '0 8px 25px rgba(0, 255, 136, 0.3)' : 'none',
-                    touchAction: 'auto' // Allow natural scrolling and interaction
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
-                  onMouseEnter={(e) => {
-                    if (!isDragOver) {
-                      e.currentTarget.style.borderColor = 'rgba(0, 255, 136, 0.5)';
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isDragOver) {
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                    }
-                  }}
-                >
-                  <div style={{
-                    fontSize: '2rem',
-                    marginBottom: '0.5rem',
-                    transition: 'transform 0.2s ease'
-                  }}>
-                    {isDragOver ? '⬇️' : '📎'}
-                  </div>
-                  <p style={{
-                    color: 'rgba(255, 255, 255, 0.8)',
-                    fontSize: '0.875rem',
-                    margin: '0 0 0.25rem 0',
-                    fontWeight: isDragOver ? 600 : 400
-                  }}>
-                    {isDragOver ? 'Drop files here!' : 'Drag & drop files or click to browse'}
-                  </p>
-                  <p style={{
-                    color: 'rgba(255, 255, 255, 0.5)',
-                    fontSize: '0.75rem',
-                    margin: 0
-                  }}>
-                    Supports PDF, DOC, DOCX, Images (PNG, JPG, etc.)
-                  </p>
-                </div>
-                {attachments.length > 0 && (
-                  <div style={{
-                    marginTop: '1rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.5rem'
-                  }}>
-                    {attachments.map((file, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.1)',
-                          border: '1px solid rgba(255, 255, 255, 0.2)',
-                          borderRadius: '0.5rem',
-                          padding: '0.75rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between'
-                        }}
-                      >
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem'
-                        }}>
-                          <span style={{ fontSize: '1.2rem' }}>
-                            {file.type.includes('pdf') ? '📄' :
-                             file.type.includes('doc') ? '📝' :
-                             file.type.includes('image') ? '🖼️' : '📎'}
-                          </span>
-                          <div>
-                            <div style={{
-                              color: '#ffffff',
-                              fontSize: '0.875rem',
-                              fontWeight: 500
-                            }}>
-                              {file.name}
-                            </div>
-                            <div style={{
-                              color: 'rgba(255, 255, 255, 0.6)',
-                              fontSize: '0.75rem'
-                            }}>
-                              {(file.size / 1024 / 1024).toFixed(2)} MB
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAttachments(attachments.filter((_, i) => i !== index));
-                          }}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'rgba(255, 255, 255, 0.6)',
-                            cursor: 'pointer',
-                            padding: '0.25rem',
-                            borderRadius: '0.25rem',
-                            transition: 'color 0.2s'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.color = '#ef4444';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)';
-                          }}
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Modal Actions */}
+            {/* Scrollable Modal Content */}
+            <div style={{
+              flex: 1,
+              overflow: 'auto',
+              padding: '0 2rem 2rem 2rem'
+            }}>
               <div style={{
-                display: 'flex',
-                gap: '1rem',
-                justifyContent: 'flex-end',
-                paddingTop: '1rem',
-                borderTop: '1px solid rgba(255, 255, 255, 0.1)'
+                color: '#ffffff',
+                textAlign: 'center',
+                padding: '2rem'
               }}>
+                Quick task creation form will be implemented here
+                <br />
                 <button
-                  type="button"
                   onClick={() => setShowCreateTaskModal(false)}
                   style={{
+                    marginTop: '1rem',
+                    padding: '0.75rem 1.5rem',
                     background: 'rgba(255, 255, 255, 0.1)',
                     border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '0.5rem',
-                    padding: '0.75rem 1.5rem',
-                    color: 'rgba(255, 255, 255, 0.8)',
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    cursor: 'pointer'
                   }}
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!taskName.trim() || isCreating}
-                  style={{
-                    background: taskName.trim() && !isCreating
-                      ? 'linear-gradient(135deg, #00ff88, #00d4ff)' 
-                      : 'rgba(107, 114, 128, 0.5)',
-                    color: taskName.trim() && !isCreating ? '#000000' : 'rgba(255, 255, 255, 0.5)',
-                    border: 'none',
-                    borderRadius: '0.5rem',
-                    padding: '0.75rem 1.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: taskName.trim() && !isCreating ? 'pointer' : 'not-allowed',
-                    transition: 'all 0.3s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (taskName.trim() && !isCreating) {
-                      e.currentTarget.style.transform = 'scale(1.05)';
-                      e.currentTarget.style.boxShadow = '0 8px 25px rgba(0, 255, 136, 0.3)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  {isCreating ? (
-                    <>
-                      <div style={{
-                        width: '16px',
-                        height: '16px',
-                        border: '2px solid rgba(255, 255, 255, 0.3)',
-                        borderTop: '2px solid #ffffff',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite'
-                      }} />
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      <span>🚀</span>
-                      Create Task
-                    </>
-                  )}
+                  Close
                 </button>
               </div>
-              </form>
             </div>
           </div>
         </div>
       )}
-      
-      <style jsx>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        
-        /* Prevent any scroll behavior during transitions */
-        .scroll-locked {
-          overflow: hidden !important;
-          position: fixed !important;
-          width: 100% !important;
-          height: 100% !important;
-        }
-        
-        /* Ensure smooth transitions without layout shifts */
-        .task-container {
-          transform: translateZ(0);
-          backface-visibility: hidden;
-          perspective: 1000px;
-        }
-      `}</style>
-      </div>
+
+      {/* Edit Task Modal */}
+      {editingTodo && (
+        <EditTaskModal
+          todo={editingTodo}
+          isOpen={!!editingTodo}
+          onClose={() => setEditingTodo(null)}
+          onSave={handleSaveEditedTask}
+          teamMembers={teamMembers}
+          currentUser={user?.email || ''}
+        />
+      )}
+
     </div>
   );
 }
