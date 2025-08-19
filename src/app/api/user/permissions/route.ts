@@ -111,16 +111,57 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // If no rows were updated, user doesn't exist yet
+    // If no rows were updated, user doesn't exist yet - create minimal profile for team members
     if (!updateData || updateData.length === 0) {
-      console.log(`⚠️ User ${email} not found in user_profiles. Cannot create permissions without user profile.`);
-      return NextResponse.json({ 
-        error: 'User profile not found. User must log in first to create their profile.',
-        details: 'The user needs to sign in at least once before permissions can be set.'
-      }, { status: 404 });
+      console.log(`⚠️ User ${email} not found in user_profiles. Creating minimal profile...`);
+      
+      // Determine user role based on email (same logic as NextAuth)
+      let userRole = 'member';
+      if (['dhana@aggrandizedigital.com', 'saravana@aggrandizedigital.com'].includes(email)) {
+        userRole = 'admin';
+      } else if (['veera@aggrandizedigital.com', 'saran@aggrandizedigital.com'].includes(email)) {
+        userRole = 'marketing';
+      } else if (['abbas@aggrandizedigital.com', 'gokul@aggrandizedigital.com'].includes(email)) {
+        userRole = 'processing';
+      } else if (!email.endsWith('@aggrandizedigital.com')) {
+        // For external users, don't create profile automatically
+        return NextResponse.json({ 
+          error: 'User profile not found. User must log in first to create their profile.',
+          details: 'The user needs to sign in at least once before permissions can be set.'
+        }, { status: 404 });
+      }
+      
+      // Generate name from email
+      const fullName = email.split('@')[0].split('.').map(part => 
+        part.charAt(0).toUpperCase() + part.slice(1)
+      ).join(' ');
+      
+      console.log(`🔧 Creating profile for ${email} with role ${userRole} and name ${fullName}`);
+      
+      // Create minimal user profile without id (let database handle it)
+      const { data: insertData, error: insertError } = await supabase
+        .from('user_profiles')
+        .insert({
+          email: email,
+          full_name: fullName,
+          role: userRole,
+          individual_permissions: normalizedPermissions
+        })
+        .select();
+        
+      if (insertError) {
+        console.error('❌ Failed to create user profile:', insertError);
+        return NextResponse.json({ 
+          error: 'Failed to create user profile',
+          details: insertError.message 
+        }, { status: 500 });
+      }
+      
+      console.log(`✅ Created minimal profile for ${email}:`, insertData);
+      var data = insertData;
+    } else {
+      var data = updateData;
     }
-
-    const data = updateData;
 
     console.log(`✅ Successfully updated permissions for ${email}:`, data);
 
