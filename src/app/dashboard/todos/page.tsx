@@ -6,7 +6,7 @@ import TraditionalTaskContainer from '@/components/todos/TraditionalTaskContaine
 import NotificationCenter from '@/components/todos/NotificationCenter';
 import styles from './todos.module.css';
 
-export default function TodosPage() {
+export default function TeamHubPage() {
   const { user, isTeamMember } = useAuth();
 
   if (!user || !isTeamMember) {
@@ -15,7 +15,7 @@ export default function TodosPage() {
         <div className="text-center p-8 bg-white/8 backdrop-blur-xl border border-white/12 rounded-2xl">
           <h2 className="text-red-400 text-xl mb-4">Access Denied</h2>
           <p className="text-white/70">
-            You need to be a team member to access the todos.
+            You need to be a team member to access the Team Hub.
           </p>
         </div>
       </div>
@@ -37,7 +37,7 @@ export default function TodosPage() {
       <Suspense fallback={
         <div className={styles.loading}>
           <div className={styles.spinner}></div>
-          <p>Loading tasks...</p>
+          <p>Loading Team Hub...</p>
         </div>
       }>
         <TraditionalTaskContainer />

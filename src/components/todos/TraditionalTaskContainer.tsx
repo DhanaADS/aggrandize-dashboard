@@ -925,7 +925,7 @@ export default function TraditionalTaskContainer({ className = '' }: Traditional
                 e.currentTarget.style.background = 'transparent';
                 e.currentTarget.style.color = '#a0a0a0';
               }}
-              title="Go to Todo Home"
+              title="Go to Team Hub Home"
             >
               <Home size={24} color="#a0a0a0" strokeWidth={3} />
             </button>

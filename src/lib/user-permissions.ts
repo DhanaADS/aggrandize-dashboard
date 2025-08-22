@@ -326,13 +326,52 @@ export async function deleteUser(email: string): Promise<boolean> {
       return false;
     }
 
-    // Delete user from Supabase database
-    const { deleteUserFromSupabase } = await import('@/lib/auth-supabase');
-    const result = await deleteUserFromSupabase(userToDelete.userId);
-    
-    if (!result.success) {
-      console.error('Supabase user deletion failed:', result.error);
-      return false;
+    // Try to delete from both Auth and user_profiles
+    // For team members who haven't logged in, Auth deletion will fail but profile deletion should work
+    try {
+      const { deleteUserFromSupabase } = await import('@/lib/auth-supabase');
+      const result = await deleteUserFromSupabase(userToDelete.userId);
+      
+      if (result.success) {
+        console.log(`✅ Successfully deleted auth user and profile for ${email}`);
+      } else {
+        console.log(`⚠️ Auth user deletion failed for ${email}, trying profile-only deletion:`, result.error);
+        
+        // Try direct profile deletion via API
+        const response = await fetch('/api/user/profile', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        
+        if (response.ok) {
+          console.log(`✅ Successfully deleted profile-only for ${email}`);
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.error(`❌ Failed to delete profile for ${email}:`, errorData);
+          return false;
+        }
+      }
+    } catch (error) {
+      console.error('Error during user deletion:', error);
+      
+      // Try profile-only deletion as fallback
+      try {
+        const response = await fetch('/api/user/profile', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        
+        if (!response.ok) {
+          console.error('Profile-only deletion also failed');
+          return false;
+        }
+        console.log(`✅ Fallback profile deletion successful for ${email}`);
+      } catch (fallbackError) {
+        console.error('Fallback deletion failed:', fallbackError);
+        return false;
+      }
     }
 
     // Remove user from localStorage

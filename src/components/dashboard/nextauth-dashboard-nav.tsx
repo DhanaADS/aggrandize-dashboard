@@ -19,7 +19,7 @@ const DASHBOARD_TABS: TabItem[] = [
   { id: 'inventory', label: 'Inventory', href: '/dashboard/inventory', permission: 'canAccessInventory' },
   { id: 'tools', label: 'Tools', href: '/dashboard/tools', permission: 'canAccessTools' },
   { id: 'payments', label: 'Payments', href: '/dashboard/payments', permission: 'canAccessPayments' },
-  { id: 'todos', label: 'Todos', href: '/dashboard/todos', permission: 'canAccessTodos' },
+  { id: 'todos', label: 'Team Hub', href: '/dashboard/todos', permission: 'canAccessTodos' },
   { id: 'admin', label: 'Admin', href: '/dashboard/admin' }
 ];
 
