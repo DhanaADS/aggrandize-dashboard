@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { UtilityBill, PaymentMethod, TEAM_MEMBERS } from '@/types/finance';
 import { updateUtilityBill, createUtilityBill, getPaymentMethods, deleteUtilityBill } from '@/lib/finance-api';
-import styles from '../../payments.module.css';
+import styles from './financial-expenses.module.css';
 
 interface MonthlyUtilityTableProps {
   utilityBills: UtilityBill[];
@@ -277,41 +277,13 @@ export function MonthlyUtilityTable({ utilityBills, selectedMonth, isEditable, o
     .reduce((sum, row) => sum + row.amount, 0);
 
   return (
-    <div style={{
-      background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(51, 65, 85, 0.4) 100%)',
-      backdropFilter: 'blur(20px)',
-      border: '1px solid rgba(148, 163, 184, 0.1)',
-      borderRadius: '24px',
-      padding: '2rem',
-      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)'
-    }}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '2rem',
-        paddingBottom: '1rem',
-        borderBottom: '1px solid rgba(148, 163, 184, 0.1)'
-      }}>
+    <div className={styles.tableContainer}>
+      <div className={styles.header}>
         <div>
-          <h3 style={{ 
-            color: '#ffffff', 
-            fontSize: '1.25rem', 
-            fontWeight: '700',
-            margin: '0 0 0.5rem 0',
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
-          }}>
+          <h3 className={styles.title}>
             🏠 Utility Expenses
           </h3>
-          <p style={{
-            color: 'rgba(148, 163, 184, 0.8)',
-            fontSize: '0.9rem',
-            margin: '0',
-            fontWeight: '500'
-          }}>
+          <p className={styles.subtitle}>
             {formatMonthDisplay(selectedMonth)}
           </p>
         </div>
@@ -319,130 +291,40 @@ export function MonthlyUtilityTable({ utilityBills, selectedMonth, isEditable, o
         {isEditable && (
           <button 
             onClick={() => setShowAddForm(true)}
-            style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              border: 'none',
-              borderRadius: '12px',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              fontSize: '0.9rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.4)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
-            }}
+            className={styles.actionButton}
           >
             + Add Utility Bill
           </button>
         )}
       </div>
 
-      <div style={{ 
-        borderRadius: '12px',
-        background: 'rgba(15, 23, 42, 0.3)',
-        border: '1px solid rgba(148, 163, 184, 0.1)'
-      }}>
-        <table style={{ 
-          width: '100%', 
-          borderCollapse: 'collapse',
-          background: 'transparent'
-        }}>
+      <div>
+        <table className={styles.table}>
           <thead>
-            <tr style={{ 
-              background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)',
-              borderBottom: '1px solid rgba(16, 185, 129, 0.2)'
-            }}>
-              <th style={{ 
-                color: '#10b981', 
-                padding: '0.75rem 1rem', 
-                textAlign: 'left', 
-                fontSize: '0.8rem',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
+            <tr>
+              <th>
                 Provider
               </th>
-              <th style={{ 
-                color: '#10b981', 
-                padding: '0.75rem 1rem', 
-                textAlign: 'left', 
-                fontSize: '0.8rem',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
+              <th>
                 Type
               </th>
-              <th style={{ 
-                color: '#10b981', 
-                padding: '0.75rem 1rem', 
-                textAlign: 'right', 
-                fontSize: '0.8rem',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
+              <th style={{textAlign: 'right'}}>
                 Amount
               </th>
-              <th style={{ 
-                color: '#10b981', 
-                padding: '0.75rem 1rem', 
-                textAlign: 'center', 
-                fontSize: '0.8rem',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
+              <th style={{textAlign: 'center'}}>
                 Paid By
               </th>
-              <th style={{ 
-                color: '#10b981', 
-                padding: '0.75rem 1rem', 
-                textAlign: 'center', 
-                fontSize: '0.8rem',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
+              <th style={{textAlign: 'center'}}>
                 Actions
               </th>
             </tr>
           </thead>
           <tbody>
             {allUtilityRows.map((row, index) => (
-              <tr 
-                key={row.name} 
-                style={{ 
-                  borderBottom: '1px solid rgba(148, 163, 184, 0.08)',
-                  transition: 'all 0.2s ease',
-                  background: index % 2 === 0 ? 'rgba(15, 23, 42, 0.2)' : 'transparent'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'rgba(16, 185, 129, 0.05)';
-                  e.currentTarget.style.transform = 'translateX(4px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = index % 2 === 0 ? 'rgba(15, 23, 42, 0.2)' : 'transparent';
-                  e.currentTarget.style.transform = 'translateX(0)';
-                }}
-              >
+              <tr key={row.name}>
                 {/* Provider Name */}
-                <td style={{ 
-                  padding: '0.75rem 1rem', 
-                  fontSize: '0.9rem', 
-                  fontWeight: '600'
-                }}>
+                <td>
                   <div style={{
-                    color: '#ffffff',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem'
@@ -458,10 +340,7 @@ export function MonthlyUtilityTable({ utilityBills, selectedMonth, isEditable, o
                 </td>
                 
                 {/* Bill Type */}
-                <td style={{ 
-                  padding: '0.75rem 1rem', 
-                  fontSize: '0.85rem'
-                }}>
+                <td>
                   {row.billType ? (
                     <span style={{
                       background: `rgba(59, 130, 246, 0.2)`,
@@ -481,161 +360,67 @@ export function MonthlyUtilityTable({ utilityBills, selectedMonth, isEditable, o
                       }
                     </span>
                   ) : (
-                    <span style={{ color: 'rgba(148, 163, 184, 0.4)', fontSize: '0.8rem' }}>—</span>
+                    <span>—</span>
                   )}
                 </td>
                 {/* Amount */}
                 <td style={{ 
-                  padding: '0.75rem 1rem', 
-                  fontSize: '0.9rem', 
-                  fontWeight: '700', 
                   textAlign: 'right'
                 }}>
                   {row.hasPayment ? (
-                    <div style={{
-                      background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)',
-                      color: '#10b981',
-                      padding: '0.4rem 0.8rem',
-                      borderRadius: '6px',
-                      border: '1px solid rgba(16, 185, 129, 0.2)',
-                      display: 'inline-block',
-                      fontWeight: '700',
-                      fontSize: '0.85rem'
-                    }}>
+                    <div>
                       {formatCurrency(row.amount)}
                     </div>
                   ) : (
-                    <span style={{ 
-                      color: 'rgba(148, 163, 184, 0.5)', 
-                      fontStyle: 'italic',
-                      fontSize: '0.8rem',
-                      background: 'rgba(148, 163, 184, 0.1)',
-                      padding: '0.3rem 0.6rem',
-                      borderRadius: '6px',
-                      border: '1px solid rgba(148, 163, 184, 0.2)'
-                    }}>
+                    <span>
                       Nill
                     </span>
                   )}
                 </td>
                 {/* Paid By */}
-                <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                <td style={{ textAlign: 'center' }}>
                   {row.hasPayment ? (
                     isEditable && row.billId ? (
                       <select
                         value={row.paidBy}
                         onChange={(e) => handlePaidByChange(row.billId!, e.target.value)}
                         disabled={isUpdating === row.billId}
-                        style={{
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: '6px',
-                          border: '1px solid rgba(148, 163, 184, 0.2)',
-                          background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(51, 65, 85, 0.6) 100%)',
-                          backdropFilter: 'blur(10px)',
-                          color: 'white',
-                          fontSize: '0.8rem',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          minWidth: '120px',
-                          transition: 'all 0.2s ease',
-                          outline: 'none'
-                        }}
-                        onFocus={(e) => {
-                          e.currentTarget.style.borderColor = '#10b981';
-                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.2)';
-                          e.currentTarget.style.boxShadow = 'none';
-                        }}
                       >
                         <option value="">Select person</option>
                         {USER_OPTIONS.map(user => (
-                          <option key={user} value={user} style={{ 
-                            backgroundColor: '#1e293b',
-                            color: '#ffffff'
-                          }}>
+                          <option key={user} value={user}>
                             {user.charAt(0).toUpperCase() + user.slice(1)}
                           </option>
                         ))}
                       </select>
                     ) : (
-                      <div style={{ 
-                        color: '#3b82f6', 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 1rem',
-                        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)',
-                        borderRadius: '8px',
-                        border: '1px solid rgba(59, 130, 246, 0.2)',
-                        fontWeight: '600',
-                        display: 'inline-block'
-                      }}>
+                      <div>
                         {row.paidBy || 'Not specified'}
                       </div>
                     )
                   ) : (
-                    <span style={{ 
-                      color: 'rgba(148, 163, 184, 0.4)', 
-                      fontSize: '1.2rem'
-                    }}>
+                    <span>
                       —
                     </span>
                   )}
                 </td>
                 {/* Actions */}
-                <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                <td style={{ textAlign: 'center' }}>
                   {row.hasPayment && row.billId && isEditable ? (
                     <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
                       <button
                         onClick={() => handleEditBill(row.billId!)}
-                        style={{
-                          background: 'rgba(59, 130, 246, 0.2)',
-                          color: '#3b82f6',
-                          border: '1px solid rgba(59, 130, 246, 0.3)',
-                          padding: '0.25rem 0.4rem',
-                          borderRadius: '4px',
-                          fontSize: '0.7rem',
-                          cursor: 'pointer',
-                          fontWeight: '600',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onMouseOver={(e) => {
-                          e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)';
-                        }}
-                        onMouseOut={(e) => {
-                          e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
-                        }}
                       >
                         ✏️ Edit
                       </button>
                       <button
                         onClick={() => handleDeleteBill(row.billId!)}
-                        style={{
-                          background: 'rgba(239, 68, 68, 0.2)',
-                          color: '#ef4444',
-                          border: '1px solid rgba(239, 68, 68, 0.3)',
-                          padding: '0.25rem 0.4rem',
-                          borderRadius: '4px',
-                          fontSize: '0.7rem',
-                          cursor: 'pointer',
-                          fontWeight: '600',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onMouseOver={(e) => {
-                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)';
-                        }}
-                        onMouseOut={(e) => {
-                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                        }}
                       >
                         🗑️ Delete
                       </button>
                     </div>
                   ) : (
-                    <span style={{ 
-                      color: 'rgba(148, 163, 184, 0.4)', 
-                      fontSize: '1.2rem'
-                    }}>
+                    <span>
                       —
                     </span>
                   )}
@@ -644,48 +429,15 @@ export function MonthlyUtilityTable({ utilityBills, selectedMonth, isEditable, o
             ))}
             
             {/* Total Row */}
-            <tr style={{ 
-              borderTop: '2px solid rgba(16, 185, 129, 0.3)', 
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)',
-              fontWeight: 'bold'
-            }}>
-              <td colSpan={2} style={{ 
-                color: '#ffffff', 
-                padding: '0.75rem 1rem', 
-                fontSize: '1.1rem', 
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div style={{
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
-                    background: '#10b981'
-                  }}></div>
-                  TOTAL
-                </div>
+            <tr className={styles.totalRow}>
+              <td colSpan={2}>
+                TOTAL
               </td>
-              <td style={{ 
-                padding: '0.75rem 1rem', 
-                fontSize: '1.2rem', 
-                fontWeight: '800', 
-                textAlign: 'right'
-              }}>
-                <div style={{
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  color: 'white',
-                  padding: '0.75rem 1.5rem',
-                  borderRadius: '12px',
-                  display: 'inline-block',
-                  boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
-                }}>
-                  {formatCurrency(totalAmount)}
-                </div>
+              <td className={styles.totalAmount} style={{textAlign: 'right'}}>
+                {formatCurrency(totalAmount)}
               </td>
-              <td style={{ padding: '0.75rem 1rem' }}></td>
-              <td style={{ padding: '0.75rem 1rem' }}></td>
+              <td></td>
+              <td></td>
             </tr>
           </tbody>
         </table>
@@ -1084,16 +836,15 @@ export function MonthlyUtilityTable({ utilityBills, selectedMonth, isEditable, o
       )}
 
       {/* Instructions */}
-      <div style={{ 
+      <div style={{
         marginTop: '1.5rem',
         padding: '1rem 1.5rem',
-        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.08) 100%)',
-        border: '1px solid rgba(16, 185, 129, 0.2)',
+        background: 'rgba(255, 255, 255, 0.05)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
         borderRadius: '12px',
         fontSize: '0.85rem',
-        color: 'rgba(148, 163, 184, 0.9)',
+        color: 'rgba(255, 255, 255, 0.7)',
         fontWeight: '500',
-        backdropFilter: 'blur(10px)'
       }}>
         💡 {isEditable 
           ? 'Use dropdowns to assign who paid each utility bill. Only current month data can be modified.'
