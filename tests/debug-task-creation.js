@@ -18,7 +18,7 @@ async function debugTaskCreation() {
   
   try {
     console.log('📍 Step 1: Navigate to todos page');
-    await page.goto('http://localhost:3000/dashboard/todos');
+    await page.goto('http://localhost:3000/dashboard/teamhub');
     
     // Wait for page to load
     await page.waitForLoadState('networkidle');

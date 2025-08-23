@@ -72,10 +72,7 @@ div[class*="container"] {
   background: transparent !important;
 }
 
-/* Force transparent background on divs */
-div:not([class*="card"]):not([class*="navbar"]):not([class*="glassmorphism"]) {
-  background-color: transparent !important;
-}
+
 
 /* Glassmorphism Cards */
 div[class*="card"] {

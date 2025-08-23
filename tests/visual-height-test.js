@@ -14,7 +14,7 @@ async function visualHeightTest() {
   
   try {
     console.log('📍 Step 1: Navigate and wait for load');
-    await page.goto('http://localhost:3000/dashboard/todos');
+    await page.goto('http://localhost:3000/dashboard/teamhub');
     await page.waitForTimeout(3000);
     
     const isLoggedIn = await page.$('text=Access Denied') === null;

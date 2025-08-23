@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { todoCommentsApi, enhancedTodosApi } from '@/lib/todos-api';
+import React, { useState, useEffect, useRef } from 'react';
+import { todoCommentsApi, enhancedTodosApi, todoReactionsApi, todoAttachmentsApi } from '@/lib/todos-api';
 import { TodoComment, TeamMember } from '@/types/todos';
 import { realtimePresence, PresenceData } from '@/lib/realtime-presence';
 import { notificationSounds } from '@/lib/notification-sounds';
+import { createClient } from '@/lib/supabase/client';
 
 interface CommentThreadProps {
   todoId: string;
@@ -38,6 +39,29 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const commentsEndRef = useRef<HTMLDivElement>(null);
   const [timeUpdateTrigger, setTimeUpdateTrigger] = useState(0);
+  const [reactions, setReactions] = useState<Record<string, Array<{emoji: string, count: number, users: string[]}>>>({});
+  const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null); // commentId when picker is open
+  const [hoveredMessage, setHoveredMessage] = useState<string | null>(null); // commentId when message is hovered
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [attachments, setAttachments] = useState<Record<string, any[]>>({});
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Click outside to close pickers
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showReactionPicker && !((event.target as Element)?.closest('[data-reaction-picker]'))) {
+        setShowReactionPicker(null);
+      }
+      if (showEmojiPicker && !((event.target as Element)?.closest('[data-emoji-picker]'))) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showReactionPicker, showEmojiPicker]);
 
   useEffect(() => {
     loadComments();
@@ -82,6 +106,54 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
       setIsCurrentlyTyping(false);
     };
   }, [todoId, currentUser, onMarkAsRead]);
+
+  // Unified real-time subscription for reactions (database changes and broadcasts)
+  useEffect(() => {
+    if (comments.length === 0) return;
+
+    const supabase = createClient();
+    const channel = supabase.channel(`reactions-${todoId}`);
+
+    const subscription = channel
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'todo_comment_reactions',
+          filter: `comment_id=in.(${comments.map((c) => `'${c.id}'`).join(',')})`,
+        },
+        async (payload) => {
+          console.log('🔥 Real-time reaction change (postgres_changes):', payload);
+          // Refetch all reactions for simplicity and consistency
+          const commentIds = comments.map((comment) => comment.id);
+          const reactionsData = await todoReactionsApi.getReactions(commentIds);
+          setReactions(reactionsData);
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'reaction_update' },
+        async (payload) => {
+          console.log('📡 Received reaction broadcast:', payload);
+          // To ensure consistency, we refetch reactions on any broadcast event.
+          // This simplifies the logic and avoids potential desync issues with optimistic updates.
+          const commentIds = comments.map((comment) => comment.id);
+          const reactionsData = await todoReactionsApi.getReactions(commentIds);
+          setReactions(reactionsData);
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`📢 Subscribed to reactions channel: reactions-${todoId}`);
+        }
+      });
+
+    return () => {
+      console.log(`👋 Unsubscribing from reactions channel: reactions-${todoId}`);
+      supabase.removeChannel(channel);
+    };
+  }, [comments, todoId, currentUser]); // Dependencies updated for correctness
 
   const initializeRealtimePresence = async () => {
     try {
@@ -393,6 +465,21 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
       
       const commentsData = await todoCommentsApi.getComments(todoId);
       
+      // Load attachments for all comments
+      const attachmentPromises = commentsData.map(comment => 
+        todoAttachmentsApi.getCommentAttachmentsNew(comment.id)
+      );
+      const attachmentResults = await Promise.all(attachmentPromises);
+      
+      // Build attachments mapping
+      const attachmentsMap: Record<string, any[]> = {};
+      commentsData.forEach((comment, index) => {
+        if (attachmentResults[index] && attachmentResults[index].length > 0) {
+          attachmentsMap[comment.id] = attachmentResults[index];
+        }
+      });
+      setAttachments(attachmentsMap);
+      
       // Smooth update for comments to prevent flickering
       setComments(prev => {
         // If we already have comments and this is a refresh, merge smoothly
@@ -414,12 +501,104 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
       if (initialLoad) {
         setInitialLoad(false);
       }
+      
+      // Load reactions for comments
+      if (commentsData && commentsData.length > 0) {
+        const commentIds = commentsData.map(comment => comment.id);
+        const reactionsData = await todoReactionsApi.getReactions(commentIds);
+        setReactions(reactionsData);
+      }
     } catch (error) {
       console.error('Failed to load comments:', error);
     } finally {
       if (initialLoad) {
         setLoading(false);
       }
+    }
+  };
+
+  const handleReaction = async (commentId: string, emoji: string) => {
+    const supabase = createClient();
+    
+    try {
+      const commentReactions = reactions[commentId] || [];
+      const existingReaction = commentReactions.find(r => r.emoji === emoji);
+      const userHasReacted = existingReaction?.users.includes(currentUser);
+
+      // OPTIMISTIC UPDATE - Update UI immediately
+      if (userHasReacted) {
+        // Remove reaction optimistically
+        const updatedUsers = existingReaction.users.filter(email => email !== currentUser);
+        if (updatedUsers.length === 0) {
+          // Remove entire reaction if no users left
+          setReactions(prev => ({
+            ...prev,
+            [commentId]: commentReactions.filter(r => r.emoji !== emoji)
+          }));
+        } else {
+          // Update users list
+          setReactions(prev => ({
+            ...prev,
+            [commentId]: commentReactions.map(r => 
+              r.emoji === emoji ? { ...r, users: updatedUsers, count: updatedUsers.length } : r
+            )
+          }));
+        }
+        
+        // Then update database
+        await todoReactionsApi.removeReaction(commentId, emoji, currentUser);
+      } else {
+        // Add reaction optimistically
+        const newReactions = [...commentReactions];
+        if (existingReaction) {
+          // Add user to existing reaction
+          const updatedUsers = [...existingReaction.users, currentUser];
+          newReactions.forEach(r => {
+            if (r.emoji === emoji) {
+              r.users = updatedUsers;
+              r.count = updatedUsers.length;
+            }
+          });
+        } else {
+          // Create new reaction
+          newReactions.push({
+            emoji,
+            users: [currentUser],
+            count: 1
+          });
+        }
+        
+        setReactions(prev => ({
+          ...prev,
+          [commentId]: newReactions
+        }));
+        
+        // Then update database
+        await todoReactionsApi.addReaction(commentId, emoji, currentUser);
+      }
+
+      // BROADCAST to other users immediately using the unified channel
+      const channel = supabase.channel(`reactions-${todoId}`);
+      channel.send({
+        type: 'broadcast',
+        event: 'reaction_update',
+        payload: { 
+          commentId, 
+          emoji, 
+          userEmail: currentUser, 
+          action: userHasReacted ? 'remove' : 'add',
+          timestamp: Date.now(),
+          // Add a unique ID to prevent the sender from processing their own broadcast
+          senderId: currentUser 
+        }
+      });
+
+    } catch (error) {
+      console.error('Failed to handle reaction:', error);
+      // Revert optimistic update on error by refreshing reactions
+      const commentIds = comments.map(c => c.id);
+      const reactionsData = await todoReactionsApi.getReactions(commentIds);
+      setReactions(reactionsData);
     }
   };
 
@@ -492,6 +671,7 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
       setNewComment('');
       setSelectedMentions([]);
       setShowMentions(false);
+      setPendingFiles([]);
       
       // Clear typing indicator immediately when sending
       setIsCurrentlyTyping(false);
@@ -518,6 +698,32 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
         savedComment = await enhancedTodosApi.addCommentWithMentions(todoId, commentText, currentUser, allMentions);
       } else {
         savedComment = await todoCommentsApi.addComment(todoId, commentText, currentUser);
+      }
+
+      // Upload files if any
+      if (pendingFiles.length > 0) {
+        try {
+          setUploadingFiles(true);
+          const uploadPromises = pendingFiles.map(file => 
+            todoAttachmentsApi.uploadFile(file, savedComment.id, currentUser)
+          );
+          
+          const uploadedAttachments = await Promise.all(uploadPromises);
+          
+          // Store attachments for rendering
+          setAttachments(prev => ({
+            ...prev,
+            [savedComment.id]: uploadedAttachments
+          }));
+          
+          console.log('Files uploaded successfully:', uploadedAttachments);
+        } catch (uploadError) {
+          console.error('File upload failed:', uploadError);
+          alert('Comment sent but file upload failed. Please try uploading again.');
+        } finally {
+          setUploadingFiles(false);
+          setPendingFiles([]);
+        }
       }
 
       // Replace optimistic comment with real one from database smoothly
@@ -659,39 +865,87 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
   };
 
   const formatCommentText = (text: string, mentions: string[] | null | undefined = []) => {
-    // Handle null, undefined, or empty mentions array
-    if (!mentions || !Array.isArray(mentions) || mentions.length === 0) return text;
-
     let formattedText = text;
-    mentions.forEach(email => {
-      const member = teamMembers.find(m => m.email === email);
-      if (member) {
-        const pattern = new RegExp(`@${member.name}`, 'g');
-        formattedText = formattedText.replace(pattern, 
-          `<span class="mention">@${member.name}</span>`
-        );
-      }
-    });
+    
+    // Format URLs as clickable links
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    formattedText = formattedText.replace(urlRegex, 
+      '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #00d4ff; text-decoration: underline;">$1</a>'
+    );
+    
+    // Handle mentions
+    if (mentions && Array.isArray(mentions) && mentions.length > 0) {
+      mentions.forEach(email => {
+        const member = teamMembers.find(m => m.email === email);
+        if (member) {
+          const pattern = new RegExp(`@${member.name}`, 'g');
+          formattedText = formattedText.replace(pattern, 
+            `<span style="color: #00ff88; background: rgba(0, 255, 136, 0.1); padding: 0.125rem 0.25rem; border-radius: 4px; font-weight: 500;">@${member.name}</span>`
+          );
+        }
+      });
+    }
 
     return formattedText;
   };
 
-  const getTimeDisplay = (dateString: string) => {
-    // Force re-calculation when timeUpdateTrigger changes
+  const getDayLabel = (dateString: string) => {
     const now = new Date();
+    const messageDate = new Date(dateString);
+    
+    // Reset time to midnight for proper day comparison
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const msgDay = new Date(messageDate.getFullYear(), messageDate.getMonth(), messageDate.getDate());
+    
+    const diffInDays = Math.floor((today.getTime() - msgDay.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays === 0) return 'Today';
+    if (diffInDays === 1) return 'Yesterday';
+    if (diffInDays < 7) {
+      return messageDate.toLocaleDateString('en-US', { weekday: 'long' });
+    }
+    return messageDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const getTimeDisplay = (dateString: string) => {
+    // For WhatsApp style, just show time in HH:MM format
     const commentDate = new Date(dateString);
-    const diffInMinutes = Math.abs(now.getTime() - commentDate.getTime()) / (1000 * 60);
+    return commentDate.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      hour12: false 
+    });
+  };
+
+  // File upload functionality
+  const handleFileUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // Store files for sending with the comment
+    setPendingFiles(Array.from(files));
     
-    // console.log(`🕐 Time update: ${dateString} -> diff: ${diffInMinutes.toFixed(1)} minutes`); // Disabled to reduce console noise
+    // Show file names in input
+    const fileNames = Array.from(files).map(file => file.name).join(', ');
+    setNewComment(prev => prev + `📎 ${fileNames} `);
     
-    if (diffInMinutes < 1) return 'Just now';
-    if (diffInMinutes < 60) return `${Math.floor(diffInMinutes)}m ago`;
-    
-    const diffInHours = diffInMinutes / 60;
-    if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
-    
-    const diffInDays = diffInHours / 24;
-    return diffInDays < 7 ? `${Math.floor(diffInDays)}d ago` : commentDate.toLocaleDateString();
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Emoji picker functionality
+  const commonEmojis = ['😀', '😂', '🥰', '😍', '🤔', '👍', '👎', '❤️', '🎉', '🔥', '💯', '👌', '🚀', '💪', '🙏', '😎', '🤝', '💡', '⚡', '🎯'];
+
+  const insertEmoji = (emoji: string) => {
+    setNewComment(prev => prev + emoji);
+    setShowEmojiPicker(false);
+    textareaRef.current?.focus();
   };
 
   if (loading && initialLoad) {
@@ -699,8 +953,8 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '500px',
-        maxHeight: '500px',
+        height: '700px',
+        maxHeight: '700px',
         border: '1px solid rgba(255, 255, 255, 0.1)',
         borderRadius: '12px',
         background: 'rgba(0, 0, 0, 0.3)',
@@ -724,7 +978,7 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
               animationFillMode: 'both'
             }}>
               <div style={{
-                maxWidth: '75%',
+                maxWidth: '85%',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: i % 2 === 0 ? 'flex-end' : 'flex-start'
@@ -789,8 +1043,8 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '500px', // Fixed height for single frame
-      maxHeight: '500px',
+      height: '700px', // Fixed height for single frame
+      maxHeight: '700px',
       border: '1px solid rgba(255, 255, 255, 0.1)',
       borderRadius: '12px',
       background: 'rgba(0, 0, 0, 0.3)',
@@ -826,150 +1080,375 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
             }}>No comments yet. Start the conversation!</p>
           </div>
         ) : (
-          comments.map((comment) => {
+          comments.map((comment, index) => {
             const isMyComment = comment.comment_by === currentUser;
             const member = teamMembers.find(m => m.email === comment.comment_by);
             
+            // Check if we need to show a day stamp
+            const showDayStamp = index === 0 || 
+              getDayLabel(comment.created_at) !== getDayLabel(comments[index - 1].created_at);
+            
             return (
+              <React.Fragment key={comment.id}>
+                {/* Day Stamp */}
+                {showDayStamp && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    margin: '1rem 0 0.5rem 0'
+                  }}>
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      fontSize: '0.7rem',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '12px',
+                      fontWeight: 500
+                    }}>
+                      {getDayLabel(comment.created_at)}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Message */}
               <div
                 key={comment.id}
                 style={{
                   display: 'flex',
                   justifyContent: isMyComment ? 'flex-end' : 'flex-start',
-                  marginBottom: '0.5rem' // More compact spacing between comments
+                  marginBottom: '0.5rem', // More compact spacing between comments
+                  position: 'relative'
                 }}
+                onMouseEnter={() => setHoveredMessage(comment.id)}
+                onMouseLeave={() => setHoveredMessage(null)}
               >
                 <div style={{
-                  maxWidth: '75%',
+                  maxWidth: '85%',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: isMyComment ? 'flex-end' : 'flex-start'
                 }}>
-                  {/* Comment Header */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    marginBottom: '0.5rem',
-                    flexDirection: isMyComment ? 'row-reverse' : 'row'
-                  }}>
-                    <div style={{ position: 'relative' }}>
-                      <div style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#ffffff',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        background: isMyComment 
-                          ? 'linear-gradient(135deg, #00ff88, #00d4ff)' 
-                          : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                        border: '2px solid rgba(255, 255, 255, 0.2)',
-                        position: 'relative'
-                      }}>
-                        {isMyComment ? '📤' : '📥'}
-                        <span style={{
-                          position: 'absolute',
-                          bottom: '-2px',
-                          right: '2px',
-                          fontSize: '0.6rem',
-                          background: 'rgba(0, 0, 0, 0.8)',
-                          borderRadius: '6px',
-                          padding: '1px 3px',
-                          lineHeight: 1
-                        }}>
-                          {isMyComment ? 'You' : (member?.name?.charAt(0) || comment.comment_by.charAt(0)).toUpperCase()}
-                        </span>
-                      </div>
-                      
-                      {/* Online/Offline Status Indicator */}
-                      <div style={{
-                        position: 'absolute',
-                        bottom: '-4px',
-                        right: '-4px',
-                        width: '14px',
-                        height: '14px',
-                        borderRadius: '50%',
-                        background: onlineUsers.has(comment.comment_by) ? '#10b981' : '#ef4444',
-                        border: '2px solid rgba(0, 0, 0, 0.9)',
-                        animation: onlineUsers.has(comment.comment_by) ? 'pulse 2s infinite' : 'none',
-                        boxShadow: onlineUsers.has(comment.comment_by) 
-                          ? '0 0 8px rgba(16, 185, 129, 0.6)' 
-                          : '0 0 8px rgba(239, 68, 68, 0.6)'
-                      }} title={onlineUsers.has(comment.comment_by) ? 'Online' : 'Offline'} />
-                    </div>
-                    
-                    <div style={{
-                      color: 'rgba(255, 255, 255, 0.6)',
-                      fontSize: '0.75rem',
-                      textAlign: isMyComment ? 'right' : 'left'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: isMyComment ? 'flex-end' : 'flex-start' }}>
-                        <span style={{ fontWeight: 500 }}>
-                          {isMyComment ? 'You' : (member?.name || comment.comment_by.split('@')[0])}
-                        </span>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          fontSize: '0.65rem',
-                          fontWeight: 600,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px',
-                          color: onlineUsers.has(comment.comment_by) ? '#10b981' : '#ef4444'
-                        }}>
-                          <div style={{
-                            width: '6px',
-                            height: '6px',
-                            borderRadius: '50%',
-                            background: onlineUsers.has(comment.comment_by) ? '#10b981' : '#ef4444',
-                            flexShrink: 0,
-                            animation: onlineUsers.has(comment.comment_by) ? 'pulse 2s infinite' : 'none'
-                          }} />
-                          {onlineUsers.has(comment.comment_by) ? 'Online' : 'Offline'}
-                        </div>
-                      </div>
-                      <div key={timeUpdateTrigger}>{getTimeDisplay(comment.created_at)}</div>
-                    </div>
-                  </div>
-
-                  {/* Enhanced Comment Bubble */}
+                  {/* WhatsApp Style Comment Bubble */}
                   <div style={{
                     position: 'relative',
                     transition: 'all 0.3s ease',
-                    background: isMyComment 
-                      ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(59, 130, 246, 0.25))' 
-                      : 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2))',
-                    border: isMyComment 
-                      ? '2px solid rgba(16, 185, 129, 0.4)' 
-                      : '2px solid rgba(99, 102, 241, 0.3)',
-                    borderRadius: '16px',
-                    padding: '0.625rem 0.875rem',
-                    boxShadow: isMyComment 
-                      ? '0 12px 40px rgba(0, 255, 136, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1)' 
-                      : '0 12px 40px rgba(99, 102, 241, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1)',
-                    willChange: 'auto',
-                    transform: `translateZ(0) ${(comment as any).isNew ? 'scale(1.02)' : 'scale(1)'}`,
-                    opacity: (comment as any).isOptimistic ? 0.7 : ((comment as any).isNew ? 0.9 : 1),
-                    animation: (comment as any).isNew ? 'slideInComment 0.4s ease-out' : 'none',
-                    filter: (comment as any).isOptimistic ? 'brightness(0.9)' : 'none'
+                    background: isMyComment ? '#005c4b' : '#262626', // WhatsApp green for sent, proper gray for received
+                    border: 'none',
+                    borderRadius: '18px',
+                    padding: '0.5rem 0.75rem',
+                    maxWidth: '75%',
+                    minWidth: 'fit-content',
+                    alignSelf: isMyComment ? 'flex-end' : 'flex-start',
+                    marginBottom: '0.25rem',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
                   }}>
                     <div style={{
                       color: 'rgba(255, 255, 255, 0.9)',
                       fontSize: '0.875rem',
                       lineHeight: '1.5',
-                      wordWrap: 'break-word'
-                    }}
-                    dangerouslySetInnerHTML={{
-                      __html: formatCommentText(comment.comment, comment.mentions || [])
-                    }}
-                    />
+                      whiteSpace: 'pre-wrap'
+                    }}>
+                      <span 
+                        dangerouslySetInnerHTML={{
+                          __html: formatCommentText(comment.comment, comment.mentions || []) + 
+                            `<span style="color: rgba(255, 255, 255, 0.5); font-size: 0.65rem; font-weight: 400; margin-left: 0.5rem;">&nbsp;${getTimeDisplay(comment.created_at)}</span>`
+                        }}
+                      />
+                    </div>
+
+                    {/* Attachments */}
+                    {attachments[comment.id] && attachments[comment.id].length > 0 && (
+                      <div style={{
+                        marginTop: '0.5rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem'
+                      }}>
+                        {attachments[comment.id].map((attachment) => (
+                          <div 
+                            key={attachment.id}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              todoAttachmentsApi.downloadAttachment(attachment.file_url, attachment.file_name);
+                            }}
+                            style={{ cursor: 'context-menu' }}
+                            title="Right-click to download"
+                          >
+                            {attachment.file_type.startsWith('image/') ? (
+                              // Image Preview
+                              <div style={{
+                                borderRadius: '12px',
+                                overflow: 'hidden',
+                                maxWidth: '300px',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                position: 'relative'
+                              }}>
+                                <img
+                                  src={attachment.file_url}
+                                  alt={attachment.file_name}
+                                  style={{
+                                    width: '100%',
+                                    height: 'auto',
+                                    display: 'block'
+                                  }}
+                                />
+                                {/* Download indicator */}
+                                <div style={{
+                                  position: 'absolute',
+                                  top: '0.5rem',
+                                  right: '0.5rem',
+                                  background: 'rgba(0, 0, 0, 0.7)',
+                                  borderRadius: '50%',
+                                  width: '24px',
+                                  height: '24px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  opacity: 0.7
+                                }}>
+                                  <span style={{ fontSize: '0.75rem' }}>⬇️</span>
+                                </div>
+                              </div>
+                            ) : (
+                              // File Preview
+                              <div style={{
+                                background: 'rgba(255, 255, 255, 0.1)',
+                                borderRadius: '12px',
+                                padding: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                border: '1px solid rgba(255, 255, 255, 0.15)',
+                                maxWidth: '300px',
+                                transition: 'background-color 0.2s ease',
+                                position: 'relative'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                              }}
+                              >
+                                {/* File Icon */}
+                                <div style={{
+                                  width: '48px',
+                                  height: '48px',
+                                  borderRadius: '8px',
+                                  background: attachment.file_type.includes('pdf') ? '#ef4444' : 
+                                             attachment.file_type.includes('doc') ? '#3b82f6' :
+                                             attachment.file_type.includes('sheet') ? '#10b981' : '#8b5cf6',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#ffffff',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600'
+                                }}>
+                                  {attachment.file_type.includes('pdf') ? 'PDF' :
+                                   attachment.file_type.includes('doc') ? 'DOC' :
+                                   attachment.file_type.includes('sheet') || attachment.file_type.includes('csv') ? 'XLS' :
+                                   attachment.file_extension.toUpperCase()}
+                                </div>
+                                
+                                {/* File Info */}
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{
+                                    color: '#ffffff',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    marginBottom: '0.25rem',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    {attachment.file_name}
+                                  </div>
+                                  <div style={{
+                                    color: 'rgba(255, 255, 255, 0.6)',
+                                    fontSize: '0.75rem'
+                                  }}>
+                                    {(attachment.file_size / 1024).toFixed(1)} KB • {attachment.file_extension}
+                                  </div>
+                                </div>
+
+                                {/* Download icon */}
+                                <div style={{
+                                  color: 'rgba(255, 255, 255, 0.6)',
+                                  fontSize: '1.2rem'
+                                }}>
+                                  ⬇️
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Instagram-Style React Icon - Only on Hover */}
+                    {hoveredMessage === comment.id && (
+                      <div
+                        data-reaction-picker
+                        style={{
+                          position: 'absolute',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          right: isMyComment ? 'calc(100% + 0.5rem)' : 'auto',
+                          left: isMyComment ? 'auto' : 'calc(100% + 0.5rem)',
+                          zIndex: 10
+                        }}>
+                        <button
+                          onClick={() => setShowReactionPicker(
+                            showReactionPicker === comment.id ? null : comment.id
+                          )}
+                          style={{
+                            background: 'rgba(0, 0, 0, 0.8)',
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
+                            borderRadius: '50%',
+                            width: '28px',
+                            height: '28px',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: 0.8,
+                            backdropFilter: 'blur(4px)' // Re-add backdropFilter
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.opacity = '1';
+                            e.currentTarget.style.transform = 'scale(1.1)';
+                            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.9)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.opacity = '0.8';
+                            e.currentTarget.style.transform = 'scale(1)';
+                            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.8)';
+                          }}
+                          title="React to this message"
+                        >
+                          ☺️
+                        </button>
+                        
+                        {/* Expandable Emoji Picker */}
+                        {showReactionPicker === comment.id && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: '-3.5rem',
+                              left: isMyComment ? 'auto' : '0',
+                              right: isMyComment ? '0' : 'auto',
+                              background: 'rgba(0, 0, 0, 0.9)',
+                              backdropFilter: 'blur(10px)',
+                              border: '1px solid rgba(255, 255, 255, 0.2)',
+                              borderRadius: '16px',
+                              padding: '0.5rem',
+                              display: 'flex',
+                              gap: '0.25rem',
+                              zIndex: 1000,
+                              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
+                            }}
+                          >
+                            {['👍', '😂', '❤️', '🙏', '🔥'].map(emoji => ( // 5 common emojis
+                              <button
+                                key={emoji}
+                                onClick={() => {
+                                  handleReaction(comment.id, emoji);
+                                  setShowReactionPicker(null);
+                                }}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  padding: '0.375rem',
+                                  fontSize: '1.1rem',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                  e.currentTarget.style.transform = 'scale(1.2)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = 'transparent';
+                                  e.currentTarget.style.transform = 'scale(1)';
+                                }}
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
+                
+                {/* Active Reactions Display - Instagram Style (Bottom Right Corner) */}
+                {(() => {
+                  const commentReactions = reactions[comment.id] || [];
+                  const activeReactions = commentReactions.filter(r => r.count > 0);
+                  
+                  if (activeReactions.length === 0) return null;
+                  
+                  return (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '-8px',
+                      right: isMyComment ? '8px' : 'auto',
+                      left: isMyComment ? 'auto' : '8px',
+                      display: 'flex',
+                      gap: '0.25rem',
+                      flexWrap: 'wrap',
+                      zIndex: 5
+                    }}>
+                      {activeReactions.map(reactionData => {
+                        const userHasReacted = reactionData.users.includes(currentUser);
+                        return (
+                          <button
+                            key={reactionData.emoji}
+                            onClick={() => handleReaction(comment.id, reactionData.emoji)}
+                            style={{
+                              background: 'rgba(0, 0, 0, 0.8)',
+                              border: '1px solid rgba(255, 255, 255, 0.3)',
+                              borderRadius: '12px',
+                              padding: '0.25rem 0.4rem',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              color: '#ffffff',
+                              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'scale(1.05)';
+                              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.9)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'scale(1)';
+                              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.8)';
+                            }}
+                            title={`${reactionData.users.join(', ')} reacted with ${reactionData.emoji}`}
+                          >
+                            {reactionData.emoji}
+                            <span style={{ fontSize: '0.6rem', fontWeight: '600' }}>
+                              {reactionData.count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
+              </React.Fragment>
             );
           })
         )}
@@ -984,7 +1463,7 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
               marginBottom: '1rem'
             }}>
               <div style={{
-                maxWidth: '75%',
+                maxWidth: '85%',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'flex-start'
@@ -1238,9 +1717,43 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
 
           <div style={{
             display: 'flex',
-            alignItems: 'flex-end',
-            gap: '0.75rem'
+            alignItems: 'center',
+            gap: '0.5rem'
           }}>
+            {/* Hidden File Input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx"
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
+
+            {/* Attachment Button */}
+            <button
+              type="button"
+              onClick={handleFileUpload}
+              disabled={uploadingFiles}
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: 'rgba(255, 255, 255, 0.7)',
+                cursor: uploadingFiles ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.2rem',
+                opacity: uploadingFiles ? 0.5 : 1
+              }}
+              title="Attach files or images"
+            >
+              {uploadingFiles ? '⏳' : '+'}
+            </button>
+
             <div style={{
               flex: 1,
               position: 'relative'
@@ -1249,132 +1762,113 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
                 ref={textareaRef}
                 value={newComment}
                 onChange={handleTextareaChange}
-                placeholder="Type a comment... (use @ to mention)"
-                rows={2} // Reduced from 3 to 2 for compactness
+                placeholder="Type a message..."
+                rows={1}
                 style={{
                   width: '100%',
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  borderRadius: '0.5rem',
-                  padding: '0.5rem 0.75rem', // Reduced padding
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: '24px',
+                  padding: '0.75rem 3rem 0.75rem 1rem',
                   color: '#ffffff',
                   fontSize: '0.875rem',
                   fontFamily: 'inherit',
                   resize: 'none',
                   outline: 'none',
-                  minHeight: '40px', // Minimum height for usability
-                  maxHeight: '80px' // Maximum height to prevent expansion
+                  minHeight: '48px',
+                  maxHeight: '120px',
+                  lineHeight: '1.4'
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                  e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    handleCommentSubmit(e);
+                    if (newComment.trim()) {
+                      handleCommentSubmit(e);
+                    }
                   }
                 }}
               />
-            </div>
-
-            {/* Real-time Status & Test */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.25rem'
-            }}>
-              {/* Status Indicator */}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '0.25rem',
-                padding: '0.5rem',
-                background: realtimeEnabled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                border: realtimeEnabled ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(245, 158, 11, 0.2)',
-                borderRadius: '0.5rem',
-                minWidth: '80px'
-              }}>
-                <div style={{
-                  width: '8px',
-                  height: '8px',
+              
+              {/* Emoji Picker Button */}
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '32px',
+                  height: '32px',
                   borderRadius: '50%',
-                  background: realtimeEnabled ? '#10b981' : '#f59e0b',
-                  animation: realtimeEnabled ? 'pulse 2s infinite' : 'none'
-                }} />
-                <span style={{
-                  color: realtimeEnabled ? '#10b981' : '#f59e0b',
-                  fontSize: '0.6rem',
-                  fontWeight: 500,
-                  textAlign: 'center'
-                }}>
-                  {realtimeEnabled ? 'LIVE' : 'LOCAL'}
-                </span>
-                <span style={{
+                  background: 'transparent',
+                  border: 'none',
                   color: 'rgba(255, 255, 255, 0.6)',
-                  fontSize: '0.6rem',
-                  textAlign: 'center'
-                }}>
-                  {realtimeEnabled ? `${onlineUsers.size} online` : 'Setup needed'}
-                </span>
-              </div>
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.1rem'
+                }}
+                title="Add emoji"
+              >
+                ☺️
+              </button>
 
-            </div>
-
-            <button
-              type="submit"
-              disabled={!newComment.trim() || sending}
-              style={{
-                background: newComment.trim() && !sending
-                  ? 'linear-gradient(135deg, #3b82f6, #8b5cf6)'
-                  : 'rgba(107, 114, 128, 0.5)',
-                color: newComment.trim() && !sending ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '0.5rem',
-                fontWeight: 500,
-                border: 'none',
-                cursor: newComment.trim() && !sending ? 'pointer' : 'not-allowed',
-                transition: 'all 0.3s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                minWidth: '100px',
-                justifyContent: 'center',
-                opacity: sending ? 0.7 : 1
-              }}
-              onMouseEnter={(e) => {
-                if (newComment.trim() && !sending) {
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                  e.currentTarget.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.3)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              {sending ? (
-                <>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    border: '2px solid rgba(255, 255, 255, 0.3)',
-                    borderTop: '2px solid #ffffff',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }} />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <span>💬</span>
-                  Reply
-                </>
+              {/* Emoji Picker Dropdown */}
+              {showEmojiPicker && (
+                <div 
+                  data-emoji-picker
+                  style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    right: '0.75rem',
+                    marginBottom: '0.5rem',
+                    background: 'rgba(0, 0, 0, 0.9)',
+                    backdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '12px',
+                    padding: '0.75rem',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(5, 1fr)',
+                    gap: '0.5rem',
+                    minWidth: '200px',
+                    maxHeight: '150px',
+                    overflowY: 'auto',
+                    zIndex: 1000
+                  }}>
+                  {commonEmojis.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => insertEmoji(emoji)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '6px',
+                        background: 'transparent',
+                        border: 'none',
+                        fontSize: '1.2rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
               )}
-            </button>
+            </div>
           </div>
         </form>
       </div>
@@ -1409,20 +1903,7 @@ export default function CommentThread({ todoId, currentUser, teamMembers, onNewC
           }
         }
         
-        @keyframes slideInComment {
-          0% {
-            opacity: 0;
-            transform: translateY(20px) scale(0.95);
-          }
-          50% {
-            opacity: 0.7;
-            transform: translateY(5px) scale(1.01);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
+        
         
         @keyframes fadeInSmooth {
           0% {

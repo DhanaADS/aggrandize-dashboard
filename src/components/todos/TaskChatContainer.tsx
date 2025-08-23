@@ -1157,7 +1157,7 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
               <button
                 onClick={() => {
                   // Navigate to todo home page by clearing all URL parameters
-                  router.replace(`/dashboard/todos`, { scroll: false });
+                  router.replace(`/dashboard/teamhub`, { scroll: false });
                 }}
                 style={{
                   background: 'transparent',
@@ -1456,10 +1456,11 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
           }}>
             {/* Main Content - Task Table or Task Details */}
             <div style={{
-              flex: 1,
+              width: showChatPanel ? '50%' : '100%',
               display: 'flex',
               flexDirection: 'column',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              flexShrink: 0
             }}>
               {showTaskDetails && selectedTodo ? (
                 /* Full-Screen Task Details View */
@@ -1898,15 +1899,16 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
             {/* Right-Side Chat Panel */}
             {showChatPanel && selectedTodo && (
               <div style={{
-                width: '400px',
+                width: '50%',
                 height: '100%',
-                background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(20, 20, 40, 0.95))',
+                background: 'rgba(0, 0, 0, 0.8)',
                 borderLeft: '1px solid rgba(255, 255, 255, 0.2)',
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
                 backdropFilter: 'blur(20px)',
-                transition: 'width 0.3s ease'
+                transition: 'width 0.3s ease',
+                flexShrink: 0
               }}>
                 {/* Chat Header */}
                 <div style={{

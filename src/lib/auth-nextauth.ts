@@ -94,7 +94,7 @@ export function canUserAccessRoute(session: Session | null, route: string): bool
       return permissions.canAccessTools;
     case '/dashboard/payments':
       return permissions.canAccessPayments;
-    case '/dashboard/todos':
+    case '/dashboard/teamhub':
       return permissions.canAccessTodos;
     case '/dashboard/admin':
       return session.user.role === 'admin';

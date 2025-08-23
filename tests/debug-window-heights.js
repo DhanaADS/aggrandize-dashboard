@@ -17,7 +17,7 @@ async function debugWindowHeights() {
   
   try {
     console.log('📍 Step 1: Navigate to todos page');
-    await page.goto('http://localhost:3000/dashboard/todos');
+    await page.goto('http://localhost:3000/dashboard/teamhub');
     await page.waitForLoadState('networkidle');
     
     console.log('📍 Step 2: Check if user is logged in');

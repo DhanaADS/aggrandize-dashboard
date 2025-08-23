@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { useAuth } from '@/lib/auth-nextauth';
 import TraditionalTaskContainer from '@/components/todos/TraditionalTaskContainer';
 import NotificationCenter from '@/components/todos/NotificationCenter';
-import styles from './todos.module.css';
+import styles from './teamhub.module.css';
 
 export default function TeamHubPage() {
   const { user, isTeamMember } = useAuth();

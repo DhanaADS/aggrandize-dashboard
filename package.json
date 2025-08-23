@@ -31,11 +31,14 @@
     "react-dom": "19.1.0",
     "reactflow": "^11.11.4",
     "resend": "^6.0.1",
+    "ts-node": "^10.9.2",
     "xlsx": "^0.18.5",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@swc/cli": "^0.7.8",
+    "@swc/core": "^1.13.4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

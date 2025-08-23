@@ -81,7 +81,7 @@ export function TodaysTodos() {
   };
 
   const handleTodoClick = (todo: Todo) => {
-    router.push(`/dashboard/todos?task=${todo.id}`);
+    router.push(`/dashboard/teamhub?task=${todo.id}`);
   };
 
   const getTimeUntilDue = (dueDate: string | null): string => {
@@ -175,7 +175,7 @@ export function TodaysTodos() {
         
         {todos.length > 0 && (
           <button
-            onClick={() => router.push('/dashboard/todos')}
+            onClick={() => router.push('/dashboard/teamhub')}
             style={{
               background: 'rgba(255, 255, 255, 0.1)',
               border: '1px solid rgba(255, 255, 255, 0.2)',

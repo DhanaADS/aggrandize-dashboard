@@ -903,7 +903,7 @@ export default function TraditionalTaskContainer({ className = '' }: Traditional
           }}>
             <button
               onClick={() => {
-                router.replace(`/dashboard/todos`, { scroll: false });
+                router.replace(`/dashboard/teamhub`, { scroll: false });
               }}
               style={{
                 background: 'transparent',
@@ -1912,7 +1912,7 @@ export default function TraditionalTaskContainer({ className = '' }: Traditional
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(20, 20, 40, 0.95))',
+          background: '#1a1a1a',
           zIndex: 1000,
           display: 'flex',
           flexDirection: 'column',
@@ -2002,7 +2002,8 @@ export default function TraditionalTaskContainer({ className = '' }: Traditional
             <div style={{
               flex: 1,
               padding: '2rem',
-              overflowY: 'auto'
+              overflowY: 'auto',
+              background: '#1a1a1a' // Explicitly set background to opaque dark gray
             }}>
               <h1 style={{
                 color: '#ffffff',
@@ -2021,7 +2022,7 @@ export default function TraditionalTaskContainer({ className = '' }: Traditional
                   lineHeight: '1.7',
                   marginBottom: '2rem',
                   padding: '1.5rem',
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: '#2a2a2a',
                   borderRadius: '1rem',
                   border: '1px solid rgba(255, 255, 255, 0.1)',
                   whiteSpace: 'pre-wrap',
@@ -2043,7 +2044,7 @@ export default function TraditionalTaskContainer({ className = '' }: Traditional
               }}>
                 <div style={{
                   padding: '1.5rem',
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: '#2a2a2a',
                   borderRadius: '1rem',
                   border: '1px solid rgba(255, 255, 255, 0.1)'
                 }}>
@@ -2055,7 +2056,7 @@ export default function TraditionalTaskContainer({ className = '' }: Traditional
 
                 <div style={{
                   padding: '1.5rem',
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: '#2a2a2a',
                   borderRadius: '1rem',
                   border: '1px solid rgba(255, 255, 255, 0.1)'
                 }}>
@@ -2074,7 +2075,7 @@ export default function TraditionalTaskContainer({ className = '' }: Traditional
 
                 <div style={{
                   padding: '1.5rem',
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: '#2a2a2a',
                   borderRadius: '1rem',
                   border: '1px solid rgba(255, 255, 255, 0.1)'
                 }}>
@@ -2094,9 +2095,9 @@ export default function TraditionalTaskContainer({ className = '' }: Traditional
 
             {/* Chat Panel for selected task */}
             <div style={{
-              width: '400px',
+              flex: 1,
               borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
-              background: 'rgba(0, 0, 0, 0.3)',
+              background: '#2a2a2a',
               display: 'flex',
               flexDirection: 'column'
             }}>

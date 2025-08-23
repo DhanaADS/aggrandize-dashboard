@@ -20,7 +20,7 @@ async function manualLoginTest() {
   
   try {
     console.log('📍 Opening todos page...');
-    await page.goto('http://localhost:3000/dashboard/todos');
+    await page.goto('http://localhost:3000/dashboard/teamhub');
     
     console.log('⏳ Waiting for manual login...');
     console.log('🔑 Please login in the browser window that opened');

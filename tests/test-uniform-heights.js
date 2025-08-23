@@ -7,7 +7,7 @@ async function testUniformHeights() {
   const page = await browser.newPage();
   
   try {
-    await page.goto('http://localhost:3000/dashboard/todos');
+    await page.goto('http://localhost:3000/dashboard/teamhub');
     
     // Wait for page load
     await page.waitForTimeout(3000);

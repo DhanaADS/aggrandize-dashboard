@@ -1143,5 +1143,269 @@ export const todoAttachmentsApi = {
       console.error('API Error - deleteAttachment:', error);
       throw error;
     }
+  },
+
+  // Upload file to Supabase storage for comment attachments
+  async uploadFile(file: File, commentId: string, userEmail: string): Promise<TodoAttachment> {
+    try {
+      // Check file size (50MB limit)
+      const maxSizeInBytes = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSizeInBytes) {
+        throw new Error(`File too large. Maximum size is 50MB. Your file is ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
+      }
+
+      const fileName = `${Date.now()}-${file.name}`;
+      const filePath = `comments/${commentId}/${fileName}`;
+
+      // Upload to Supabase storage with upsert option for large files
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('todo-attachments')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw new Error(`File upload failed: ${uploadError.message}`);
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('todo-attachments')
+        .getPublicUrl(filePath);
+
+      // Create thumbnail for images
+      let thumbnailPath = null;
+      if (file.type.startsWith('image/')) {
+        // For now, use the same image as thumbnail
+        thumbnailPath = filePath;
+      }
+
+      // Save attachment metadata to database
+      const { data, error } = await supabase
+        .from('todo_comment_attachments')
+        .insert({
+          comment_id: commentId,
+          file_name: file.name,
+          file_path: filePath,
+          file_size: file.size,
+          file_type: file.type,
+          file_extension: file.name.split('.').pop() || '',
+          thumbnail_path: thumbnailPath,
+          uploaded_by: userEmail,
+          width: file.type.startsWith('image/') ? null : null,
+          height: file.type.startsWith('image/') ? null : null
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(`Database save failed: ${error.message}`);
+      }
+
+      return {
+        id: data.id,
+        todo_id: '',
+        comment_id: commentId,
+        file_name: data.file_name,
+        file_url: urlData.publicUrl,
+        file_type: data.file_type,
+        file_size: data.file_size,
+        thumbnail_url: thumbnailPath ? urlData.publicUrl : undefined,
+        uploaded_by: data.uploaded_by,
+        created_at: data.created_at
+      };
+    } catch (error) {
+      console.error('API Error - uploadFile:', error);
+      throw error;
+    }
+  },
+
+  // Get attachments for a comment (updated to use new table)
+  async getCommentAttachmentsNew(commentId: string): Promise<TodoAttachment[]> {
+    try {
+      const { data, error } = await supabase
+        .from('todo_comment_attachments')
+        .select('*')
+        .eq('comment_id', commentId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        throw new Error(`Failed to fetch attachments: ${error.message}`);
+      }
+
+      // Convert to TodoAttachment format
+      return (data || []).map(attachment => ({
+        id: attachment.id,
+        todo_id: '',
+        comment_id: attachment.comment_id,
+        file_name: attachment.file_name,
+        file_url: supabase.storage.from('todo-attachments').getPublicUrl(attachment.file_path).data.publicUrl,
+        file_type: attachment.file_type,
+        file_size: attachment.file_size,
+        thumbnail_url: attachment.thumbnail_path ? 
+          supabase.storage.from('todo-attachments').getPublicUrl(attachment.thumbnail_path).data.publicUrl : undefined,
+        uploaded_by: attachment.uploaded_by,
+        created_at: attachment.created_at
+      }));
+    } catch (error) {
+      console.error('API Error - getCommentAttachmentsNew:', error);
+      throw error;
+    }
+  },
+
+  // Delete comment attachment
+  async deleteCommentAttachment(attachmentId: string, userEmail: string): Promise<void> {
+    try {
+      // Get attachment details first
+      const { data: attachment, error: fetchError } = await supabase
+        .from('todo_comment_attachments')
+        .select('file_path, uploaded_by')
+        .eq('id', attachmentId)
+        .single();
+
+      if (fetchError || !attachment) {
+        throw new Error('Attachment not found');
+      }
+
+      // Check permissions
+      if (attachment.uploaded_by !== userEmail) {
+        throw new Error('Not authorized to delete this attachment');
+      }
+
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('todo-attachments')
+        .remove([attachment.file_path]);
+
+      if (storageError) {
+        console.warn('Failed to delete file from storage:', storageError);
+      }
+
+      // Delete from database
+      const { error } = await supabase
+        .from('todo_comment_attachments')
+        .delete()
+        .eq('id', attachmentId);
+
+      if (error) {
+        throw new Error(`Failed to delete attachment: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('API Error - deleteCommentAttachment:', error);
+      throw error;
+    }
+  },
+
+  // Download attachment
+  async downloadAttachment(fileUrl: string, fileName: string): Promise<void> {
+    try {
+      const response = await fetch(fileUrl);
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('API Error - downloadAttachment:', error);
+      throw error;
+    }
+  }
+};
+
+// Comment Reactions API
+export const todoReactionsApi = {
+  // Add a reaction to a comment
+  async addReaction(commentId: string, emoji: string, userEmail: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('todo_comment_reactions')
+        .insert({
+          comment_id: commentId,
+          emoji,
+          user_email: userEmail
+        });
+
+      if (error) {
+        // If it's a unique constraint violation, it means user already reacted with this emoji
+        if (error.code === '23505') {
+          console.log('User already reacted with this emoji');
+          return;
+        }
+        throw new Error(`Failed to add reaction: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('API Error - addReaction:', error);
+      throw error;
+    }
+  },
+
+  // Remove a reaction from a comment
+  async removeReaction(commentId: string, emoji: string, userEmail: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('todo_comment_reactions')
+        .delete()
+        .eq('comment_id', commentId)
+        .eq('emoji', emoji)
+        .eq('user_email', userEmail);
+
+      if (error) {
+        throw new Error(`Failed to remove reaction: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('API Error - removeReaction:', error);
+      throw error;
+    }
+  },
+
+  // Get reactions for comments
+  async getReactions(commentIds: string[]): Promise<Record<string, Array<{emoji: string, count: number, users: string[]}>>> {
+    try {
+      if (commentIds.length === 0) return {};
+
+      const { data, error } = await supabase
+        .from('todo_comment_reactions')
+        .select('comment_id, emoji, user_email')
+        .in('comment_id', commentIds);
+
+      if (error) {
+        throw new Error(`Failed to fetch reactions: ${error.message}`);
+      }
+
+      // Group reactions by comment and emoji
+      const reactions: Record<string, Array<{emoji: string, count: number, users: string[]}>> = {};
+      
+      (data || []).forEach(reaction => {
+        if (!reactions[reaction.comment_id]) {
+          reactions[reaction.comment_id] = [];
+        }
+        
+        const existingReaction = reactions[reaction.comment_id].find(r => r.emoji === reaction.emoji);
+        if (existingReaction) {
+          existingReaction.count++;
+          existingReaction.users.push(reaction.user_email);
+        } else {
+          reactions[reaction.comment_id].push({
+            emoji: reaction.emoji,
+            count: 1,
+            users: [reaction.user_email]
+          });
+        }
+      });
+
+      return reactions;
+    } catch (error) {
+      console.error('API Error - getReactions:', error);
+      throw error;
+    }
   }
 };

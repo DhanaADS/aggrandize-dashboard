@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # AGGRANDIZE Finance Dashboard - Project Memory
 
 ## 📊 Project Overview
@@ -242,3 +246,224 @@ npm run dev     # Starts development server
 This finance dashboard is **complete and production-ready**. All 6 tabs are fully functional with CRUD operations, filtering, and professional UI. The user can start adding real financial data immediately. The system successfully replaces their Google Sheets workflow with a comprehensive digital solution.
 
 **Last Status**: All todos completed ✅ | Build successful ✅ | Ready for production use ✅
+
+## 🏢 AGGRANDIZE Dashboard Architecture
+
+This is a Next.js 15.4.5 TypeScript application serving as AGGRANDIZE Digital's comprehensive business management dashboard with role-based access control, real-time collaboration, and multiple business modules.
+
+## 🔐 Authentication & Authorization
+
+### Authentication Flow
+- **Provider**: NextAuth.js with Google OAuth
+- **Session Strategy**: JWT-based sessions (30-day expiry)
+- **Database**: User profiles stored in Supabase `user_profiles` table
+- **Team Access**: Only `@aggrandizedigital.com` emails + whitelisted external users
+
+### Role-Based Access Control (RBAC)
+```typescript
+// Team Roles with hierarchical permissions
+Admin: ['dhana@aggrandizedigital.com', 'saravana@aggrandizedigital.com']
+Marketing: ['veera@aggrandizedigital.com', 'saran@aggrandizedigital.com']
+Processing: ['abbas@aggrandizedigital.com', 'gokul@aggrandizedigital.com']
+Member: Other @aggrandizedigital.com emails
+External: Database-whitelisted users with custom permissions
+```
+
+### Permission System
+- **Individual Permissions**: Stored in `user_profiles.individual_permissions`
+- **Role Fallbacks**: Default permissions based on user role
+- **Admin Override**: Admins always get full permissions
+- **Real-time Validation**: Middleware enforces access control
+
+## 🏗️ Core Architecture
+
+### Tech Stack
+- **Frontend**: Next.js 15.4.5 (App Router) + TypeScript + CSS Modules
+- **Backend**: Supabase (PostgreSQL + Real-time + Auth + Storage)
+- **UI Components**: Custom components with Radix UI primitives
+- **Icons**: Lucide React
+- **File Processing**: Excel (XLSX), PDF generation, Image processing
+
+### Database Design
+- **Primary**: Supabase PostgreSQL with Row Level Security (RLS)
+- **Schema**: ~50+ tables across multiple business domains
+- **Security**: RLS policies per table, role-based data access
+- **Real-time**: Supabase real-time subscriptions for live updates
+
+### Application Structure
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── dashboard/         # Protected dashboard routes
+│   │   ├── order/         # Order management (Marketing)
+│   │   ├── processing/    # Processing workflows (Processing team)
+│   │   ├── inventory/     # Inventory management (Marketing)
+│   │   ├── tools/         # Various business tools
+│   │   ├── payments/      # Finance management (Admin)
+│   │   ├── todos/         # Team Hub collaboration
+│   │   └── admin/         # System administration
+│   └── api/               # API routes for business logic
+├── components/            # Reusable UI components
+├── lib/                   # Business logic and utilities
+├── types/                 # TypeScript interfaces
+└── middleware.ts          # Route protection and RBAC
+```
+
+## 🎯 Business Modules
+
+### 1. **Finance Management System** (`/dashboard/payments`)
+Complete accounting replacement for Google Sheets:
+- **Expenses**: Daily business expense tracking with categories
+- **Salary**: Employee salary management with payslip generation
+- **Utility Bills**: Recurring bill tracking (internet, electricity, water)
+- **Subscriptions**: Software/service subscription management
+- **Settlements**: Inter-team payment settlements
+- **Overview**: Financial analytics and reporting
+
+### 2. **Team Hub** (`/dashboard/teamhub`)
+Collaborative task management with real-time features:
+- **Task Management**: Priority-based task assignment and tracking
+- **Real-time Chat**: Comment threads with file attachments
+- **Status Tracking**: Visual progress indicators and notifications
+- **Multi-assignment**: Tasks can be assigned to multiple team members
+- **File Sharing**: Drag-drop file attachments with cloud storage
+
+### 3. **Inventory Management** (`/dashboard/inventory`)
+Product and stock management system:
+- **Product Catalog**: Complete product information management
+- **Stock Tracking**: Real-time inventory levels
+- **Supplier Management**: Vendor and supplier relationships
+- **Order Processing**: Integration with order management
+
+### 4. **Tools Suite** (`/dashboard/tools`)
+Business productivity tools:
+- **MailForge**: Email marketing campaign management
+- **Web Scraping**: Automated data extraction tools
+- **Workflow Editor**: Visual workflow automation builder
+- **Content Intelligence**: AI-powered content analysis
+
+## 🔄 Real-time Features
+
+### Live Updates
+- **Hybrid Real-time**: WebSocket + polling fallback system
+- **Presence Tracking**: Online user indicators
+- **Live Notifications**: Real-time alerts with sound
+- **Collaborative Editing**: Multi-user task updates
+- **File Sync**: Real-time file upload progress
+
+### Notification System
+- **Sound Alerts**: Configurable notification sounds
+- **Unread Counters**: Message and task update tracking
+- **Browser Notifications**: System-level alerts
+- **Email Integration**: Critical notification emails
+
+## 🎨 UI/UX Design System
+
+### Theme
+- **Style**: Dark theme with Web3/gaming-inspired neon accents
+- **Colors**: Gradient backgrounds (#00ff88, #00d4ff) with dark base
+- **Typography**: Modern sans-serif with clear hierarchy
+- **Responsive**: Mobile-first design with desktop optimization
+
+### Component Patterns
+- **Consistent Layout**: Header + content + sidebar structure
+- **Form Patterns**: Unified validation and error handling
+- **Data Tables**: Advanced filtering, sorting, and pagination
+- **Modal Systems**: Overlay modals for forms and details
+- **Loading States**: Skeleton loaders and progress indicators
+
+## 🛠️ Development Commands
+
+### Core Commands
+```bash
+# Development server with Turbopack
+npm run dev
+
+# Production build
+npm run build
+
+# Production server
+npm start
+
+# Linting
+npm run lint
+```
+
+### Development Workflow
+1. **Authentication**: All dashboard routes require team member authentication
+2. **Database**: Supabase migrations and schema in `/supabase-schema.sql`
+3. **Styling**: CSS Modules for component-scoped styles
+4. **TypeScript**: Strict type checking with comprehensive interfaces
+5. **Testing**: Manual testing preferred, automated testing framework pending
+
+## 📁 Key Files and Patterns
+
+### Authentication Files
+- `/src/app/api/auth/[...nextauth]/route.ts` - NextAuth configuration
+- `/src/middleware.ts` - Route protection and RBAC enforcement
+- `/src/lib/auth-nextauth.ts` - Authentication hooks and utilities
+
+### Database Integration
+- `/src/lib/supabase/client.ts` - Supabase client initialization
+- `/src/lib/supabase/server.ts` - Server-side Supabase client
+- `/src/types/*.ts` - TypeScript interfaces for all business entities
+
+### Business Logic APIs
+- `/src/lib/finance-api.ts` - Finance management operations
+- `/src/lib/todos-api.ts` - Task management with real-time features
+- `/src/lib/inventory-api.ts` - Inventory and product management
+
+### Code Standards (from .cursorrules)
+- **TypeScript**: Strict typing, no `any` types
+- **Next.js**: App Router, server components by default
+- **Styling**: TailwindCSS + CSS Modules, mobile-first design
+- **Components**: Atomic design with shadcn/ui as base
+- **Imports**: Absolute imports with `@/` alias, grouped and sorted
+
+## 🔒 Security Considerations
+
+### Data Protection
+- **RLS Policies**: Every table has row-level security
+- **Input Validation**: Frontend and backend validation
+- **XSS Prevention**: Proper input sanitization
+- **CSRF Protection**: NextAuth built-in protections
+
+### Access Control
+- **Route Protection**: Middleware-enforced authentication
+- **API Security**: Role-based API endpoint protection  
+- **Database Security**: RLS policies prevent unauthorized access
+- **File Upload Security**: Secure cloud storage with validation
+
+## 🎭 Environment Configuration
+
+### Required Environment Variables
+```bash
+# NextAuth
+NEXTAUTH_URL=
+NEXTAUTH_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# Email Service
+RESEND_API_KEY=
+```
+
+---
+
+## 💡 **Development Guidelines**
+
+This dashboard serves as AGGRANDIZE Digital's central business management platform. When working with the codebase:
+
+1. **Authentication First**: Always verify user permissions before implementing features
+2. **Real-time Ready**: Consider real-time implications for collaborative features
+3. **Mobile Responsive**: Test all interfaces on mobile devices
+4. **Type Safety**: Maintain strict TypeScript compliance
+5. **Security Focused**: Implement proper validation and access controls
+6. **Performance Conscious**: Optimize for fast loading and smooth interactions
+
+The system is production-ready and actively used by the AGGRANDIZE team for daily business operations.

@@ -82,7 +82,7 @@ export function TaskNotificationPopup() {
   const handleNotificationClick = (notification: TaskNotification) => {
     if (notification.taskId) {
       // Navigate to the task
-      window.location.href = `/dashboard/todos?task=${notification.taskId}`;
+      window.location.href = `/dashboard/teamhub?task=${notification.taskId}`;
     }
     setIsVisible(false);
   };

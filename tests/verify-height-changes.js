@@ -68,7 +68,7 @@ function verifyHeightChanges() {
     
     console.log('\n💡 To test visually:');
     console.log('   1. Login to your regular browser');
-    console.log('   2. Go to http://localhost:3000/dashboard/todos');
+    console.log('   2. Go to http://localhost:3000/dashboard/teamhub');
     console.log('   3. Check that completed panel, task list, and chat window are same height');
     console.log('   4. All should be 500px tall with internal scrolling');
     
