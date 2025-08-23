@@ -7,7 +7,7 @@ import { MonthlyUtilityTable } from './monthly-utility-table';
 import { OtherExpensesTable } from './other-expenses-table';
 import { MonthlySummaryCard } from './monthly-summary-card';
 import { MonthNavigator } from './month-navigator';
-import styles from '../../payments.module.css';
+import styles from './financial-expenses.module.css';
 
 export function FinancialExpensesTab() {
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -109,42 +109,17 @@ export function FinancialExpensesTab() {
   return (
     <div>
       {/* Header with Month Navigation */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '2rem'
-      }}>
+      <div className={styles.header}>
         <div>
-          <h2 style={{ 
-            color: '#ffffff', 
-            fontSize: '1.5rem', 
-            fontWeight: '700',
-            margin: '0 0 0.5rem 0'
-          }}>
+          <h2 className={styles.title}>
             💰 Financial Expenses - {formatMonthDisplay(selectedMonth)}
           </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <p style={{ 
-              color: 'rgba(255, 255, 255, 0.6)',
-              margin: '0',
-              fontSize: '0.95rem'
-            }}>
+          <div>
+            <p>
               Track monthly utility bills and other business expenses
             </p>
             {!isEditable && (
-              <span style={{
-                background: 'rgba(255, 193, 7, 0.2)',
-                border: '1px solid rgba(255, 193, 7, 0.4)',
-                color: '#ffc107',
-                padding: '0.25rem 0.75rem',
-                borderRadius: '12px',
-                fontSize: '0.8rem',
-                fontWeight: '500',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem'
-              }}>
+              <span>
                 🔒 Read Only - Previous Month
               </span>
             )}
@@ -160,11 +135,7 @@ export function FinancialExpensesTab() {
 
       {/* Loading State */}
       {isLoading && (
-        <div style={{ 
-          color: 'rgba(255, 255, 255, 0.6)', 
-          textAlign: 'center',
-          padding: '2rem'
-        }}>
+        <div>
           Loading financial data for {formatMonthDisplay(selectedMonth)}...
         </div>
       )}
@@ -210,24 +181,19 @@ export function FinancialExpensesTab() {
 
       {/* No Data State */}
       {!isLoading && expenses.length === 0 && utilityBills.length === 0 && (
-        <div style={{ 
-          color: 'rgba(255, 255, 255, 0.6)', 
-          textAlign: 'center',
-          padding: '3rem'
-        }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
-          <div style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+        <div>
+          <div>📋</div>
+          <div>
             No Financial Data Found
           </div>
-          <div style={{ fontSize: '0.9rem' }}>
+          <div>
             No expenses or utility bills recorded for {formatMonthDisplay(selectedMonth)}
           </div>
           {isEditable && (
             <div style={{ marginTop: '1rem' }}>
               <button 
-                className={styles.button}
+                className={styles.actionButton}
                 onClick={handleRefresh}
-                style={{ fontSize: '0.9rem' }}
               >
                 + Add Financial Data
               </button>
