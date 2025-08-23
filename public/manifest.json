@@ -1,0 +1,92 @@
+{
+  "name": "AGGRANDIZE Team Hub",
+  "short_name": "Team Hub",
+  "description": "Collaborative task management and team communication platform",
+  "start_url": "/dashboard/teamhub",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#00ff88",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["productivity", "business", "collaboration"],
+  "lang": "en-US",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Create Task",
+      "short_name": "New Task",
+      "description": "Create a new task quickly",
+      "url": "/dashboard/teamhub?action=create",
+      "icons": [
+        {
+          "src": "/shortcut-create.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "My Tasks",
+      "short_name": "My Tasks",
+      "description": "View tasks assigned to me",
+      "url": "/dashboard/teamhub?filter=assigned",
+      "icons": [
+        {
+          "src": "/shortcut-tasks.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Team Chat",
+      "short_name": "Chat",
+      "description": "Open team discussions",
+      "url": "/dashboard/teamhub?view=chat",
+      "icons": [
+        {
+          "src": "/shortcut-chat.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/dashboard/teamhub/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "files",
+          "accept": ["image/*", "application/pdf", ".doc", ".docx", ".txt"]
+        }
+      ]
+    }
+  },
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "prefer_related_applications": false
+}

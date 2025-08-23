@@ -1,0 +1,449 @@
+/* Install Guide Overlay */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.modal {
+  background: linear-gradient(135deg, rgba(10, 10, 10, 0.95) 0%, rgba(20, 20, 20, 0.95) 100%);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: slideUp 0.4s ease-out;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #00ff88 0%, #00d4ff 100%);
+  color: #000;
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.headerIcon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.subtitle {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  opacity: 0.8;
+  font-weight: 500;
+}
+
+.closeButton {
+  background: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: #000;
+}
+
+.closeButton:hover {
+  background: rgba(0, 0, 0, 0.2);
+  transform: scale(1.05);
+}
+
+/* Progress Bar */
+.progress {
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.progressTrack {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #00ff88 0%, #00d4ff 100%);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.progressText {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+  min-width: 80px;
+  text-align: right;
+}
+
+/* Content */
+.content {
+  padding: 24px;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stepCard {
+  flex: 1;
+  transition: all 0.3s ease;
+}
+
+.stepCard.animating {
+  transform: translateX(10px);
+  opacity: 0.7;
+}
+
+.stepHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stepIcon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 24px;
+  min-width: 60px;
+}
+
+.stepTypeIcon {
+  opacity: 0.6;
+  font-size: 16px;
+}
+
+.stepMainIcon {
+  font-size: 32px;
+}
+
+.stepInfo {
+  flex: 1;
+}
+
+.stepTitle {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.3;
+}
+
+.stepDescription {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+}
+
+/* Tip */
+.tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.tipIcon {
+  font-size: 16px;
+}
+
+.tipText {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.4;
+}
+
+/* Visual Guide */
+.visualGuide {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.phoneFrame {
+  width: 120px;
+  height: 200px;
+  background: #333;
+  border-radius: 20px;
+  padding: 8px;
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.phoneScreen {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.demonstrationArea {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* Step Animations */
+.stepAnimation {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tapAnimation {
+  position: relative;
+}
+
+.tapCircle {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #00ff88;
+  border-radius: 50%;
+  animation: tapPulse 2s infinite;
+}
+
+.tapRipple {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(0, 255, 136, 0.5);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: tapRipple 2s infinite;
+}
+
+.scrollAnimation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.scrollIndicator {
+  font-size: 20px;
+  color: #00ff88;
+  animation: scrollBounce 1.5s infinite;
+}
+
+.stepLabel {
+  position: absolute;
+  bottom: 10px;
+  font-size: 24px;
+  opacity: 0.8;
+}
+
+/* Navigation */
+.navigation {
+  display: flex;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.navButton {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.prevButton {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.prevButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.prevButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.nextButton, .doneButton {
+  background: linear-gradient(135deg, #00ff88 0%, #00d4ff 100%);
+  color: #000;
+}
+
+.nextButton:hover, .doneButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+}
+
+/* Quick Actions */
+.quickActions {
+  display: flex;
+  gap: 8px;
+  padding: 16px 24px 24px 24px;
+  justify-content: center;
+}
+
+.quickAction {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quickAction:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes tapPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+}
+
+@keyframes tapRipple {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+@keyframes scrollBounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(5px); }
+  60% { transform: translateY(3px); }
+}
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+  .modal {
+    margin: 10px;
+    max-width: none;
+    max-height: 95vh;
+  }
+  
+  .header {
+    padding: 20px 16px;
+  }
+  
+  .content {
+    padding: 20px 16px;
+    min-height: 250px;
+  }
+  
+  .navigation {
+    padding: 16px;
+  }
+  
+  .quickActions {
+    padding: 12px 16px 20px 16px;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .phoneFrame {
+    width: 100px;
+    height: 180px;
+  }
+  
+  .stepTitle {
+    font-size: 16px;
+  }
+  
+  .stepDescription {
+    font-size: 13px;
+  }
+}
+
+@media (max-height: 600px) {
+  .content {
+    min-height: 200px;
+  }
+  
+  .phoneFrame {
+    width: 90px;
+    height: 150px;
+  }
+}

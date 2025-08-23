@@ -1,0 +1,337 @@
+/* Install Guide Page Styles */
+.container {
+  min-height: 100vh;
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, rgba(10, 10, 10, 0.95) 0%, rgba(20, 20, 20, 0.95) 100%);
+  color: #fff;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 40px;
+  padding: 20px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.headerContent {
+  flex: 1;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 12px 0;
+  font-size: 32px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #00ff88 0%, #00d4ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.titleIcon {
+  font-size: 40px;
+  filter: none;
+  -webkit-text-fill-color: initial;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
+}
+
+.backButton {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 12px 20px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.backButton:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Section Titles */
+.sectionTitle {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  color: #fff;
+}
+
+/* Benefits Section */
+.benefits {
+  margin-bottom: 50px;
+}
+
+.benefitGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.benefitCard {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.benefitCard:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(0, 255, 136, 0.3);
+  transform: translateY(-2px);
+}
+
+.benefitIcon {
+  font-size: 36px;
+  margin-bottom: 16px;
+}
+
+.benefitCard h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.benefitCard p {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
+}
+
+/* Quick Install Section */
+.quickInstall {
+  margin-bottom: 50px;
+  text-align: center;
+}
+
+.installOptions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.primaryButton {
+  background: linear-gradient(135deg, #00ff88 0%, #00d4ff 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 16px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 200px;
+}
+
+.primaryButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 255, 136, 0.3);
+}
+
+.secondaryButton {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 16px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 200px;
+}
+
+.secondaryButton:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.helpText {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.helpText p {
+  margin: 8px 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.4;
+}
+
+.helpText strong {
+  color: #00ff88;
+}
+
+/* Tips Section */
+.tips {
+  margin-bottom: 50px;
+}
+
+.tipCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.tipCard {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.tipCard h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tipCard ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tipCard li {
+  margin: 0 0 12px 0;
+  padding-left: 20px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+  position: relative;
+}
+
+.tipCard li:before {
+  content: '•';
+  color: #00ff88;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.tipCard li:last-child {
+  margin-bottom: 0;
+}
+
+/* Troubleshooting Section */
+.troubleshooting {
+  margin-bottom: 40px;
+}
+
+.troubleshootingContent {
+  display: grid;
+  gap: 20px;
+}
+
+.faq {
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid #00ff88;
+  border-radius: 8px;
+  padding: 20px 24px;
+}
+
+.faq h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.faq p {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+  
+  .header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  
+  .title {
+    font-size: 24px;
+  }
+  
+  .titleIcon {
+    font-size: 28px;
+  }
+  
+  .benefitGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .installOptions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .tipCards {
+    grid-template-columns: 1fr;
+  }
+  
+  .sectionTitle {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 12px;
+  }
+  
+  .header {
+    margin-bottom: 30px;
+    padding: 16px 0;
+  }
+  
+  .benefits,
+  .quickInstall,
+  .tips {
+    margin-bottom: 40px;
+  }
+  
+  .benefitCard,
+  .tipCard {
+    padding: 20px;
+  }
+}
