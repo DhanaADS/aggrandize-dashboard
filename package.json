@@ -6,7 +6,19 @@
     "dev": "next dev --turbopack --port 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:install": "playwright install",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:pwa": "playwright test tests/e2e/pwa/",
+    "test:pwa:core": "playwright test tests/e2e/pwa/teamhub-core.spec.ts",
+    "test:pwa:install": "playwright test tests/e2e/pwa/teamhub-install.spec.ts",
+    "test:pwa:mobile": "playwright test tests/e2e/pwa/teamhub-mobile.spec.ts",
+    "test:mobile": "playwright test tests/e2e/pwa/teamhub-mobile.spec.ts --project=mobile-chrome",
+    "test:tablet": "playwright test tests/e2e/pwa/teamhub-mobile.spec.ts --project=tablet-chrome",
+    "test:report": "playwright show-report",
+    "test:trace": "playwright show-trace"
   },
   "dependencies": {
     "@next-auth/supabase-adapter": "^0.2.1",
@@ -37,6 +49,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.54.2",
     "@swc/cli": "^0.7.8",
     "@swc/core": "^1.13.4",
     "@types/node": "^20",
