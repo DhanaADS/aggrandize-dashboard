@@ -29,8 +29,13 @@ export default function TeamHubPage() {
       left: 0,
       width: '100vw',
       height: '100vh',
-      zIndex: 9999,
-      overflow: 'hidden'
+      zIndex: 99999,
+      overflow: 'hidden',
+      background: '#2a2a2a',
+      isolation: 'isolate',
+      contain: 'layout style paint',
+      WebkitOverflowScrolling: 'touch',
+      overscrollBehavior: 'contain'
     }}>
       <Suspense fallback={
         <div style={{ 

@@ -7,9 +7,10 @@ import { todosApi, unreadMessagesApi } from '@/lib/todos-api';
 import { getTeamMembersCached } from '@/lib/team-members-api';
 import { hybridRealtime } from '@/lib/hybrid-realtime';
 import { notificationSounds } from '@/lib/notification-sounds';
-import SimpleChatView from './SimpleChatView';
+import CommentThread from '../todos/CommentThread';
 import SimpleTaskCreator from './SimpleTaskCreator';
 import TaskDetailsModal from './TaskDetailsModal';
+import { SEVERITY_COLORS } from '@/lib/theme-colors';
 
 interface RealTimeSimpleTeamHubProps {
   className?: string;
@@ -89,7 +90,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
     }
   }, []);
 
-  // Handle status updates with optimistic UI
+  // Handle status updates with optimistic UI and real database operations
   const handleStatusUpdate = async (todoId: string, status: TodoStatus) => {
     console.log('🔄 Updating task status:', todoId, 'to:', status);
     
@@ -102,7 +103,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       const isTaskReceiver = todo.assigned_to === user.email || todo.assigned_to_array?.includes(user.email);
       
       if (!isTaskCreator && !isTaskReceiver) {
-        console.warn('User does not have permission to update this task status');
+        alert('You do not have permission to update this task status.');
         return;
       }
 
@@ -116,49 +117,61 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       );
 
       // Play sound feedback
-      notificationSounds.playTaskComplete();
+      try {
+        notificationSounds.playTaskComplete();
+      } catch (soundError) {
+        console.log('Sound notification failed:', soundError);
+      }
 
-      // Update on server
-      await todosApi.updateTodo(todoId, { status });
-      console.log('✅ Task status updated successfully');
+      // Update on server with real database operation
+      await todosApi.updateTodo(todoId, { 
+        status,
+        progress: status === 'done' ? 100 : status === 'in_progress' ? 50 : 0
+      });
+      
+      console.log('✅ Task status updated successfully in database');
       
     } catch (error) {
       console.error('Failed to update task status:', error);
-      // Revert optimistic update
-      loadTodos();
+      
+      // Revert optimistic update by reloading data
+      await loadTodos();
+      
+      alert('Failed to update task status. Please try again.');
     }
   };
 
-  // Handle task creation
+  // Handle task creation with real database operations
   const handleCreateTask = async (taskData: CreateTodoRequest) => {
     if (!user?.email) return;
+    
+    // Create optimistic task for immediate UI update
+    const optimisticTodo: Todo = {
+      id: `temp-${Date.now()}`,
+      title: taskData.title,
+      description: taskData.description || '',
+      created_by: user.email,
+      assigned_to: taskData.assigned_to_array?.[0] || '',
+      assigned_to_array: taskData.assigned_to_array || [],
+      category: taskData.category || 'general',
+      priority: taskData.priority || 'medium',
+      status: 'assigned',
+      progress: 0,
+      due_date: taskData.due_date || null,
+      start_date: new Date().toISOString(),
+      tags: [],
+      is_team_todo: true,
+      is_recurring: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
     
     try {
       console.log('➕ Creating new task:', taskData);
       
-      // Create mock task with proper structure
-      const newTodo: Todo = {
-        id: Date.now().toString(),
-        title: taskData.title,
-        description: taskData.description || '',
-        created_by: user.email,
-        assigned_to: taskData.assigned_to_array?.[0] || '',
-        assigned_to_array: taskData.assigned_to_array || [],
-        category: taskData.category || 'general',
-        priority: taskData.priority || 'medium',
-        status: 'assigned',
-        progress: 0,
-        due_date: taskData.due_date || null,
-        start_date: new Date().toISOString(),
-        tags: [],
-        is_team_todo: true,
-        is_recurring: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      
-      // Add to local state (optimistic update)
-      setTodos(prevTodos => [newTodo, ...prevTodos]);
+      // Add to local state immediately (optimistic update)
+      setTodos(prevTodos => [optimisticTodo, ...prevTodos]);
+      setShowTaskCreator(false);
       
       // Play sound feedback
       try {
@@ -167,11 +180,28 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
         console.log('Sound notification failed:', soundError);
       }
       
-      console.log('✅ Task created successfully');
-      setShowTaskCreator(false);
+      // Create task in database
+      const realTodo = await todosApi.createTodo(taskData);
+      
+      // Replace optimistic todo with real one from database
+      setTodos(prevTodos => 
+        prevTodos.map(todo => 
+          todo.id === optimisticTodo.id ? realTodo : todo
+        )
+      );
+      
+      console.log('✅ Task created successfully in database:', realTodo);
       
     } catch (error) {
       console.error('Failed to create task:', error);
+      
+      // Remove optimistic todo on error
+      setTodos(prevTodos => 
+        prevTodos.filter(todo => todo.id !== optimisticTodo.id)
+      );
+      
+      // Show error to user
+      alert('Failed to create task. Please try again.');
       throw error;
     }
   };
@@ -273,12 +303,19 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
     };
   }, [user?.email, loadTodos, loadTeamMembers, initializeRealtime]);
 
-  // Filter tasks
+  // Filter tasks and calculate stats
   const activeTasks = todos.filter(todo => 
     ['assigned', 'in_progress', 'pending_approval'].includes(todo.status)
   );
   const completedTasks = todos.filter(todo => todo.status === 'done');
   const totalUnreadMessages = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+  
+  // Calculate severity stats  
+  const urgentTasks = activeTasks.filter(task => task.priority === 'urgent' || task.priority === 'high').length;
+  const overdueTasksCount = activeTasks.filter(task => {
+    if (!task.due_date) return false;
+    return new Date(task.due_date) < new Date();
+  }).length;
 
   const renderTaskItem = (task: Todo, isCompleted = false) => (
     <div
@@ -451,14 +488,107 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
         }}>
           {getTimeBasedGreeting()}, {teamMembers.find(m => m.email === user?.email)?.name || 'Team Hub'}!
         </h1>
-        <p style={{
-          fontSize: '16px',
-          opacity: 0.9,
-          margin: 0
+        
+        {/* Enhanced Stats Card */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.15)',
+          borderRadius: '16px',
+          padding: '16px',
+          margin: '16px 0',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
         }}>
-          You have {activeTasks.length} tasks to do
-          {totalUnreadMessages > 0 && ` • ${totalUnreadMessages} new messages`}
-        </p>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '12px',
+            marginBottom: '12px'
+          }}>
+            {/* Pending Tasks */}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: '24px',
+                fontWeight: '700',
+                color: '#fff',
+                textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }}>
+                {activeTasks.length}
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: 'rgba(255, 255, 255, 0.8)'
+              }}>
+                Pending Tasks
+              </div>
+            </div>
+
+            {/* Urgent Tasks */}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: '24px',
+                fontWeight: '700',
+                color: urgentTasks > 0 ? SEVERITY_COLORS.high : '#fff',
+                textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }}>
+                {urgentTasks}
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: 'rgba(255, 255, 255, 0.8)'
+              }}>
+                Urgent
+              </div>
+            </div>
+          </div>
+
+          {/* Severity Alerts */}
+          {(urgentTasks > 0 || overdueTasksCount > 0 || totalUnreadMessages > 0) && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              paddingTop: '12px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              {urgentTasks > 0 && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  color: SEVERITY_COLORS.high,
+                  fontWeight: '600'
+                }}>
+                  🔥 {urgentTasks} urgent task{urgentTasks > 1 ? 's' : ''} need attention
+                </div>
+              )}
+              {overdueTasksCount > 0 && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  color: SEVERITY_COLORS.high,
+                  fontWeight: '600'
+                }}>
+                  ⏰ {overdueTasksCount} overdue task{overdueTasksCount > 1 ? 's' : ''}
+                </div>
+              )}
+              {totalUnreadMessages > 0 && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  color: SEVERITY_COLORS.info,
+                  fontWeight: '600'
+                }}>
+                  💬 {totalUnreadMessages} new message{totalUnreadMessages > 1 ? 's' : ''}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         </div>
       </div>
 
@@ -580,16 +710,208 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
 
             {/* Chat Tab */}
             {activeTab === 'chat' && (
-              <SimpleChatView
-                todos={todos}
-                currentUser={user?.email || ''}
-                teamMembers={teamMembers}
-                unreadCounts={unreadCounts}
-                onTaskSelect={setSelectedChatTodo}
-                onMarkAsRead={(todoId) => {
-                  setUnreadCounts(prev => ({ ...prev, [todoId]: 0 }));
-                }}
-              />
+              <div>
+                <h2 style={{
+                  fontSize: '22px',
+                  fontWeight: '600',
+                  color: '#ffffff',
+                  margin: '0 0 20px'
+                }}>
+                  Task Discussions
+                </h2>
+                
+                {selectedChatTodo ? (
+                  <div>
+                    {/* Back button */}
+                    <button
+                      onClick={() => setSelectedChatTodo(null)}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: '8px',
+                        padding: '8px 12px',
+                        color: '#ffffff',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        marginBottom: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      ← Back to Tasks
+                    </button>
+                    
+                    {/* Task title */}
+                    <h3 style={{
+                      fontSize: '18px',
+                      fontWeight: '600',
+                      color: '#ffffff',
+                      margin: '0 0 16px'
+                    }}>
+                      {selectedChatTodo.title}
+                    </h3>
+                    
+                    {/* Real CommentThread component */}
+                    <CommentThread
+                      todoId={selectedChatTodo.id}
+                      currentUser={user?.email || ''}
+                      teamMembers={teamMembers}
+                      onMarkAsRead={() => {
+                        setUnreadCounts(prev => ({ ...prev, [selectedChatTodo.id]: 0 }));
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    {todos.length > 0 ? (
+                      <div>
+                        {todos.map(todo => {
+                          const assignedUsers = todo.assigned_to_array || (todo.assigned_to ? [todo.assigned_to] : []);
+                          const assignedMembers = teamMembers.filter(member => assignedUsers.includes(member.email));
+                          const hasUnread = unreadCounts[todo.id] > 0;
+
+                          return (
+                            <div
+                              key={todo.id}
+                              onClick={() => setSelectedChatTodo(todo)}
+                              style={{
+                                background: '#2a2a2a',
+                                borderRadius: '16px',
+                                padding: '16px',
+                                marginBottom: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                cursor: 'pointer',
+                                position: 'relative',
+                                border: hasUnread ? '2px solid #667eea' : '1px solid #404040'
+                              }}
+                            >
+                              {/* Unread indicator */}
+                              {hasUnread && (
+                                <div style={{
+                                  position: 'absolute',
+                                  top: '8px',
+                                  right: '8px',
+                                  background: '#FF5252',
+                                  color: '#fff',
+                                  borderRadius: '50%',
+                                  width: '20px',
+                                  height: '20px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '11px',
+                                  fontWeight: '600'
+                                }}>
+                                  {unreadCounts[todo.id]}
+                                </div>
+                              )}
+
+                              {/* Chat Icon */}
+                              <div style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '50%',
+                                background: hasUnread ? '#667eea' : '#f0f0f0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '18px',
+                                color: hasUnread ? '#fff' : '#666',
+                                flexShrink: 0
+                              }}>
+                                💬
+                              </div>
+
+                              {/* Task Info */}
+                              <div style={{ flex: 1 }}>
+                                <div style={{
+                                  fontSize: '18px',
+                                  fontWeight: hasUnread ? '600' : '500',
+                                  color: '#ffffff',
+                                  marginBottom: '4px'
+                                }}>
+                                  {todo.title}
+                                </div>
+
+                                {/* Participants */}
+                                {assignedMembers.length > 0 && (
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    marginBottom: '4px'
+                                  }}>
+                                    {assignedMembers.slice(0, 3).map(member => (
+                                      <div
+                                        key={member.email}
+                                        style={{
+                                          width: '20px',
+                                          height: '20px',
+                                          borderRadius: '50%',
+                                          background: '#667eea',
+                                          color: '#fff',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          fontSize: '10px',
+                                          fontWeight: '600'
+                                        }}
+                                      >
+                                        {member.name.charAt(0)}
+                                      </div>
+                                    ))}
+                                    <span style={{
+                                      fontSize: '14px',
+                                      color: '#ffffff',
+                                      marginLeft: '4px'
+                                    }}>
+                                      {assignedMembers.map(m => m.name).join(', ')}
+                                    </span>
+                                  </div>
+                                )}
+
+                                <div style={{
+                                  fontSize: '14px',
+                                  color: '#b0b0b0'
+                                }}>
+                                  {hasUnread ? `${unreadCounts[todo.id]} new messages` : 'No new messages'}
+                                </div>
+                              </div>
+
+                              {/* Arrow */}
+                              <div style={{
+                                fontSize: '16px',
+                                color: '#888',
+                                flexShrink: 0
+                              }}>
+                                →
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{
+                        textAlign: 'center',
+                        padding: '40px 20px',
+                        color: '#ffffff'
+                      }}>
+                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>💬</div>
+                        <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                          No Active Discussions
+                        </h3>
+                        <p style={{ color: '#ffffff' }}>
+                          Task discussions will appear here when team members start conversations
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </>
         )}
@@ -644,14 +966,40 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
           onClose={() => setSelectedTaskForDetails(null)}
           onStatusUpdate={(status) => handleStatusUpdate(selectedTaskForDetails.id, status)}
           onEdit={() => {
-            // TODO: Implement task editing
             console.log('Edit task:', selectedTaskForDetails.id);
+            // For now, close modal - full editing can be implemented later
             setSelectedTaskForDetails(null);
           }}
-          onDelete={() => {
-            // TODO: Implement task deletion
-            console.log('Delete task:', selectedTaskForDetails.id);
-            setSelectedTaskForDetails(null);
+          onDelete={async () => {
+            if (!selectedTaskForDetails || !user?.email) return;
+            
+            const taskToDelete = selectedTaskForDetails;
+            
+            try {
+              // Check if user can delete (creator only)
+              if (taskToDelete.created_by !== user.email) {
+                alert('Only the task creator can delete this task.');
+                return;
+              }
+              
+              if (confirm(`Are you sure you want to delete "${taskToDelete.title}"?`)) {
+                // Optimistic delete - remove from UI immediately
+                setTodos(prev => prev.filter(t => t.id !== taskToDelete.id));
+                setSelectedTaskForDetails(null);
+                
+                // Delete from database
+                await todosApi.deleteTodo(taskToDelete.id);
+                
+                console.log('✅ Task deleted successfully:', taskToDelete.id);
+              }
+            } catch (error) {
+              console.error('Failed to delete task:', error);
+              
+              // Restore task on error
+              loadTodos();
+              
+              alert('Failed to delete task. Please try again.');
+            }
           }}
         />
       )}
