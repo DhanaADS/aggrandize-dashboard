@@ -44,6 +44,11 @@ export default defineConfig({
     
     /* Global timeout for page navigation */
     navigationTimeout: 30000,
+    
+    /* Set test mode headers for all requests */
+    extraHTTPHeaders: {
+      'x-playwright-test': 'true'
+    },
   },
 
   /* Configure projects for major browsers */
@@ -141,12 +146,12 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: process.env.CI ? undefined : {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000, // 2 minutes
-  },
+  // webServer: process.env.CI ? undefined : {
+  //   command: 'npm run dev',
+  //   url: 'http://localhost:3000',
+  //   reuseExistingServer: true, // Always reuse existing server
+  //   timeout: 120000, // 2 minutes
+  // },
 
   /* Test timeout */
   timeout: 60000, // 1 minute per test

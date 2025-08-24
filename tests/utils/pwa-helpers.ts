@@ -6,7 +6,12 @@ import { Page, expect } from '@playwright/test';
  */
 
 export class PWAHelpers {
-  constructor(private page: Page) {}
+  constructor(private page: Page) {
+    // Set test mode headers for all PWA helper requests
+    this.page.setExtraHTTPHeaders({
+      'x-playwright-test': 'true'
+    });
+  }
 
   /**
    * Check if the page has a valid service worker registered

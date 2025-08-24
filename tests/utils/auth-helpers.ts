@@ -40,22 +40,36 @@ export class AuthHelpers {
   }
 
   /**
-   * Login via direct authentication bypass (for testing)
-   * This assumes you have a test endpoint that sets auth cookies directly
+   * Login via mock authentication API (for testing)
+   * Uses the /api/test-auth endpoint to create proper test sessions
    */
   async loginDirectly(user: TestUser): Promise<void> {
-    // Set authentication cookies directly for testing
-    await this.page.context().addCookies([
-      {
-        name: 'next-auth.session-token',
-        value: `test-session-${user.email}`,
-        domain: new URL(this.page.url()).hostname,
-        path: '/',
-        httpOnly: true,
-        secure: false,
-        sameSite: 'Lax'
+    console.log(`🧪 Authenticating test user: ${user.email} (${user.role})`);
+    
+    // Set test mode header for all requests
+    await this.page.setExtraHTTPHeaders({
+      'x-playwright-test': 'true'
+    });
+
+    // Call test auth API to create session
+    const response = await this.page.request.post('/api/test-auth', {
+      headers: {
+        'x-playwright-test': 'true',
+        'content-type': 'application/json'
+      },
+      data: {
+        userEmail: user.email,
+        userName: user.name
       }
-    ]);
+    });
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(`Test authentication failed: ${response.status()} - ${errorText}`);
+    }
+
+    const authData = await response.json();
+    console.log(`✅ Test user authenticated successfully:`, authData.user);
 
     // Navigate to dashboard
     await this.page.goto('/dashboard');
@@ -76,10 +90,9 @@ export class AuthHelpers {
       // Look for user-specific elements that indicate successful login
       const userElements = [
         this.page.locator('[data-testid="user-avatar"]'),
-        this.page.locator('text="Good Morning"'),
-        this.page.locator('text="Good Afternoon"'),
-        this.page.locator('text="Good Evening"'),
-        this.page.locator('text="Good Night"'),
+        this.page.locator('h1:has-text("Good")'),
+        this.page.locator('text="Team Hub"'),
+        this.page.locator('text="Today\'s Tasks"'),
       ];
 
       // Check if any user element is visible
@@ -102,25 +115,24 @@ export class AuthHelpers {
    * Logout user
    */
   async logout(): Promise<void> {
-    // Look for user menu or logout button
-    const userMenu = this.page.locator('[data-testid="user-menu"], button:has-text("Sign out")');
+    console.log('🧪 Logging out test user');
     
-    if (await userMenu.isVisible()) {
-      await userMenu.click();
-      
-      // If it's a dropdown menu, look for logout option
-      const logoutOption = this.page.locator('text="Sign out", text="Logout", [data-testid="logout-button"]');
-      if (await logoutOption.isVisible()) {
-        await logoutOption.click();
-      }
-    } else {
-      // Alternative: Clear cookies to force logout
-      await this.page.context().clearCookies();
-      await this.page.goto('/');
+    // Call test auth API to clear session
+    try {
+      await this.page.request.delete('/api/test-auth', {
+        headers: {
+          'x-playwright-test': 'true'
+        }
+      });
+    } catch (error) {
+      console.log('Test auth logout failed, using cookie clearing fallback');
     }
 
-    // Wait for redirect to login or home page
-    await this.page.waitForURL('**/{login,/}');
+    // Clear cookies as backup
+    await this.page.context().clearCookies();
+    
+    // Navigate to home page
+    await this.page.goto('/');
     await this.page.waitForLoadState('networkidle');
   }
 
@@ -131,8 +143,8 @@ export class AuthHelpers {
     await this.page.goto('/dashboard/teamhub');
     await this.page.waitForLoadState('networkidle');
     
-    // Wait for PWA to load
-    await this.page.waitForSelector('text="Good Morning", text="Good Afternoon", text="Good Evening", text="Good Night"', {
+    // Wait for PWA to load - look for the greeting text that contains "Good" and "Team Hub"
+    await this.page.waitForSelector('h1:has-text("Good"), h1:has-text("Team Hub")', {
       timeout: 10000
     });
   }
