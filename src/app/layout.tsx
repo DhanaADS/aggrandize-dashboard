@@ -10,12 +10,26 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "AGGRANDIZE Team Hub",
+    title: "AGGRANDIZE TeamHub",
+    startupImage: [
+      {
+        media: "(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)",
+        url: "/logo1.png"
+      },
+      {
+        media: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)",
+        url: "/logo1.png"
+      },
+      {
+        media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)",
+        url: "/logo1.png"
+      }
+    ]
   },
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
-    "application-name": "AGGRANDIZE Team Hub",
+    "application-name": "AGGRANDIZE TeamHub",
     "msapplication-TileColor": "#2a2a2a",
     "theme-color": "#2a2a2a",
   },

@@ -81,20 +81,117 @@ export default function SimpleChatView({
           </div>
         </div>
 
-        {/* Chat Messages Placeholder */}
+        {/* Mock Chat Messages */}
         <div style={{
-          textAlign: 'center',
-          padding: '40px 20px',
-          color: '#666'
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          padding: '0 0 20px'
         }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>💬</div>
-          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
-            Chat Integration Coming Soon
-          </h3>
-          <p>
-            Task-specific messaging will be available here with real-time updates,
-            mentions, and file sharing.
-          </p>
+          {/* Sample messages */}
+          <div style={{
+            alignSelf: 'flex-start',
+            background: '#2a2a2a',
+            padding: '12px 16px',
+            borderRadius: '16px 16px 16px 4px',
+            maxWidth: '80%',
+            border: '1px solid #404040'
+          }}>
+            <div style={{
+              fontSize: '12px',
+              color: '#b0b0b0',
+              marginBottom: '4px'
+            }}>
+              Abbas • 2h ago
+            </div>
+            <div style={{
+              fontSize: '14px',
+              color: '#ffffff'
+            }}>
+              I'm starting work on this task. Will have updates by EOD.
+            </div>
+          </div>
+
+          <div style={{
+            alignSelf: 'flex-end',
+            background: '#667eea',
+            padding: '12px 16px',
+            borderRadius: '16px 16px 4px 16px',
+            maxWidth: '80%'
+          }}>
+            <div style={{
+              fontSize: '12px',
+              color: 'rgba(255, 255, 255, 0.8)',
+              marginBottom: '4px'
+            }}>
+              You • 1h ago
+            </div>
+            <div style={{
+              fontSize: '14px',
+              color: '#ffffff'
+            }}>
+              Great! Let me know if you need any resources.
+            </div>
+          </div>
+
+          <div style={{
+            alignSelf: 'flex-start',
+            background: '#2a2a2a',
+            padding: '12px 16px',
+            borderRadius: '16px 16px 16px 4px',
+            maxWidth: '80%',
+            border: '1px solid #404040'
+          }}>
+            <div style={{
+              fontSize: '12px',
+              color: '#b0b0b0',
+              marginBottom: '4px'
+            }}>
+              Abbas • 30m ago
+            </div>
+            <div style={{
+              fontSize: '14px',
+              color: '#ffffff'
+            }}>
+              Progress update: 60% complete. Should finish by 5 PM today.
+            </div>
+          </div>
+        </div>
+
+        {/* Message Input */}
+        <div style={{
+          position: 'sticky',
+          bottom: 0,
+          background: '#2a2a2a',
+          padding: '16px',
+          borderRadius: '16px',
+          display: 'flex',
+          gap: '8px',
+          border: '1px solid #404040'
+        }}>
+          <input
+            type="text"
+            placeholder="Type a message..."
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              color: '#ffffff',
+              fontSize: '14px',
+              outline: 'none'
+            }}
+          />
+          <button style={{
+            background: '#667eea',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '8px 12px',
+            color: '#ffffff',
+            fontSize: '14px',
+            cursor: 'pointer'
+          }}>
+            Send
+          </button>
         </div>
       </div>
     );

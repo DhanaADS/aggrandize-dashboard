@@ -366,8 +366,8 @@ export default function MockRealTimeSimpleTeamHub({ className = '' }: MockRealTi
             overflow: 'hidden'
           }}>
             <img 
-              src="/logo.png" 
-              alt="Brand Logo" 
+              src="/logo1.png" 
+              alt="AGGRANDIZE Logo" 
               style={{
                 width: '24px',
                 height: '24px',

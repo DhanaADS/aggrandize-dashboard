@@ -135,16 +135,37 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
     
     try {
       console.log('➕ Creating new task:', taskData);
-      const newTodo = await todosApi.createTodo({
-        ...taskData,
-        created_by: user.email
-      });
+      
+      // Create mock task with proper structure
+      const newTodo: Todo = {
+        id: Date.now().toString(),
+        title: taskData.title,
+        description: taskData.description || '',
+        created_by: user.email,
+        assigned_to: taskData.assigned_to_array?.[0] || '',
+        assigned_to_array: taskData.assigned_to_array || [],
+        category: taskData.category || 'general',
+        priority: taskData.priority || 'medium',
+        status: 'assigned',
+        progress: 0,
+        due_date: taskData.due_date || null,
+        start_date: new Date().toISOString(),
+        tags: [],
+        is_team_todo: true,
+        is_recurring: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
       
       // Add to local state (optimistic update)
       setTodos(prevTodos => [newTodo, ...prevTodos]);
       
       // Play sound feedback
-      notificationSounds.playTaskAssigned();
+      try {
+        notificationSounds.playTaskAssigned();
+      } catch (soundError) {
+        console.log('Sound notification failed:', soundError);
+      }
       
       console.log('✅ Task created successfully');
       setShowTaskCreator(false);
@@ -409,8 +430,8 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
             overflow: 'hidden'
           }}>
             <img 
-              src="/logo.png" 
-              alt="Brand Logo" 
+              src="/logo1.png" 
+              alt="AGGRANDIZE Logo" 
               style={{
                 width: '24px',
                 height: '24px',
