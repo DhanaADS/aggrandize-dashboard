@@ -1,4 +1,54 @@
-/* Todos Page Styles - Web3 Theme */
+/* TeamHub Page Styles - Responsive Design */
+
+/* Responsive Container */
+.teamhubContainer {
+  min-height: calc(100vh - 140px);
+  background: transparent;
+  padding: 1rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Loading States */
+.loadingContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  color: #ffffff;
+}
+
+.loadingContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* PWA Container for Mobile */
+@media (max-width: 768px) {
+  .teamhubContainer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 99999;
+    overflow: hidden;
+    background: #2a2a2a;
+    isolation: isolate;
+    contain: layout style paint;
+    WebkitOverflowScrolling: touch;
+    overscrollBehavior: contain;
+    padding: 0;
+    min-height: 100vh;
+  }
+  
+  .loadingContainer {
+    min-height: 100vh;
+    background: #2a2a2a;
+  }
+}
 
 .container {
   width: 100%;

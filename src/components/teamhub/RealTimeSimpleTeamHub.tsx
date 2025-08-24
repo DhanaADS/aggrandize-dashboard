@@ -181,7 +181,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       }
       
       // Create task in database
-      const realTodo = await todosApi.createTodo(taskData);
+      const realTodo = await todosApi.createTodo(taskData, user.email);
       
       // Replace optimistic todo with real one from database
       setTodos(prevTodos => 

@@ -109,10 +109,7 @@ export default function MinimalTeamHubContainer({ className = '' }: MinimalTeamH
     
     try {
       console.log('➕ Creating new task:', taskData);
-      const newTodo = await todosApi.createTodo({
-        ...taskData,
-        created_by: user.email
-      });
+      const newTodo = await todosApi.createTodo(taskData, user.email);
       
       // Add to local state
       setTodos(prevTodos => [newTodo, ...prevTodos]);
