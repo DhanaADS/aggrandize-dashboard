@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import { useAuth } from '@/lib/auth-nextauth';
-import TraditionalTaskContainer from '@/components/todos/TraditionalTaskContainer';
+import ResponsiveTeamHub from '@/components/teamhub/ResponsiveTeamHub';
 import NotificationCenter from '@/components/todos/NotificationCenter';
 import styles from './teamhub.module.css';
 
@@ -40,7 +40,7 @@ export default function TeamHubPage() {
           <p>Loading Team Hub...</p>
         </div>
       }>
-        <TraditionalTaskContainer />
+        <ResponsiveTeamHub />
       </Suspense>
     </div>
   );

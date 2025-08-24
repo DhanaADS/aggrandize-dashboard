@@ -8,8 +8,7 @@ import InstallPrompt from '@/components/pwa/InstallPrompt';
 import SmartNotificationBanner from '@/components/pwa/SmartNotificationBanner';
 import MobileAppShell from '@/components/pwa/MobileAppShell';
 import EngagementTracker from '@/components/pwa/EngagementTracker';
-import PushNotifications from '@/components/pwa/PushNotifications';
-import ABTestingSystem from '@/components/optimization/ABTestingSystem';
+// Removed: PushNotifications and ABTestingSystem components
 import { usePathname } from 'next/navigation';
 import styles from './dashboard-layout.module.css';
 
@@ -46,8 +45,7 @@ export function NextAuthDashboardLayout({ children }: NextAuthDashboardLayoutPro
           currentPath={pathname} 
           userEmail={user?.email} 
         />
-        <PushNotifications userEmail={user?.email} />
-        <ABTestingSystem userEmail={user?.email} />
+        {/* Removed: PushNotifications and ABTestingSystem components */}
         <EngagementTracker userEmail={user?.email} />
         <main className={styles.mainContent}>
           <div className={styles.contentWrapper}>

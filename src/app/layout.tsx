@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/components/providers/session-provider";
 import "./globals.css";
+import "../styles/minimal-design.css";
 
 export const metadata: Metadata = {
   title: "AGGRANDIZE Dashboard",
@@ -15,8 +16,8 @@ export const metadata: Metadata = {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
     "application-name": "AGGRANDIZE Team Hub",
-    "msapplication-TileColor": "#00ff88",
-    "theme-color": "#00ff88",
+    "msapplication-TileColor": "#2a2a2a",
+    "theme-color": "#2a2a2a",
   },
 };
 
