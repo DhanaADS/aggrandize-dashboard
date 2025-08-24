@@ -53,7 +53,7 @@ export default withAuth(
         const path = req.nextUrl.pathname;
         
         // Allow access to login page and public routes
-        if (path === '/login' || path === '/' || path.startsWith('/api/auth') || path.startsWith('/unauthorized')) {
+        if (path === '/login' || path === '/' || path.startsWith('/api/auth') || path.startsWith('/unauthorized') || path === '/dashboard/teamhub') {
           return true;
         }
         
