@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import { useAuth } from '@/lib/auth-nextauth';
-import ResponsiveTeamHub from '@/components/teamhub/ResponsiveTeamHub';
+import RealTimeSimpleTeamHub from '@/components/teamhub/RealTimeSimpleTeamHub';
 import NotificationCenter from '@/components/todos/NotificationCenter';
 import styles from './teamhub.module.css';
 
@@ -23,24 +23,43 @@ export default function TeamHubPage() {
   }
 
   return (
-    <div className={styles.container} style={{ 
-      height: 'calc(100vh - 160px)', // Account for navigation header (~160px)
-      maxHeight: 'calc(100vh - 160px)', 
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-      position: 'relative',
-      margin: '-2rem -1.5rem', // Remove default dashboard layout padding
-      padding: '0',
-      background: '#1a1a1a' // Match gaming theme background
+    <div style={{ 
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      zIndex: 9999,
+      overflow: 'hidden'
     }}>
       <Suspense fallback={
-        <div className={styles.loading}>
-          <div className={styles.spinner}></div>
-          <p>Loading Team Hub...</p>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          minHeight: '100vh',
+          background: '#2a2a2a',
+          color: '#ffffff'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            gap: '1rem' 
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              border: '3px solid #555',
+              borderTop: '3px solid #ffffff',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+            <p>Loading Team Hub...</p>
+          </div>
         </div>
       }>
-        <ResponsiveTeamHub />
+        <RealTimeSimpleTeamHub />
       </Suspense>
     </div>
   );
