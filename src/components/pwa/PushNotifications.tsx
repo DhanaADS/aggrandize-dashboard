@@ -32,8 +32,11 @@ export default function PushNotifications({ userEmail }: PushNotificationProps) 
         permission: Notification.permission
       }));
 
-      // Check for existing subscription
-      checkExistingSubscription();
+      // Register service worker first
+      registerServiceWorker().then(() => {
+        // Check for existing subscription after service worker is ready
+        checkExistingSubscription();
+      });
 
       // Show permission prompt after user has been on Team Hub for 2 minutes
       if (window.location.pathname.includes('/dashboard/teamhub') && Notification.permission === 'default') {
@@ -46,6 +49,25 @@ export default function PushNotifications({ userEmail }: PushNotificationProps) 
       }
     }
   }, []);
+
+  const registerServiceWorker = async () => {
+    try {
+      if ('serviceWorker' in navigator) {
+        console.log('📦 Registering service worker...');
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        console.log('✅ Service Worker registered successfully:', registration);
+        
+        // Wait for the service worker to be ready
+        await navigator.serviceWorker.ready;
+        console.log('🚀 Service Worker is ready');
+        
+        return registration;
+      }
+    } catch (error) {
+      console.error('❌ Service Worker registration failed:', error);
+      throw error;
+    }
+  };
 
   const checkExistingSubscription = async () => {
     try {
@@ -110,12 +132,20 @@ export default function PushNotifications({ userEmail }: PushNotificationProps) 
       const registration = await navigator.serviceWorker.ready;
       
       // VAPID public key for AGGRANDIZE Team Hub
-      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
+      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      
+      if (!vapidPublicKey) {
+        throw new Error('VAPID public key not found. Check environment variables.');
+      }
+      
+      console.log('🔑 Using VAPID key:', vapidPublicKey.slice(0, 20) + '...');
       
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlB64ToUint8Array(vapidPublicKey)
       });
+
+      console.log('📡 Push subscription created:', subscription);
 
       setNotificationState(prev => ({
         ...prev,
@@ -126,7 +156,8 @@ export default function PushNotifications({ userEmail }: PushNotificationProps) 
       await saveSubscriptionToServer(subscription);
 
     } catch (error) {
-      console.error('Error subscribing to push notifications:', error);
+      console.error('❌ Error subscribing to push notifications:', error);
+      throw error;
     }
   };
 
