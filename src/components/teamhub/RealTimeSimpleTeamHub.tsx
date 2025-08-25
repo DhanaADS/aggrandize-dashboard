@@ -632,8 +632,17 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#1A1A1A', // Much darker background
-      fontFamily: 'Inter, system-ui, sans-serif'
+      background: '#1A1A1A',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      // Native-like smooth scrolling
+      WebkitOverflowScrolling: 'touch',
+      overscrollBehavior: 'contain',
+      scrollBehavior: 'smooth',
+      // Optimize for mobile performance
+      backfaceVisibility: 'hidden',
+      perspective: '1000px',
+      transform: 'translateZ(0)',
+      willChange: 'scroll-position'
     }}>
       {/* Header */}
       <div style={{
@@ -1038,15 +1047,21 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       <div style={{
         display: 'flex',
         justifyContent: 'center',
-        gap: '6px',
+        alignItems: 'center',
+        gap: '4px',
         background: 'rgba(255, 255, 255, 0.08)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         borderRadius: '20px',
         margin: '0 20px 20px',
-        padding: '10px',
+        padding: '8px',
         border: '1px solid rgba(255, 255, 255, 0.12)',
-        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.1)'
+        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.1)',
+        // Prevent collapsing on small screens
+        minHeight: '56px',
+        flexWrap: 'nowrap',
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch'
       }}>
         {[
           { key: 'tasks', label: 'Active', icon: '📋' },
@@ -1058,23 +1073,28 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
             key={tab.key}
             onClick={() => setActiveTab(tab.key as any)}
             style={{
-              flex: 1,
-              padding: '12px 16px',
+              flex: '1',
+              minWidth: 'max-content',
+              padding: '10px 12px',
               borderRadius: '12px',
               border: 'none',
               background: activeTab === tab.key 
                 ? '#FFFFFF' 
                 : 'transparent',
               color: activeTab === tab.key ? '#2D2D2D' : 'rgba(255, 255, 255, 0.7)',
-              fontSize: '13px',
+              fontSize: '12px',
               fontWeight: activeTab === tab.key ? '700' : '500',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '6px',
-              boxShadow: activeTab === tab.key ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none'
+              gap: '4px',
+              whiteSpace: 'nowrap',
+              boxShadow: activeTab === tab.key ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none',
+              // Better touch interactions
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation'
             }}
           >
             <span style={{ fontSize: '14px' }}>{tab.icon}</span>
@@ -1090,7 +1110,17 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
         borderTopLeftRadius: '30px',
         borderTopRightRadius: '30px',
         padding: '30px 20px 100px',
-        position: 'relative'
+        position: 'relative',
+        // Native-like smooth scrolling for content
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehaviorY: 'contain',
+        scrollBehavior: 'smooth',
+        // Optimize touch interactions
+        touchAction: 'pan-y',
+        // GPU acceleration for smooth scrolling
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden',
+        willChange: 'transform, scroll-position'
       }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -1119,18 +1149,26 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
                   Active Tasks
                 </h2>
                 {activeTasks.length > 0 ? (
-                  activeTasks.map(task => (
-                    <MobileTaskCard
-                      key={task.id}
-                      task={task}
-                      teamMembers={teamMembers}
-                      currentUser={user?.email || ''}
-                      onStatusUpdate={handleStatusUpdate}
-                      onTaskClick={setSelectedTaskForDetails}
-                      onTaskUpdated={loadTodos}
-                      unreadCount={unreadCounts[task.id] || 0}
-                    />
-                  ))
+                  <div style={{
+                    // Optimize for smooth scrolling with many items
+                    transform: 'translateZ(0)',
+                    backfaceVisibility: 'hidden',
+                    perspective: '1000px',
+                    willChange: 'scroll-position'
+                  }}>
+                    {activeTasks.map(task => (
+                      <MobileTaskCard
+                        key={task.id}
+                        task={task}
+                        teamMembers={teamMembers}
+                        currentUser={user?.email || ''}
+                        onStatusUpdate={handleStatusUpdate}
+                        onTaskClick={setSelectedTaskForDetails}
+                        onTaskUpdated={loadTodos}
+                        unreadCount={unreadCounts[task.id] || 0}
+                      />
+                    ))}
+                  </div>
                 ) : (
                   <div style={{
                     textAlign: 'center',
@@ -1562,18 +1600,25 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
                   Tasks waiting for creator approval or feedback
                 </p>
                 {pendingApprovalTasks.length > 0 ? (
-                  pendingApprovalTasks.map(task => (
-                    <MobileTaskCard
-                      key={task.id}
-                      task={task}
-                      teamMembers={teamMembers}
-                      currentUser={user?.email || ''}
-                      onStatusUpdate={handleStatusUpdate}
-                      onTaskClick={setSelectedTaskForDetails}
-                      onTaskUpdated={loadTodos}
-                      unreadCount={unreadCounts[task.id] || 0}
-                    />
-                  ))
+                  <div style={{
+                    transform: 'translateZ(0)',
+                    backfaceVisibility: 'hidden',
+                    perspective: '1000px',
+                    willChange: 'scroll-position'
+                  }}>
+                    {pendingApprovalTasks.map(task => (
+                      <MobileTaskCard
+                        key={task.id}
+                        task={task}
+                        teamMembers={teamMembers}
+                        currentUser={user?.email || ''}
+                        onStatusUpdate={handleStatusUpdate}
+                        onTaskClick={setSelectedTaskForDetails}
+                        onTaskUpdated={loadTodos}
+                        unreadCount={unreadCounts[task.id] || 0}
+                      />
+                    ))}
+                  </div>
                 ) : (
                   <div style={{
                     textAlign: 'center',
@@ -2367,8 +2412,42 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
         />
       )}
 
-      {/* Animations */}
-      <style jsx>{`
+      {/* Animations & Smooth Scrolling */}
+      <style jsx global>{`
+        /* Native-like momentum scrolling for all elements */
+        * {
+          -webkit-overflow-scrolling: touch;
+          scroll-behavior: smooth;
+        }
+        
+        /* Optimize scrolling containers */
+        html, body {
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
+          scroll-behavior: smooth;
+          touch-action: manipulation;
+        }
+        
+        /* Smooth momentum scrolling for all scrollable areas */
+        div[style*="overflow"], 
+        div[style*="scroll"] {
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
+          scroll-behavior: smooth;
+        }
+        
+        /* Remove default touch highlights */
+        * {
+          -webkit-tap-highlight-color: transparent;
+          -webkit-touch-callout: none;
+        }
+        
+        /* Optimize button interactions */
+        button {
+          touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent;
+        }
+        
         @keyframes float {
           0%, 100% {
             transform: translateY(0px) rotate(0deg);

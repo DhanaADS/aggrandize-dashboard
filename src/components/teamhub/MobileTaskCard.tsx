@@ -148,7 +148,14 @@ export default function MobileTaskCard({
         transition: 'all 0.2s ease',
         position: 'relative',
         minHeight: '80px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+        // Native-like touch interactions
+        WebkitTapHighlightColor: 'transparent',
+        touchAction: 'manipulation',
+        // GPU acceleration for smooth animations
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden',
+        willChange: 'transform'
       }}
       onMouseOver={(e) => {
         e.currentTarget.style.transform = 'translateY(-2px)';
