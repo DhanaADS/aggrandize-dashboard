@@ -18,7 +18,9 @@ html {
   padding: 0;
   border: none;
   outline: none;
-  overflow-x: hidden;
+  /* PWA-optimized scrolling */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 body {
@@ -33,10 +35,13 @@ body {
   font-weight: 400;
   border: none !important;
   outline: none !important;
-  overflow-x: hidden !important;
+  /* PWA-optimized scrolling */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
-/* Next.js containers - aggressive reset */
+/* Next.js containers - PWA scroll optimized */
 #__next,
 #__next > div,
 #__next > div > div,
@@ -48,8 +53,50 @@ main > div {
   width: 100vw !important;
   border: none !important;
   outline: none !important;
+  /* iOS scroll support */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   box-shadow: none !important;
   overflow-x: hidden !important;
+}
+
+/* PWA-Specific CSS Enhancements */
+@media (display-mode: standalone) {
+  html, body {
+    /* Enhanced scroll for PWA mode */
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
+  }
+  
+  /* Fix for iOS PWA viewport issues */
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Optimize scrollable containers in PWA mode */
+  * {
+    -webkit-overflow-scrolling: touch;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Global scroll optimizations */
+*, *::before, *::after {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Ensure smooth scrolling for all elements */
+div[style*="overflow"], 
+div[style*="scroll"] {
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  scroll-behavior: smooth !important;
 }
 
 /* Targeted border removal for layout containers only */

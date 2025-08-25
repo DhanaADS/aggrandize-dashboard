@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "AGGRANDIZE Dashboard",
   description: "Role-based access control dashboard with modern Web3 styling",
   manifest: "/manifest.json",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
