@@ -89,7 +89,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Push notification event
+// Push notification event - Enhanced for 4 specific notification types
 self.addEventListener('push', (event) => {
   console.log('📬 Service Worker: Push message received');
   
@@ -98,46 +98,107 @@ self.addEventListener('push', (event) => {
     body: 'You have a new update!',
     icon: '/icon-192x192.png',
     badge: '/icon-72x72.png',
-    tag: 'default'
+    tag: 'default',
+    data: {
+      url: '/dashboard/teamhub',
+      type: 'default'
+    }
   };
   
   // Parse push data if available
   if (event.data) {
     try {
-      notificationData = { ...notificationData, ...event.data.json() };
+      const pushData = event.data.json();
+      notificationData = { ...notificationData, ...pushData };
     } catch (error) {
-      console.error('Error parsing push data:', error);
+      console.error('❌ Error parsing push data:', error);
     }
   }
+
+  // Social media-style notification configurations for each type
+  const notificationConfigs = {
+    'task_assigned': {
+      icon: '/icon-192x192.png',
+      badge: '/icon-72x72.png',
+      requireInteraction: true,
+      silent: false,
+      vibrate: [200, 100, 200], // WhatsApp-style vibration
+      actions: [
+        { action: 'view-task', title: '👀 View Task', icon: '/icon-72x72.png' },
+        { action: 'complete-task', title: '✅ Mark Complete', icon: '/icon-72x72.png' }
+      ]
+    },
+    'new_comment': {
+      icon: '/icon-192x192.png', 
+      badge: '/icon-72x72.png',
+      requireInteraction: false,
+      silent: false,
+      vibrate: [100, 50, 100], // Twitter-style vibration
+      actions: [
+        { action: 'view-comment', title: '💬 View Comment', icon: '/icon-72x72.png' },
+        { action: 'reply', title: '↩️ Reply', icon: '/icon-72x72.png' }
+      ]
+    },
+    'task_status_change': {
+      icon: '/icon-192x192.png',
+      badge: '/icon-72x72.png', 
+      requireInteraction: false,
+      silent: false,
+      vibrate: [150, 75, 150], // Instagram-style vibration
+      actions: [
+        { action: 'view-task', title: '📊 View Task', icon: '/icon-72x72.png' },
+        { action: 'dismiss', title: '👍 Got it', icon: '/icon-72x72.png' }
+      ]
+    },
+    'mention': {
+      icon: '/icon-192x192.png',
+      badge: '/icon-72x72.png',
+      requireInteraction: true,
+      silent: false,
+      vibrate: [300, 100, 300, 100, 300], // Mention alert vibration
+      actions: [
+        { action: 'view-mention', title: '🏷️ View Mention', icon: '/icon-72x72.png' },
+        { action: 'reply', title: '💬 Reply', icon: '/icon-72x72.png' }
+      ]
+    }
+  };
+
+  // Get configuration for the notification type
+  const notificationType = notificationData.data?.type || 'default';
+  const config = notificationConfigs[notificationType] || notificationConfigs['task_assigned'];
   
   const notificationOptions = {
     body: notificationData.body,
-    icon: notificationData.icon,
-    badge: notificationData.badge,
-    tag: notificationData.tag,
-    requireInteraction: true,
-    actions: [
-      {
-        action: 'open-teamhub',
-        title: 'Open Team Hub'
-      },
-      {
-        action: 'dismiss',
-        title: 'Dismiss'
-      }
-    ],
+    icon: notificationData.icon || config.icon,
+    badge: notificationData.badge || config.badge,
+    tag: notificationData.tag || notificationType,
+    requireInteraction: config.requireInteraction,
+    silent: config.silent,
+    vibrate: config.vibrate,
+    actions: notificationData.actions || config.actions,
     data: {
-      url: '/dashboard/teamhub',
-      timestamp: Date.now()
-    }
+      url: notificationData.data?.url || '/dashboard/teamhub',
+      type: notificationType,
+      taskId: notificationData.data?.taskId,
+      timestamp: Date.now(),
+      ...notificationData.data
+    },
+    // Social media-style appearance
+    image: notificationData.image,
+    dir: 'auto',
+    lang: 'en',
+    renotify: false, // Don't renotify for same tag
+    timestamp: Date.now()
   };
+
+  console.log(`🔔 Showing ${notificationType} notification:`, notificationData.title);
   
   event.waitUntil(
     self.registration.showNotification(notificationData.title, notificationOptions)
   );
 });
 
-// Notification click event
+// Notification click event - Enhanced for social media-style interactions
 self.addEventListener('notificationclick', (event) => {
   console.log('🔔 Service Worker: Notification clicked');
   
@@ -145,29 +206,100 @@ self.addEventListener('notificationclick', (event) => {
   
   const action = event.action;
   const notificationData = event.notification.data;
+  const notificationType = notificationData?.type || 'default';
   
-  if (action === 'dismiss') {
-    return;
-  }
-  
-  // Default action or 'open-teamhub'
-  const urlToOpen = notificationData?.url || '/dashboard/teamhub';
-  
-  event.waitUntil(
-    clients.matchAll({ type: 'window' }).then((clientList) => {
-      // Check if Team Hub is already open
-      for (const client of clientList) {
-        if (client.url.includes('/dashboard/teamhub') && 'focus' in client) {
+  console.log(`📱 Action: ${action || 'default'}, Type: ${notificationType}`);
+
+  // Handle different actions based on notification type
+  const handleNotificationAction = async () => {
+    let urlToOpen = '/dashboard/teamhub';
+    
+    // Build URL with task context if available
+    if (notificationData?.taskId) {
+      urlToOpen += `?task=${notificationData.taskId}`;
+    }
+
+    // Handle specific actions
+    switch (action) {
+      case 'dismiss':
+      case 'dismiss-action':
+        console.log('👍 User dismissed notification');
+        return; // Just close, don't open anything
+        
+      case 'view-task':
+      case 'view-comment':
+      case 'view-mention':
+        console.log(`👀 Opening task view for ${notificationType}`);
+        break;
+        
+      case 'complete-task':
+        console.log('✅ User wants to complete task from notification');
+        // Could potentially send a quick complete API call here
+        break;
+        
+      case 'reply':
+        console.log('↩️ User wants to reply from notification');
+        // Open with reply dialog focused
+        if (notificationData?.taskId) {
+          urlToOpen += '&reply=true';
+        }
+        break;
+        
+      default:
+        // Default click action (clicking notification body)
+        console.log('📱 Default notification click');
+        break;
+    }
+
+    // Smart window management (social media style)
+    const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    
+    // First, try to find an existing TeamHub window
+    for (const client of clientList) {
+      if (client.url.includes('/dashboard/teamhub')) {
+        console.log('🔄 Found existing TeamHub window, focusing and navigating');
+        
+        // Send message to existing window to navigate to specific task
+        if (notificationData?.taskId && 'postMessage' in client) {
+          client.postMessage({
+            type: 'NOTIFICATION_CLICK',
+            taskId: notificationData.taskId,
+            action: action || 'view',
+            notificationType
+          });
+        }
+        
+        return client.focus();
+      }
+    }
+    
+    // If no existing TeamHub window, check for any AGGRANDIZE window
+    for (const client of clientList) {
+      if (client.url.includes(self.location.origin)) {
+        console.log('🔄 Found existing app window, navigating to TeamHub');
+        
+        if ('navigate' in client) {
+          await client.navigate(urlToOpen);
+          return client.focus();
+        } else if ('postMessage' in client) {
+          // Fallback: send navigation message
+          client.postMessage({
+            type: 'NAVIGATE_TO',
+            url: urlToOpen
+          });
           return client.focus();
         }
       }
-      
-      // Open new window/tab if not already open
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
-      }
-    })
-  );
+    }
+    
+    // No existing windows, open new one
+    console.log('🆕 Opening new window for notification');
+    if (clients.openWindow) {
+      return clients.openWindow(urlToOpen);
+    }
+  };
+  
+  event.waitUntil(handleNotificationAction());
 });
 
 // Background sync for offline task creation

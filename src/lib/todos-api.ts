@@ -13,6 +13,7 @@ import {
   TodoPriority,
   TodoCategory
 } from '@/types/todos';
+import { NotificationHelpers } from './push-service';
 
 const supabase = createClient();
 
@@ -324,6 +325,37 @@ export const todosApi = {
           // Don't fail the entire operation if attachments fail
         }
       }
+
+      // 📋 Send push notification for task assignment
+      try {
+        if (createdTodo.assigned_to && createdTodo.assigned_to !== userEmail) {
+          await NotificationHelpers.taskAssigned(
+            createdTodo.assigned_to,
+            createdTodo.title,
+            userEmail,
+            createdTodo.id
+          );
+        }
+
+        // Send notifications to multiple assignees if using assigned_to_array
+        if (createdTodo.assigned_to_array && createdTodo.assigned_to_array.length > 0) {
+          const notificationPromises = createdTodo.assigned_to_array
+            .filter(assignee => assignee !== userEmail) // Skip self-notification
+            .map(assignee => 
+              NotificationHelpers.taskAssigned(
+                assignee,
+                createdTodo.title,
+                userEmail,
+                createdTodo.id
+              )
+            );
+          
+          await Promise.all(notificationPromises);
+        }
+      } catch (notificationError) {
+        console.error('Warning: Task created but notification failed:', notificationError);
+        // Don't fail task creation if notifications fail
+      }
       
       return createdTodo;
     } catch (error) {
@@ -509,6 +541,72 @@ export const todosApi = {
         }
         
         throw new Error(`Failed to update todo: ${error.message}`);
+      }
+
+      // 🔄 Send push notification for task status change
+      try {
+        if (data && userEmail && updates.status) {
+          // Get task details and assignees for notifications
+          const { data: todoData, error: todoError } = await supabase
+            .from('todos')
+            .select('title, assigned_to, assigned_to_array, created_by')
+            .eq('id', id)
+            .single();
+
+          if (!todoError && todoData) {
+            const notificationPromises: Promise<any>[] = [];
+
+            // Send notification to assignee (if different from updater)
+            if (todoData.assigned_to && todoData.assigned_to !== userEmail) {
+              notificationPromises.push(
+                NotificationHelpers.taskStatusChange(
+                  todoData.assigned_to,
+                  todoData.title,
+                  userEmail,
+                  id,
+                  updates.status
+                )
+              );
+            }
+
+            // Send notifications to multiple assignees (if using array)
+            if (todoData.assigned_to_array && todoData.assigned_to_array.length > 0) {
+              const arrayNotifications = todoData.assigned_to_array
+                .filter(assignee => assignee !== userEmail)
+                .map(assignee =>
+                  NotificationHelpers.taskStatusChange(
+                    assignee,
+                    todoData.title,
+                    userEmail,
+                    id,
+                    updates.status
+                  )
+                );
+              notificationPromises.push(...arrayNotifications);
+            }
+
+            // Send notification to task creator (if different from updater and assignee)
+            if (todoData.created_by && 
+                todoData.created_by !== userEmail && 
+                todoData.created_by !== todoData.assigned_to &&
+                (!todoData.assigned_to_array || !todoData.assigned_to_array.includes(todoData.created_by))) {
+              notificationPromises.push(
+                NotificationHelpers.taskStatusChange(
+                  todoData.created_by,
+                  todoData.title,
+                  userEmail,
+                  id,
+                  updates.status
+                )
+              );
+            }
+
+            await Promise.all(notificationPromises);
+          }
+        }
+      } catch (notificationError) {
+        console.error('Warning: Task updated but notification failed:', notificationError);
+        // Don't fail task update if notifications fail
       }
 
       return data;
@@ -733,6 +831,69 @@ export const todoCommentsApi = {
         throw new Error(`Failed to add comment: ${error.message}`);
       }
 
+      // 💬 Send push notification for new comment
+      try {
+        // Get task details and participants for notifications
+        const { data: todoData, error: todoError } = await supabase
+          .from('todos')
+          .select('title, assigned_to, assigned_to_array, created_by')
+          .eq('id', todoId)
+          .single();
+
+        if (!todoError && todoData) {
+          const notificationPromises: Promise<any>[] = [];
+          const notifiedUsers = new Set<string>();
+
+          // Send notification to assignee (if different from commenter)
+          if (todoData.assigned_to && todoData.assigned_to !== userEmail) {
+            notificationPromises.push(
+              NotificationHelpers.newComment(
+                todoData.assigned_to,
+                todoData.title,
+                userEmail,
+                todoId
+              )
+            );
+            notifiedUsers.add(todoData.assigned_to);
+          }
+
+          // Send notifications to multiple assignees (if using array)
+          if (todoData.assigned_to_array && todoData.assigned_to_array.length > 0) {
+            const arrayNotifications = todoData.assigned_to_array
+              .filter(assignee => assignee !== userEmail && !notifiedUsers.has(assignee))
+              .map(assignee => {
+                notifiedUsers.add(assignee);
+                return NotificationHelpers.newComment(
+                  assignee,
+                  todoData.title,
+                  userEmail,
+                  todoId
+                );
+              });
+            notificationPromises.push(...arrayNotifications);
+          }
+
+          // Send notification to task creator (if different from commenter and not already notified)
+          if (todoData.created_by && 
+              todoData.created_by !== userEmail && 
+              !notifiedUsers.has(todoData.created_by)) {
+            notificationPromises.push(
+              NotificationHelpers.newComment(
+                todoData.created_by,
+                todoData.title,
+                userEmail,
+                todoId
+              )
+            );
+          }
+
+          await Promise.all(notificationPromises);
+        }
+      } catch (notificationError) {
+        console.error('Warning: Comment added but notification failed:', notificationError);
+        // Don't fail comment creation if notifications fail
+      }
+
       return data;
     } catch (error) {
       console.error('API Error - addComment:', error);
@@ -799,9 +960,38 @@ export const enhancedTodosApi = {
         throw new Error(`Failed to add comment: ${error.message}`);
       }
 
-      // Create notifications for mentioned users
-      if (mentions.length > 0) {
-        await this.createMentionNotifications(todoId, mentions, commentBy, comment);
+      // 🏷️ Send push notifications for mentions
+      try {
+        if (mentions.length > 0) {
+          // Get task title for notifications
+          const { data: todoData, error: todoError } = await supabase
+            .from('todos')
+            .select('title')
+            .eq('id', todoId)
+            .single();
+
+          if (!todoError && todoData) {
+            // Send push notifications to mentioned users
+            const mentionNotifications = mentions
+              .filter(mentionEmail => mentionEmail !== commentBy) // Skip self-mentions
+              .map(mentionEmail =>
+                NotificationHelpers.mention(
+                  mentionEmail,
+                  todoData.title,
+                  commentBy,
+                  todoId
+                )
+              );
+            
+            await Promise.all(mentionNotifications);
+          }
+
+          // Also create database notifications (existing functionality)
+          await this.createMentionNotifications(todoId, mentions, commentBy, comment);
+        }
+      } catch (notificationError) {
+        console.error('Warning: Comment with mentions added but notification failed:', notificationError);
+        // Don't fail comment creation if notifications fail
       }
 
       return data;

@@ -29,6 +29,7 @@
     "@react-pdf/renderer": "^4.3.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.56.0",
+    "@types/web-push": "^3.6.4",
     "@types/xml2js": "^0.4.14",
     "cheerio": "^1.1.2",
     "class-variance-authority": "^0.7.1",
@@ -44,6 +45,7 @@
     "reactflow": "^11.11.4",
     "resend": "^6.0.1",
     "ts-node": "^10.9.2",
+    "web-push": "^3.6.7",
     "xlsx": "^0.18.5",
     "xml2js": "^0.6.2"
   },

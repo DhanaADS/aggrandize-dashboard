@@ -109,8 +109,8 @@ export default function PushNotifications({ userEmail }: PushNotificationProps) 
     try {
       const registration = await navigator.serviceWorker.ready;
       
-      // VAPID public key (you'll need to generate this)
-      const vapidPublicKey = 'YOUR_VAPID_PUBLIC_KEY'; // Replace with actual VAPID key
+      // VAPID public key for AGGRANDIZE Team Hub
+      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
       
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,

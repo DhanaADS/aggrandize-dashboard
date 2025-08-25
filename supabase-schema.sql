@@ -994,3 +994,44 @@ CREATE TRIGGER on_monthly_salary_payments_updated
 CREATE INDEX idx_monthly_salary_payments_employee_month ON monthly_salary_payments(employee_id, payment_month);
 CREATE INDEX idx_monthly_salary_payments_month ON monthly_salary_payments(payment_month);
 CREATE INDEX idx_monthly_salary_payments_status ON monthly_salary_payments(payment_status);
+
+-- ================================================
+-- PUSH NOTIFICATIONS SYSTEM
+-- ================================================
+
+-- Push subscriptions table for storing user notification tokens
+CREATE TABLE push_subscriptions (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_email text NOT NULL REFERENCES user_profiles(email) ON DELETE CASCADE,
+  endpoint text NOT NULL,
+  p256dh text NOT NULL,
+  auth text NOT NULL,
+  user_agent text,
+  notification_types text[] DEFAULT ARRAY['task_assigned', 'new_comment', 'task_status_change', 'mention'],
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  last_used timestamp with time zone,
+  UNIQUE(user_email, endpoint)
+);
+
+-- Enable RLS on push_subscriptions
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for push_subscriptions
+CREATE POLICY "Users can manage own push subscriptions" ON push_subscriptions
+  FOR ALL USING (
+    user_email = (
+      SELECT email FROM user_profiles WHERE id = auth.uid()
+    )
+  );
+
+-- Create indexes for performance
+CREATE INDEX idx_push_subscriptions_user_email ON push_subscriptions(user_email);
+CREATE INDEX idx_push_subscriptions_active ON push_subscriptions(is_active);
+CREATE INDEX idx_push_subscriptions_endpoint ON push_subscriptions(endpoint);
+
+-- Trigger to update updated_at timestamp
+CREATE TRIGGER on_push_subscriptions_updated
+  BEFORE UPDATE ON public.push_subscriptions
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
