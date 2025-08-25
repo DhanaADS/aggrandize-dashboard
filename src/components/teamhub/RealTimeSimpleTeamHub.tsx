@@ -9,9 +9,10 @@ import { hybridRealtime } from '@/lib/hybrid-realtime';
 import { notificationSounds } from '@/lib/notification-sounds';
 import CommentThread from '../todos/CommentThread';
 import SimpleTaskCreator from './SimpleTaskCreator';
-import TaskDetailsModal from './TaskDetailsModal';
 import MobileTaskCard from './MobileTaskCard';
-import { SEVERITY_COLORS } from '@/lib/theme-colors';
+import TaskFeedbackModal from './TaskFeedbackModal';
+import EditTaskModal from '../todos/EditTaskModal';
+import { SEVERITY_COLORS, THEME_COLORS, getStoredTheme, setStoredTheme, ThemeColor } from '@/lib/theme-colors';
 
 interface RealTimeSimpleTeamHubProps {
   className?: string;
@@ -19,6 +20,19 @@ interface RealTimeSimpleTeamHubProps {
 
 export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimpleTeamHubProps) {
   const { user } = useAuth();
+  
+  // Utility function to remove duplicate todos by ID
+  const deduplicateTodos = (todos: Todo[]): Todo[] => {
+    const seen = new Set<string>();
+    return todos.filter(todo => {
+      if (seen.has(todo.id)) {
+        console.warn('Duplicate todo detected and removed:', todo.id);
+        return false;
+      }
+      seen.add(todo.id);
+      return true;
+    });
+  };
   
   // Function to get time-based greeting
   const getTimeBasedGreeting = () => {
@@ -41,6 +55,100 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
   const [showTaskCreator, setShowTaskCreator] = useState(false);
   const [selectedChatTodo, setSelectedChatTodo] = useState<Todo | null>(null);
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState<Todo | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  
+  // Theme management state
+  const [currentTheme, setCurrentTheme] = useState<ThemeColor>(getStoredTheme());
+  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode
+
+  // Helper functions for task view
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'assigned': return '#9C27B0';
+      case 'in_progress': return '#2196F3';
+      case 'pending_approval': return '#FF9800';
+      case 'revision': return '#FF5722';
+      case 'rejected': return '#f44336';
+      case 'done': return '#4CAF50';
+      default: return '#9E9E9E';
+    }
+  };
+
+  const getPriorityColor = (priority: string): string => {
+    switch (priority) {
+      case 'urgent': return '#FF1744';
+      case 'high': return '#FF5722';
+      case 'medium': return '#FF9800';
+      case 'low': return '#4CAF50';
+      default: return '#9E9E9E';
+    }
+  };
+
+  // Dynamic gradient based on urgency and time
+  const getDynamicHeaderGradient = (): string => {
+    const hour = new Date().getHours();
+    const hasUrgentTasks = urgentTasks > 0;
+    const hasOverdueTasks = overdueTasksCount > 0;
+    
+    if (isDarkMode) {
+      // Dark mode gradients - much darker with subtle colors
+      if (hasUrgentTasks || hasOverdueTasks) {
+        return `linear-gradient(135deg, 
+          #1a1a1a 0%, 
+          #2d1b1b 30%, 
+          #3d1e1e 100%)`;
+      }
+      
+      // Dark mode time-based gradients
+      if (hour >= 6 && hour < 12) {
+        return `linear-gradient(135deg, #1a1a1a 0%, #252525 50%, #1e1e1e 100%)`;
+      } else if (hour >= 12 && hour < 17) {
+        return `linear-gradient(135deg, #1a1a1a 0%, #242428 50%, #1f1f1f 100%)`;
+      } else if (hour >= 17 && hour < 22) {
+        return `linear-gradient(135deg, #1a1a1a 0%, #2a2320 50%, #1e1e1e 100%)`;
+      } else {
+        return `linear-gradient(135deg, #1a1a1a 0%, #1f1f2a 50%, #1c1c1c 100%)`;
+      }
+    } else {
+      // Light mode gradients (original logic)
+      if (hasUrgentTasks || hasOverdueTasks) {
+        return `linear-gradient(135deg, 
+          ${currentTheme.primary}40 0%, 
+          #FF5722AA 30%, 
+          #FF174480 100%)`;
+      }
+      
+      if (hour >= 6 && hour < 12) {
+        return `linear-gradient(135deg, 
+          ${currentTheme.primary}80 0%, 
+          #FFE08280 50%, 
+          ${currentTheme.secondary}60 100%)`;
+      } else if (hour >= 12 && hour < 17) {
+        return `linear-gradient(135deg, 
+          ${currentTheme.primary}70 0%, 
+          #4FC3F780 50%, 
+          ${currentTheme.secondary}70 100%)`;
+      } else if (hour >= 17 && hour < 22) {
+        return `linear-gradient(135deg, 
+          ${currentTheme.primary}60 0%, 
+          #FF998860 50%, 
+          ${currentTheme.secondary}80 100%)`;
+      } else {
+        return `linear-gradient(135deg, 
+          ${currentTheme.primary}50 0%, 
+          #3F51B560 50%, 
+          ${currentTheme.secondary}90 100%)`;
+      }
+    }
+  };
+
+  // Theme change handler
+  const handleThemeChange = (newTheme: ThemeColor) => {
+    setCurrentTheme(newTheme);
+    setStoredTheme(newTheme.id);
+  };
 
   // Load todos for the current user
   const loadTodos = useCallback(async () => {
@@ -54,7 +162,9 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       const userAccessibleTodos = await todosApi.getTodosForUser(user.email);
       console.log('📋 RealTimeSimpleTeamHub - User-accessible todos:', userAccessibleTodos.length);
       
-      setTodos(userAccessibleTodos);
+      // Deduplicate todos to prevent React key errors
+      const deduplicatedTodos = deduplicateTodos(userAccessibleTodos);
+      setTodos(deduplicatedTodos);
       
       // Load unread counts for accessible todos
       if (userAccessibleTodos.length > 0) {
@@ -93,7 +203,11 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
 
   // Handle status updates with enhanced workflow logic
   const handleStatusUpdate = async (todoId: string, status: TodoStatus) => {
+    if (isUpdatingStatus) return; // Prevent multiple concurrent updates
+    
     console.log('🔄 Updating task status:', todoId, 'to:', status);
+    
+    setIsUpdatingStatus(true);
     
     try {
       const todo = todos.find(t => t.id === todoId);
@@ -157,9 +271,9 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
           break;
 
         default:
-          // For other status changes, use existing logic
+          // For other status changes, set default progress values
           if (shouldUpdateProgress) {
-            updateData.progress = status === 'done' ? 100 : status === 'in_progress' ? 50 : 0;
+            updateData.progress = 0; // Default to 0 for other statuses
           }
       }
 
@@ -209,7 +323,90 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       await loadTodos();
       
       alert('Failed to update task status. Please try again.');
+    } finally {
+      setIsUpdatingStatus(false);
     }
+  };
+
+  // Handle task deletion
+  const handleDeleteTask = async (todoId: string) => {
+    if (!user?.email || isUpdatingStatus) return;
+    
+    if (!confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsUpdatingStatus(true);
+    try {
+      // Optimistic update - remove from UI immediately
+      setTodos(prevTodos => prevTodos.filter(t => t.id !== todoId));
+      
+      // Close task details if this task is selected
+      if (selectedTaskForDetails?.id === todoId) {
+        setSelectedTaskForDetails(null);
+      }
+      
+      // Delete from database
+      await todosApi.deleteTodo(todoId, user.email);
+      
+      console.log('✅ Task deleted successfully:', todoId);
+      notificationSounds.playSuccess();
+      
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+      // Reload data to revert optimistic update
+      await loadTodos();
+      alert('Failed to delete task. Please try again.');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  // Handle task editing
+  const handleEditTask = async () => {
+    if (!selectedTaskForDetails) return;
+    setShowEditModal(true);
+  };
+
+  // Handle edit modal save
+  const handleEditSave = async (todoId: string, updates: any) => {
+    try {
+      // Use the editTodo API function which includes edit tracking
+      await todosApi.editTodo(todoId, updates, user?.email || '');
+      
+      // Reload todos to get updated data
+      await loadTodos();
+      
+      // Update selected task details if it's the same task
+      if (selectedTaskForDetails?.id === todoId) {
+        const updatedTodos = todos.find(t => t.id === todoId);
+        if (updatedTodos) {
+          setSelectedTaskForDetails(updatedTodos);
+        }
+      }
+      
+      // Close edit modal
+      setShowEditModal(false);
+      
+      console.log('✅ Task edited successfully');
+      notificationSounds.playSuccess();
+      
+    } catch (error) {
+      console.error('Failed to edit task:', error);
+      alert('Failed to save changes. Please try again.');
+    }
+  };
+
+  // Handle feedback modal actions
+  const handleOpenFeedback = () => {
+    setShowFeedbackModal(true);
+  };
+
+  const handleFeedbackSent = async () => {
+    // Reload todos to get updated status
+    await loadTodos();
+    // Close feedback modal
+    setShowFeedbackModal(false);
   };
 
   // Handle task creation with real database operations
@@ -228,7 +425,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       priority: taskData.priority || 'medium',
       status: 'assigned',
       progress: 0,
-      due_date: taskData.due_date || null,
+      due_date: taskData.due_date || undefined,
       start_date: new Date().toISOString(),
       tags: [],
       is_team_todo: true,
@@ -241,7 +438,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       console.log('➕ Creating new task:', taskData);
       
       // Add to local state immediately (optimistic update)
-      setTodos(prevTodos => [optimisticTodo, ...prevTodos]);
+      setTodos(prevTodos => deduplicateTodos([optimisticTodo, ...prevTodos]));
       setShowTaskCreator(false);
       
       // Play sound feedback
@@ -256,8 +453,10 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       
       // Replace optimistic todo with real one from database
       setTodos(prevTodos => 
-        prevTodos.map(todo => 
-          todo.id === optimisticTodo.id ? realTodo : todo
+        deduplicateTodos(
+          prevTodos.map(todo => 
+            todo.id === optimisticTodo.id ? realTodo : todo
+          )
         )
       );
       
@@ -290,17 +489,19 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       // Set up event listeners for real-time updates
       const handleTodoUpdate = (event: any) => {
         const { todo } = event.detail;
-        if (todo) {
+        if (todo && todo.id) {
           console.log('📨 Received todo update:', todo.id, 'by:', todo.last_edited_by || 'unknown');
-          // Always update regardless of who made the change for now
           setTodos(prevTodos => {
-            const existingTodo = prevTodos.find(t => t.id === todo.id);
-            if (existingTodo) {
+            const existingTodoIndex = prevTodos.findIndex(t => t.id === todo.id);
+            if (existingTodoIndex >= 0) {
               // Update existing todo
-              return prevTodos.map(t => t.id === todo.id ? { ...t, ...todo } : t);
+              const newTodos = [...prevTodos];
+              newTodos[existingTodoIndex] = { ...newTodos[existingTodoIndex], ...todo };
+              return deduplicateTodos(newTodos);
             } else {
-              // Add new todo if it doesn't exist
-              return [todo, ...prevTodos];
+              // Only add if it's truly a new todo that should be in our view
+              console.log('📨 New todo received via update event:', todo.id);
+              return deduplicateTodos([todo, ...prevTodos]);
             }
           });
           
@@ -317,9 +518,10 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
 
       const handleTodoInsert = (event: any) => {
         const { todo } = event.detail;
-        if (todo) {
+        if (todo && todo.id) {
           console.log('📨 Received new todo:', todo.id, 'created by:', todo.created_by);
           setTodos(prevTodos => {
+            // Check if todo already exists to prevent duplicates
             const exists = prevTodos.some(t => t.id === todo.id);
             if (!exists) {
               // Play sound only if it's not from the current user
@@ -330,9 +532,11 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
                   console.log('Sound notification failed:', e);
                 }
               }
-              return [todo, ...prevTodos];
+              return deduplicateTodos([todo, ...prevTodos]);
+            } else {
+              console.log('📨 Todo already exists, skipping insert:', todo.id);
+              return prevTodos;
             }
-            return prevTodos;
           });
         }
       };
@@ -353,7 +557,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
             ...prev,
             [todoId]: (prev[todoId] || 0) + 1
           }));
-          notificationSounds.playNewMessage();
+          notificationSounds.playNewCommentSound();
         }
       };
 
@@ -413,50 +617,102 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
     if (!task.due_date) return false;
     return new Date(task.due_date) < new Date();
   }).length;
+  
+  // Calculate productivity metrics
+  const totalTasks = todos.length;
+  const completionRate = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
+  const todayCompletedCount = completedTasks.filter(task => {
+    if (!task.updated_at) return false;
+    const taskDate = new Date(task.updated_at).toDateString();
+    const today = new Date().toDateString();
+    return taskDate === today;
+  }).length;
 
-  // Render tasks using new MobileTaskCard component
-  const renderTaskItem = (task: Todo) => (
-    <MobileTaskCard
-      key={task.id}
-      task={task}
-      teamMembers={teamMembers}
-      currentUser={user?.email || ''}
-      onStatusUpdate={handleStatusUpdate}
-      onTaskClick={setSelectedTaskForDetails}
-      unreadCount={unreadCounts[task.id] || 0}
-    />
-  );
 
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#2a2a2a',
+      background: '#1A1A1A', // Much darker background
       fontFamily: 'Inter, system-ui, sans-serif'
     }}>
       {/* Header */}
       <div style={{
+        background: getDynamicHeaderGradient(),
         padding: '60px 20px 20px',
         color: '#fff',
-        position: 'relative'
+        position: 'relative',
+        transition: 'background 0.8s ease-in-out',
+        overflow: 'hidden'
       }}>
-        {/* Top Bar with Logo */}
+        {/* Floating Background Elements */}
+        <div style={{
+          position: 'absolute',
+          top: '10%',
+          right: '10%',
+          width: '120px',
+          height: '120px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '50%',
+          animation: 'float 6s ease-in-out infinite',
+          zIndex: 1
+        }} />
+        <div style={{
+          position: 'absolute',
+          top: '60%',
+          left: '5%',
+          width: '80px',
+          height: '80px',
+          background: 'rgba(255, 255, 255, 0.08)',
+          borderRadius: '50%',
+          animation: 'float 8s ease-in-out infinite reverse',
+          zIndex: 1
+        }} />
+        <div style={{
+          position: 'absolute',
+          top: '30%',
+          right: '30%',
+          width: '60px',
+          height: '60px',
+          background: `${currentTheme.primary}30`,
+          borderRadius: '50%',
+          animation: 'float 10s ease-in-out infinite',
+          zIndex: 1
+        }} />
+        
+        {/* Animated Border Glow */}
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '2px',
+          background: `linear-gradient(90deg, transparent 0%, ${currentTheme.primary} 50%, transparent 100%)`,
+          animation: 'glow 3s ease-in-out infinite alternate'
+        }} />
+        {/* Top Bar with Logo and Controls */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'flex-start',
-          marginBottom: '20px'
+          justifyContent: 'space-between',
+          marginBottom: '20px',
+          position: 'relative',
+          zIndex: 10
         }}>
           {/* Brand Logo */}
           <div style={{
-            width: '32px',
-            height: '32px',
-            background: 'rgba(255, 255, 255, 0.2)',
-            borderRadius: '8px',
+            width: '40px',
+            height: '40px',
+            background: 'rgba(255, 255, 255, 0.12)',
+            borderRadius: '12px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            overflow: 'hidden'
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+            overflow: 'hidden',
+            transition: 'all 0.3s ease'
           }}>
             <img 
               src="/logo1.png" 
@@ -468,27 +724,64 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
               }}
             />
           </div>
+          
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            style={{
+              width: '40px',
+              height: '40px',
+              background: 'rgba(255, 255, 255, 0.12)',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              fontSize: '18px'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.15)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.1)';
+            }}
+          >
+            {isDarkMode ? '🌙' : '☀️'}
+          </button>
         </div>
 
         {/* Welcome Section */}
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px', position: 'relative', zIndex: 10 }}>
         <h1 style={{
-          fontSize: '28px',
+          fontSize: 'clamp(24px, 5vw, 32px)',
           fontWeight: '700',
           margin: '0 0 8px',
-          textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+          textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+          lineHeight: '1.2',
+          letterSpacing: '-0.02em'
         }}>
           {getTimeBasedGreeting()}, {teamMembers.find(m => m.email === user?.email)?.name || 'Team Hub'}!
         </h1>
         
         {/* Enhanced Stats Card */}
         <div style={{
-          background: 'rgba(255, 255, 255, 0.15)',
-          borderRadius: '16px',
-          padding: '16px',
+          background: 'rgba(255, 255, 255, 0.08)',
+          borderRadius: '20px',
+          padding: '20px',
           margin: '16px 0',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+          position: 'relative',
+          zIndex: 10
         }}>
           <div style={{
             display: 'grid',
@@ -497,38 +790,195 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
             marginBottom: '12px'
           }}>
             {/* Pending Tasks */}
-            <div style={{ textAlign: 'center' }}>
+            <div style={{ textAlign: 'center', position: 'relative' }}>
+              {/* Animated Progress Ring */}
               <div style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: '#fff',
-                textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '8px'
               }}>
-                {activeTasks.length}
+                <svg width="60" height="60" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle
+                    cx="30"
+                    cy="30"
+                    r="25"
+                    fill="none"
+                    stroke="rgba(255, 255, 255, 0.2)"
+                    strokeWidth="3"
+                  />
+                  <circle
+                    cx="30"
+                    cy="30"
+                    r="25"
+                    fill="none"
+                    stroke={currentTheme.primary}
+                    strokeWidth="3"
+                    strokeDasharray={`${Math.min(activeTasks.length * 10, 157)} 157`}
+                    strokeLinecap="round"
+                    style={{
+                      animation: 'progressRing 2s ease-out',
+                      filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.3))'
+                    }}
+                  />
+                </svg>
+                <div style={{
+                  position: 'absolute',
+                  fontSize: 'clamp(16px, 3vw, 20px)',
+                  fontWeight: '700',
+                  color: '#fff',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}>
+                  {activeTasks.length}
+                </div>
               </div>
               <div style={{
-                fontSize: '12px',
-                color: 'rgba(255, 255, 255, 0.8)'
+                fontSize: 'clamp(10px, 2.5vw, 13px)',
+                color: 'rgba(255, 255, 255, 0.8)',
+                fontWeight: '500'
               }}>
                 Pending Tasks
               </div>
             </div>
 
             {/* Urgent Tasks */}
-            <div style={{ textAlign: 'center' }}>
+            <div style={{ textAlign: 'center', position: 'relative' }}>
+              {/* Animated Progress Ring */}
               <div style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: urgentTasks > 0 ? SEVERITY_COLORS.high : '#fff',
-                textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '8px'
               }}>
-                {urgentTasks}
+                <svg width="60" height="60" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle
+                    cx="30"
+                    cy="30"
+                    r="25"
+                    fill="none"
+                    stroke="rgba(255, 255, 255, 0.2)"
+                    strokeWidth="3"
+                  />
+                  <circle
+                    cx="30"
+                    cy="30"
+                    r="25"
+                    fill="none"
+                    stroke={urgentTasks > 0 ? SEVERITY_COLORS.high : currentTheme.secondary}
+                    strokeWidth="3"
+                    strokeDasharray={`${Math.min(urgentTasks * 15, 157)} 157`}
+                    strokeLinecap="round"
+                    style={{
+                      animation: 'progressRing 2s ease-out 0.3s both',
+                      filter: urgentTasks > 0 ? 'drop-shadow(0 0 8px rgba(255,82,82,0.5))' : 'drop-shadow(0 0 6px rgba(255,255,255,0.3))'
+                    }}
+                  />
+                </svg>
+                <div style={{
+                  position: 'absolute',
+                  fontSize: 'clamp(16px, 3vw, 20px)',
+                  fontWeight: '700',
+                  color: urgentTasks > 0 ? SEVERITY_COLORS.high : '#fff',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}>
+                  {urgentTasks}
+                </div>
               </div>
               <div style={{
-                fontSize: '12px',
-                color: 'rgba(255, 255, 255, 0.8)'
+                fontSize: 'clamp(10px, 2.5vw, 13px)',
+                color: 'rgba(255, 255, 255, 0.8)',
+                fontWeight: '500'
               }}>
                 Urgent
+              </div>
+            </div>
+          </div>
+          
+          {/* Productivity Metrics */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '12px',
+            marginTop: '16px',
+            paddingTop: '16px',
+            borderTop: '1px solid rgba(255, 255, 255, 0.15)'
+          }}>
+            {/* Completion Rate */}
+            <div style={{ textAlign: 'center', position: 'relative' }}>
+              <div style={{
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '8px'
+              }}>
+                <svg width="50" height="50" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle
+                    cx="25"
+                    cy="25"
+                    r="20"
+                    fill="none"
+                    stroke="rgba(255, 255, 255, 0.2)"
+                    strokeWidth="2"
+                  />
+                  <circle
+                    cx="25"
+                    cy="25"
+                    r="20"
+                    fill="none"
+                    stroke="#4CAF50"
+                    strokeWidth="2"
+                    strokeDasharray={`${(completionRate * 125) / 100} 125`}
+                    strokeLinecap="round"
+                    style={{
+                      animation: 'progressRing 2s ease-out 0.6s both',
+                      filter: 'drop-shadow(0 0 6px rgba(76,175,80,0.4))'
+                    }}
+                  />
+                </svg>
+                <div style={{
+                  position: 'absolute',
+                  fontSize: 'clamp(12px, 2.5vw, 14px)',
+                  fontWeight: '700',
+                  color: '#4CAF50',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}>
+                  {completionRate}%
+                </div>
+              </div>
+              <div style={{
+                fontSize: 'clamp(9px, 2vw, 11px)',
+                color: 'rgba(255, 255, 255, 0.7)',
+                fontWeight: '500'
+              }}>
+                Completion Rate
+              </div>
+            </div>
+
+            {/* Today's Progress */}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: 'clamp(16px, 3vw, 20px)',
+                fontWeight: '700',
+                color: todayCompletedCount > 0 ? '#00E676' : 'rgba(255, 255, 255, 0.8)',
+                textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px'
+              }}>
+                {todayCompletedCount > 0 && <span style={{ fontSize: '12px' }}>✨</span>}
+                {todayCompletedCount}
+              </div>
+              <div style={{
+                fontSize: 'clamp(9px, 2vw, 11px)',
+                color: 'rgba(255, 255, 255, 0.7)',
+                fontWeight: '500'
+              }}>
+                Done Today
               </div>
             </div>
           </div>
@@ -588,40 +1038,54 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       <div style={{
         display: 'flex',
         justifyContent: 'center',
-        gap: '8px',
-        padding: '0 20px 20px',
+        gap: '6px',
+        background: 'rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderRadius: '20px',
+        margin: '0 20px 20px',
+        padding: '10px',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.1)'
       }}>
         {[
-          { key: 'tasks', label: 'Active' },
-          { key: 'pending', label: `Pending${pendingApprovalTasks.length > 0 ? ` (${pendingApprovalTasks.length})` : ''}` },
-          { key: 'completed', label: 'Completed' },
-          { key: 'chat', label: `Chat${totalUnreadMessages > 0 ? ` (${totalUnreadMessages})` : ''}` }
+          { key: 'tasks', label: 'Active', icon: '📋' },
+          { key: 'pending', label: `Pending${pendingApprovalTasks.length > 0 ? ` (${pendingApprovalTasks.length})` : ''}`, icon: '⏳' },
+          { key: 'completed', label: 'Completed', icon: '✅' },
+          { key: 'chat', label: `Chat${totalUnreadMessages > 0 ? ` (${totalUnreadMessages})` : ''}`, icon: '💬' }
         ].map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key as any)}
             style={{
-              padding: '12px 24px',
-              borderRadius: '25px',
+              flex: 1,
+              padding: '12px 16px',
+              borderRadius: '12px',
               border: 'none',
               background: activeTab === tab.key 
-                ? 'rgba(255, 255, 255, 0.9)' 
-                : 'rgba(255, 255, 255, 0.2)',
-              color: activeTab === tab.key ? '#667eea' : '#fff',
-              fontSize: '14px',
-              fontWeight: '600',
+                ? '#FFFFFF' 
+                : 'transparent',
+              color: activeTab === tab.key ? '#2D2D2D' : 'rgba(255, 255, 255, 0.7)',
+              fontSize: '13px',
+              fontWeight: activeTab === tab.key ? '700' : '500',
               cursor: 'pointer',
-              transition: 'all 0.3s ease'
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              boxShadow: activeTab === tab.key ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none'
             }}
           >
-            {tab.label}
+            <span style={{ fontSize: '14px' }}>{tab.icon}</span>
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>
 
       {/* Content Area */}
       <div style={{
-        background: '#2a2a2a',
+        background: '#1A1A1A', // Match the main background
         minHeight: 'calc(100vh - 240px)',
         borderTopLeftRadius: '30px',
         borderTopRightRadius: '30px',
@@ -644,7 +1108,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
         ) : (
           <>
             {/* Active Tasks Tab */}
-            {activeTab === 'tasks' && (
+            {activeTab === 'tasks' && !selectedTaskForDetails && (
               <div>
                 <h2 style={{
                   fontSize: '22px',
@@ -655,7 +1119,18 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
                   Active Tasks
                 </h2>
                 {activeTasks.length > 0 ? (
-                  activeTasks.map(task => renderTaskItem(task))
+                  activeTasks.map(task => (
+                    <MobileTaskCard
+                      key={task.id}
+                      task={task}
+                      teamMembers={teamMembers}
+                      currentUser={user?.email || ''}
+                      onStatusUpdate={handleStatusUpdate}
+                      onTaskClick={setSelectedTaskForDetails}
+                      onTaskUpdated={loadTodos}
+                      unreadCount={unreadCounts[task.id] || 0}
+                    />
+                  ))
                 ) : (
                   <div style={{
                     textAlign: 'center',
@@ -672,8 +1147,404 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
               </div>
             )}
 
+            {/* Inline Task Details View for Active Tab */}
+            {activeTab === 'tasks' && selectedTaskForDetails && (
+              <div style={{
+                background: '#1A1A1A', // Match darker background
+                borderRadius: '16px',
+                overflow: 'hidden',
+                animation: 'slideDown 0.3s ease'
+              }}>
+                {/* Back Button Header */}
+                <div style={{
+                  background: '#333',
+                  padding: '16px 20px',
+                  borderBottom: '1px solid #444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <button
+                    onClick={() => setSelectedTaskForDetails(null)}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      color: '#ffffff',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    ← Back to Active Tasks
+                  </button>
+                </div>
+
+                {/* Simplified Task Content */}
+                <div style={{ padding: '20px' }}>
+                  {/* Task Title and Status */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <h2 style={{
+                      fontSize: '20px',
+                      fontWeight: '600',
+                      color: '#ffffff',
+                      margin: '0 0 8px'
+                    }}>
+                      {selectedTaskForDetails.title}
+                    </h2>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        background: getStatusColor(selectedTaskForDetails.status),
+                        color: '#fff',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }}>
+                        {selectedTaskForDetails.status.replace('_', ' ')}
+                      </span>
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        background: getPriorityColor(selectedTaskForDetails.priority || 'medium'),
+                        color: '#fff',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }}>
+                        {selectedTaskForDetails.priority} priority
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {selectedTaskForDetails.description && (
+                    <div style={{
+                      marginBottom: '20px',
+                      padding: '12px',
+                      background: '#333',
+                      borderRadius: '8px'
+                    }}>
+                      <div 
+                        style={{
+                          fontSize: '14px',
+                          color: '#cccccc',
+                          lineHeight: '1.5',
+                          whiteSpace: 'pre-wrap',
+                          wordWrap: 'break-word'
+                        }}
+                        dangerouslySetInnerHTML={{
+                          __html: selectedTaskForDetails.description
+                            .replace(/\n/g, '<br>')
+                            .replace(
+                              /(https?:\/\/[^\s]+)/g,
+                              '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #4A9EFF; text-decoration: underline;">$1</a>'
+                            )
+                            .replace(
+                              /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
+                              '<a href="mailto:$1" style="color: #4A9EFF; text-decoration: underline;">$1</a>'
+                            )
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Action Button */}
+                  <div style={{ marginTop: '20px' }}>
+                    {(selectedTaskForDetails.status === 'assigned' || selectedTaskForDetails.status === 'revision' || selectedTaskForDetails.status === 'rejected') && 
+                     (selectedTaskForDetails.assigned_to === user?.email || selectedTaskForDetails.assigned_to_array?.includes(user?.email || '')) && (
+                      <button
+                        onClick={() => handleStatusUpdate(selectedTaskForDetails.id, 'in_progress')}
+                        disabled={isUpdatingStatus}
+                        style={{
+                          width: '100%',
+                          padding: '16px',
+                          background: isUpdatingStatus ? '#666666' : '#2196F3',
+                          border: 'none',
+                          borderRadius: '12px',
+                          color: '#fff',
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          cursor: isUpdatingStatus ? 'not-allowed' : 'pointer',
+                          opacity: isUpdatingStatus ? 0.6 : 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        {isUpdatingStatus ? (
+                          <>
+                            <div style={{
+                              width: '16px',
+                              height: '16px',
+                              border: '2px solid #ffffff',
+                              borderTop: '2px solid transparent',
+                              borderRadius: '50%',
+                              animation: 'spin 1s linear infinite'
+                            }} />
+                            Updating...
+                          </>
+                        ) : (
+                          selectedTaskForDetails.status === 'revision' ? '🔄 Continue Task' : 
+                          selectedTaskForDetails.status === 'rejected' ? '🔄 Restart Task' : '🚀 Start Task'
+                        )}
+                      </button>
+                    )}
+                    
+                    {selectedTaskForDetails.status === 'in_progress' && 
+                     (selectedTaskForDetails.assigned_to === user?.email || selectedTaskForDetails.assigned_to_array?.includes(user?.email || '')) && (
+                      <button
+                        onClick={() => handleStatusUpdate(selectedTaskForDetails.id, 'pending_approval')}
+                        disabled={isUpdatingStatus}
+                        style={{
+                          width: '100%',
+                          padding: '16px',
+                          background: isUpdatingStatus ? '#666666' : '#FF9800',
+                          border: 'none',
+                          borderRadius: '12px',
+                          color: '#fff',
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          cursor: isUpdatingStatus ? 'not-allowed' : 'pointer',
+                          opacity: isUpdatingStatus ? 0.6 : 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        {isUpdatingStatus ? (
+                          <>
+                            <div style={{
+                              width: '16px',
+                              height: '16px',
+                              border: '2px solid #ffffff',
+                              borderTop: '2px solid transparent',
+                              borderRadius: '50%',
+                              animation: 'spin 1s linear infinite'
+                            }} />
+                            Updating...
+                          </>
+                        ) : (
+                          '📋 Request Completion'
+                        )}
+                      </button>
+                    )}
+
+                    {/* Creator Action Buttons */}
+                    {selectedTaskForDetails.created_by === user?.email && (
+                      <div style={{ marginTop: '20px' }}>
+                        {/* Primary Creator Actions based on status */}
+                        {selectedTaskForDetails.status === 'pending_approval' && (
+                          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                            <button
+                              onClick={async () => {
+                                await handleStatusUpdate(selectedTaskForDetails.id, 'done');
+                                // Close task details after approval so user sees updated lists
+                                setSelectedTaskForDetails(null);
+                              }}
+                              disabled={isUpdatingStatus}
+                              style={{
+                                flex: 1,
+                                padding: '16px',
+                                background: isUpdatingStatus ? '#666666' : '#4CAF50',
+                                border: 'none',
+                                borderRadius: '12px',
+                                color: '#fff',
+                                fontSize: '16px',
+                                fontWeight: '600',
+                                cursor: isUpdatingStatus ? 'not-allowed' : 'pointer',
+                                opacity: isUpdatingStatus ? 0.6 : 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px'
+                              }}
+                            >
+                              {isUpdatingStatus ? (
+                                <>
+                                  <div style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    border: '2px solid #ffffff',
+                                    borderTop: '2px solid transparent',
+                                    borderRadius: '50%',
+                                    animation: 'spin 1s linear infinite'
+                                  }} />
+                                  Approving...
+                                </>
+                              ) : (
+                                '✅ Approve'
+                              )}
+                            </button>
+                            <button
+                              onClick={handleOpenFeedback}
+                              style={{
+                                flex: 1,
+                                padding: '16px',
+                                background: 'transparent',
+                                border: '2px solid #FF9800',
+                                borderRadius: '12px',
+                                color: '#FF9800',
+                                fontSize: '16px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px'
+                              }}
+                            >
+                              📝 Send Feedback
+                            </button>
+                          </div>
+                        )}
+
+                        {selectedTaskForDetails.status === 'in_progress' && (
+                          <div style={{ marginBottom: '16px' }}>
+                            <button
+                              onClick={async () => {
+                                await handleStatusUpdate(selectedTaskForDetails.id, 'done');
+                                // Close task details after completion so user sees updated lists
+                                setSelectedTaskForDetails(null);
+                              }}
+                              disabled={isUpdatingStatus}
+                              style={{
+                                width: '100%',
+                                padding: '16px',
+                                background: isUpdatingStatus ? '#666666' : '#4CAF50',
+                                border: 'none',
+                                borderRadius: '12px',
+                                color: '#fff',
+                                fontSize: '16px',
+                                fontWeight: '600',
+                                cursor: isUpdatingStatus ? 'not-allowed' : 'pointer',
+                                opacity: isUpdatingStatus ? 0.6 : 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px'
+                              }}
+                            >
+                              {isUpdatingStatus ? (
+                                <>
+                                  <div style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    border: '2px solid #ffffff',
+                                    borderTop: '2px solid transparent',
+                                    borderRadius: '50%',
+                                    animation: 'spin 1s linear infinite'
+                                  }} />
+                                  Completing...
+                                </>
+                              ) : (
+                                '✅ Mark Complete'
+                              )}
+                            </button>
+                          </div>
+                        )}
+
+                        {selectedTaskForDetails.status === 'done' && (
+                          <div style={{ marginBottom: '16px' }}>
+                            <button
+                              onClick={async () => {
+                                await handleStatusUpdate(selectedTaskForDetails.id, 'in_progress');
+                                // Close task details after restore so user sees updated lists
+                                setSelectedTaskForDetails(null);
+                              }}
+                              disabled={isUpdatingStatus}
+                              style={{
+                                width: '100%',
+                                padding: '16px',
+                                background: isUpdatingStatus ? '#666666' : '#2196F3',
+                                border: 'none',
+                                borderRadius: '12px',
+                                color: '#fff',
+                                fontSize: '16px',
+                                fontWeight: '600',
+                                cursor: isUpdatingStatus ? 'not-allowed' : 'pointer',
+                                opacity: isUpdatingStatus ? 0.6 : 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px'
+                              }}
+                            >
+                              {isUpdatingStatus ? (
+                                <>
+                                  <div style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    border: '2px solid #ffffff',
+                                    borderTop: '2px solid transparent',
+                                    borderRadius: '50%',
+                                    animation: 'spin 1s linear infinite'
+                                  }} />
+                                  Restoring...
+                                </>
+                              ) : (
+                                '🔄 Restore Task'
+                              )}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Secondary Creator Actions - Always available */}
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          <button
+                            onClick={handleEditTask}
+                            style={{
+                              flex: 1,
+                              padding: '12px 16px',
+                              background: 'transparent',
+                              border: '1px solid #FF9800',
+                              borderRadius: '12px',
+                              color: '#FF9800',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            onClick={() => selectedTaskForDetails && handleDeleteTask(selectedTaskForDetails.id)}
+                            style={{
+                              flex: 1,
+                              padding: '12px 16px',
+                              background: 'transparent',
+                              border: '1px solid #f44336',
+                              borderRadius: '12px',
+                              color: '#f44336',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Pending Approval Tab */}
-            {activeTab === 'pending' && (
+            {activeTab === 'pending' && !selectedTaskForDetails && (
               <div>
                 <h2 style={{
                   fontSize: '22px',
@@ -691,7 +1562,18 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
                   Tasks waiting for creator approval or feedback
                 </p>
                 {pendingApprovalTasks.length > 0 ? (
-                  pendingApprovalTasks.map(task => renderTaskItem(task))
+                  pendingApprovalTasks.map(task => (
+                    <MobileTaskCard
+                      key={task.id}
+                      task={task}
+                      teamMembers={teamMembers}
+                      currentUser={user?.email || ''}
+                      onStatusUpdate={handleStatusUpdate}
+                      onTaskClick={setSelectedTaskForDetails}
+                      onTaskUpdated={loadTodos}
+                      unreadCount={unreadCounts[task.id] || 0}
+                    />
+                  ))
                 ) : (
                   <div style={{
                     textAlign: 'center',
@@ -708,8 +1590,320 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
               </div>
             )}
 
+            {/* Inline Task Details View for Pending Tab */}
+            {activeTab === 'pending' && selectedTaskForDetails && (
+              <div style={{
+                background: '#1A1A1A', // Match darker background
+                borderRadius: '16px',
+                overflow: 'hidden',
+                animation: 'slideDown 0.3s ease'
+              }}>
+                {/* Back Button Header */}
+                <div style={{
+                  background: '#333',
+                  padding: '16px 20px',
+                  borderBottom: '1px solid #444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <button
+                    onClick={() => setSelectedTaskForDetails(null)}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      color: '#ffffff',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    ← Back to Pending Tasks
+                  </button>
+                </div>
+
+                {/* Task Content with Approval Actions */}
+                <div style={{ padding: '20px' }}>
+                  {/* Task Title and Status */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <h2 style={{
+                      fontSize: '20px',
+                      fontWeight: '600',
+                      color: '#ffffff',
+                      margin: '0 0 8px'
+                    }}>
+                      {selectedTaskForDetails.title}
+                    </h2>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        background: getStatusColor(selectedTaskForDetails.status),
+                        color: '#fff',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }}>
+                        {selectedTaskForDetails.status.replace('_', ' ')}
+                      </span>
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        background: getPriorityColor(selectedTaskForDetails.priority || 'medium'),
+                        color: '#fff',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }}>
+                        {selectedTaskForDetails.priority} priority
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {selectedTaskForDetails.description && (
+                    <div style={{
+                      marginBottom: '20px',
+                      padding: '12px',
+                      background: '#333',
+                      borderRadius: '8px'
+                    }}>
+                      <div 
+                        style={{
+                          fontSize: '14px',
+                          color: '#cccccc',
+                          lineHeight: '1.5',
+                          whiteSpace: 'pre-wrap',
+                          wordWrap: 'break-word'
+                        }}
+                        dangerouslySetInnerHTML={{
+                          __html: selectedTaskForDetails.description
+                            .replace(/\n/g, '<br>')
+                            .replace(
+                              /(https?:\/\/[^\s]+)/g,
+                              '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #4A9EFF; text-decoration: underline;">$1</a>'
+                            )
+                            .replace(
+                              /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
+                              '<a href="mailto:$1" style="color: #4A9EFF; text-decoration: underline;">$1</a>'
+                            )
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Creator Action Buttons */}
+                  {selectedTaskForDetails.created_by === user?.email && (
+                    <div style={{ marginTop: '20px' }}>
+                      {/* Primary Creator Actions based on status */}
+                      {selectedTaskForDetails.status === 'pending_approval' && (
+                        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                          <button
+                            onClick={async () => {
+                              await handleStatusUpdate(selectedTaskForDetails.id, 'done');
+                              // Close task details after approval so user sees updated lists
+                              setSelectedTaskForDetails(null);
+                            }}
+                            disabled={isUpdatingStatus}
+                            style={{
+                              flex: 1,
+                              padding: '16px',
+                              background: isUpdatingStatus ? '#666666' : '#4CAF50',
+                              border: 'none',
+                              borderRadius: '12px',
+                              color: '#fff',
+                              fontSize: '16px',
+                              fontWeight: '600',
+                              cursor: isUpdatingStatus ? 'not-allowed' : 'pointer',
+                              opacity: isUpdatingStatus ? 0.6 : 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px'
+                            }}
+                          >
+                            {isUpdatingStatus ? (
+                              <>
+                                <div style={{
+                                  width: '16px',
+                                  height: '16px',
+                                  border: '2px solid #ffffff',
+                                  borderTop: '2px solid transparent',
+                                  borderRadius: '50%',
+                                  animation: 'spin 1s linear infinite'
+                                }} />
+                                Approving...
+                              </>
+                            ) : (
+                              '✅ Approve'
+                            )}
+                          </button>
+                          <button
+                            onClick={handleOpenFeedback}
+                            style={{
+                              flex: 1,
+                              padding: '16px',
+                              background: 'transparent',
+                              border: '2px solid #FF9800',
+                              borderRadius: '12px',
+                              color: '#FF9800',
+                              fontSize: '16px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px'
+                            }}
+                          >
+                            📝 Send Feedback
+                          </button>
+                        </div>
+                      )}
+
+                      {selectedTaskForDetails.status === 'in_progress' && (
+                        <div style={{ marginBottom: '16px' }}>
+                          <button
+                            onClick={async () => {
+                              await handleStatusUpdate(selectedTaskForDetails.id, 'done');
+                              // Close task details after completion so user sees updated lists
+                              setSelectedTaskForDetails(null);
+                            }}
+                            disabled={isUpdatingStatus}
+                            style={{
+                              width: '100%',
+                              padding: '16px',
+                              background: isUpdatingStatus ? '#666666' : '#4CAF50',
+                              border: 'none',
+                              borderRadius: '12px',
+                              color: '#fff',
+                              fontSize: '16px',
+                              fontWeight: '600',
+                              cursor: isUpdatingStatus ? 'not-allowed' : 'pointer',
+                              opacity: isUpdatingStatus ? 0.6 : 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px'
+                            }}
+                          >
+                            {isUpdatingStatus ? (
+                              <>
+                                <div style={{
+                                  width: '16px',
+                                  height: '16px',
+                                  border: '2px solid #ffffff',
+                                  borderTop: '2px solid transparent',
+                                  borderRadius: '50%',
+                                  animation: 'spin 1s linear infinite'
+                                }} />
+                                Completing...
+                              </>
+                            ) : (
+                              '✅ Mark Complete'
+                            )}
+                          </button>
+                        </div>
+                      )}
+
+                      {selectedTaskForDetails.status === 'done' && (
+                        <div style={{ marginBottom: '16px' }}>
+                          <button
+                            onClick={async () => {
+                              await handleStatusUpdate(selectedTaskForDetails.id, 'in_progress');
+                              // Close task details after restore so user sees updated lists
+                              setSelectedTaskForDetails(null);
+                            }}
+                            disabled={isUpdatingStatus}
+                            style={{
+                              width: '100%',
+                              padding: '16px',
+                              background: isUpdatingStatus ? '#666666' : '#2196F3',
+                              border: 'none',
+                              borderRadius: '12px',
+                              color: '#fff',
+                              fontSize: '16px',
+                              fontWeight: '600',
+                              cursor: isUpdatingStatus ? 'not-allowed' : 'pointer',
+                              opacity: isUpdatingStatus ? 0.6 : 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px'
+                            }}
+                          >
+                            {isUpdatingStatus ? (
+                              <>
+                                <div style={{
+                                  width: '16px',
+                                  height: '16px',
+                                  border: '2px solid #ffffff',
+                                  borderTop: '2px solid transparent',
+                                  borderRadius: '50%',
+                                  animation: 'spin 1s linear infinite'
+                                }} />
+                                Restoring...
+                              </>
+                            ) : (
+                              '🔄 Restore Task'
+                            )}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Secondary Creator Actions - Always available */}
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <button
+                          onClick={handleEditTask}
+                          style={{
+                            flex: 1,
+                            padding: '12px 16px',
+                            background: 'transparent',
+                            border: '1px solid #FF9800',
+                            borderRadius: '12px',
+                            color: '#FF9800',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          onClick={() => selectedTaskForDetails && handleDeleteTask(selectedTaskForDetails.id)}
+                          style={{
+                            flex: 1,
+                            padding: '12px 16px',
+                            background: 'transparent',
+                            border: '1px solid #f44336',
+                            borderRadius: '12px',
+                            color: '#f44336',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Completed Tab */}
-            {activeTab === 'completed' && (
+            {activeTab === 'completed' && !selectedTaskForDetails && (
               <div>
                 <h2 style={{
                   fontSize: '22px',
@@ -720,7 +1914,18 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
                   Completed Tasks
                 </h2>
                 {completedTasks.length > 0 ? (
-                  completedTasks.map(task => renderTaskItem(task))
+                  completedTasks.map(task => (
+                    <MobileTaskCard
+                      key={task.id}
+                      task={task}
+                      teamMembers={teamMembers}
+                      currentUser={user?.email || ''}
+                      onStatusUpdate={handleStatusUpdate}
+                      onTaskClick={setSelectedTaskForDetails}
+                      onTaskUpdated={loadTodos}
+                      unreadCount={unreadCounts[task.id] || 0}
+                    />
+                  ))
                 ) : (
                   <div style={{
                     textAlign: 'center',
@@ -734,6 +1939,158 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
                     <p style={{ color: '#ffffff' }}>Completed tasks will appear here</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Inline Task Details View for Completed Tab */}
+            {activeTab === 'completed' && selectedTaskForDetails && (
+              <div style={{
+                background: '#1A1A1A', // Match darker background
+                borderRadius: '16px',
+                overflow: 'hidden',
+                animation: 'slideDown 0.3s ease'
+              }}>
+                {/* Back Button Header */}
+                <div style={{
+                  background: '#333',
+                  padding: '16px 20px',
+                  borderBottom: '1px solid #444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <button
+                    onClick={() => setSelectedTaskForDetails(null)}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      color: '#ffffff',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    ← Back to Completed Tasks
+                  </button>
+                </div>
+
+                {/* Task Content with Restore Option */}
+                <div style={{ padding: '20px' }}>
+                  {/* Task Title and Status */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <h2 style={{
+                      fontSize: '20px',
+                      fontWeight: '600',
+                      color: '#ffffff',
+                      margin: '0 0 8px'
+                    }}>
+                      {selectedTaskForDetails.title}
+                    </h2>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        background: getStatusColor(selectedTaskForDetails.status),
+                        color: '#fff',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }}>
+                        ✅ Completed
+                      </span>
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        background: getPriorityColor(selectedTaskForDetails.priority || 'medium'),
+                        color: '#fff',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }}>
+                        {selectedTaskForDetails.priority} priority
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {selectedTaskForDetails.description && (
+                    <div style={{
+                      marginBottom: '20px',
+                      padding: '12px',
+                      background: '#333',
+                      borderRadius: '8px'
+                    }}>
+                      <div 
+                        style={{
+                          fontSize: '14px',
+                          color: '#cccccc',
+                          lineHeight: '1.5',
+                          whiteSpace: 'pre-wrap',
+                          wordWrap: 'break-word'
+                        }}
+                        dangerouslySetInnerHTML={{
+                          __html: selectedTaskForDetails.description
+                            .replace(/\n/g, '<br>')
+                            .replace(
+                              /(https?:\/\/[^\s]+)/g,
+                              '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #4A9EFF; text-decoration: underline;">$1</a>'
+                            )
+                            .replace(
+                              /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
+                              '<a href="mailto:$1" style="color: #4A9EFF; text-decoration: underline;">$1</a>'
+                            )
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Restore Button for Creator */}
+                  {selectedTaskForDetails.created_by === user?.email && (
+                    <button
+                      onClick={async () => {
+                        await handleStatusUpdate(selectedTaskForDetails.id, 'in_progress');
+                        // Close task details after restore so user sees updated lists
+                        setSelectedTaskForDetails(null);
+                      }}
+                      disabled={isUpdatingStatus}
+                      style={{
+                        width: '100%',
+                        padding: '16px',
+                        background: isUpdatingStatus ? '#666666' : '#2196F3',
+                        border: 'none',
+                        borderRadius: '12px',
+                        color: '#fff',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        cursor: isUpdatingStatus ? 'not-allowed' : 'pointer',
+                        marginTop: '20px',
+                        opacity: isUpdatingStatus ? 0.6 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      {isUpdatingStatus ? (
+                        <>
+                          <div style={{
+                            width: '16px',
+                            height: '16px',
+                            border: '2px solid #ffffff',
+                            borderTop: '2px solid transparent',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite'
+                          }} />
+                          Restoring...
+                        </>
+                      ) : (
+                        '🔄 Restore Task'
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
@@ -805,7 +2162,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
                               key={todo.id}
                               onClick={() => setSelectedChatTodo(todo)}
                               style={{
-                                background: '#2a2a2a',
+                                background: '#2D2D2D', // Match task card background
                                 borderRadius: '16px',
                                 padding: '16px',
                                 marginBottom: '12px',
@@ -987,63 +2344,78 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
         />
       )}
 
-      {/* Task Details Modal */}
-      {selectedTaskForDetails && (
-        <TaskDetailsModal
+      {/* Task Feedback Modal */}
+      {showFeedbackModal && selectedTaskForDetails && (
+        <TaskFeedbackModal
           task={selectedTaskForDetails}
           teamMembers={teamMembers}
           currentUser={user?.email || ''}
-          onClose={() => setSelectedTaskForDetails(null)}
-          onStatusUpdate={(status) => handleStatusUpdate(selectedTaskForDetails.id, status)}
-          onTaskUpdated={() => {
-            // Refresh todos when task is updated (e.g., status changed due to feedback)
-            console.log('🔄 Task updated, refreshing todo list');
-            loadTodos();
-          }}
-          onEdit={() => {
-            console.log('Edit task:', selectedTaskForDetails.id);
-            // For now, close modal - full editing can be implemented later
-            setSelectedTaskForDetails(null);
-          }}
-          onDelete={async () => {
-            if (!selectedTaskForDetails || !user?.email) return;
-            
-            const taskToDelete = selectedTaskForDetails;
-            
-            try {
-              // Check if user can delete (creator only)
-              if (taskToDelete.created_by !== user.email) {
-                alert('Only the task creator can delete this task.');
-                return;
-              }
-              
-              if (confirm(`Are you sure you want to delete "${taskToDelete.title}"?`)) {
-                // Optimistic delete - remove from UI immediately
-                setTodos(prev => prev.filter(t => t.id !== taskToDelete.id));
-                setSelectedTaskForDetails(null);
-                
-                // Delete from database
-                await todosApi.deleteTodo(taskToDelete.id);
-                
-                console.log('✅ Task deleted successfully:', taskToDelete.id);
-              }
-            } catch (error) {
-              console.error('Failed to delete task:', error);
-              
-              // Restore task on error
-              loadTodos();
-              
-              alert('Failed to delete task. Please try again.');
-            }
-          }}
+          onClose={() => setShowFeedbackModal(false)}
+          onFeedbackSent={handleFeedbackSent}
+        />
+      )}
+
+      {/* Edit Task Modal */}
+      {showEditModal && selectedTaskForDetails && (
+        <EditTaskModal
+          todo={selectedTaskForDetails}
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleEditSave}
+          teamMembers={teamMembers}
+          currentUser={user?.email || ''}
         />
       )}
 
       {/* Animations */}
       <style jsx>{`
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg);
+          }
+          33% {
+            transform: translateY(-20px) rotate(2deg);
+          }
+          66% {
+            transform: translateY(-10px) rotate(-2deg);
+          }
+        }
+        
+        @keyframes glow {
+          from {
+            opacity: 0.3;
+            transform: scaleX(0.8);
+          }
+          to {
+            opacity: 0.8;
+            transform: scaleX(1.2);
+          }
+        }
+        
+        @keyframes progressRing {
+          from {
+            stroke-dasharray: 0 157;
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes slideDown {
+          from { 
+            opacity: 0;
+            transform: translateY(-20px); 
+          }
+          to { 
+            opacity: 1;
+            transform: translateY(0); 
+          }
         }
       `}</style>
     </div>
