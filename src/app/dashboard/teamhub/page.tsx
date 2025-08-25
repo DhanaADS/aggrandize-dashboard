@@ -4,6 +4,8 @@ import { Suspense } from 'react';
 import { useAuth } from '@/lib/auth-nextauth';
 import RealTimeSimpleTeamHub from '@/components/teamhub/RealTimeSimpleTeamHub';
 import NotificationCenter from '@/components/todos/NotificationCenter';
+import PushNotifications from '@/components/pwa/PushNotifications';
+import PushNotificationDebug from '@/components/debug/PushNotificationDebug';
 import styles from './teamhub.module.css';
 
 export default function TeamHubPage() {
@@ -24,6 +26,12 @@ export default function TeamHubPage() {
 
   return (
     <div className={styles.teamhubContainer}>
+      {/* Push Notifications Component */}
+      <PushNotifications userEmail={user?.email} />
+      
+      {/* Debug Component */}
+      <PushNotificationDebug userEmail={user?.email} />
+      
       <Suspense fallback={
         <div className={styles.loadingContainer}>
           <div className={styles.loadingContent}>
