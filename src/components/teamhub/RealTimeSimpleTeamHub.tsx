@@ -13,6 +13,7 @@ import MobileTaskCard from './MobileTaskCard';
 import TaskFeedbackModal from './TaskFeedbackModal';
 import EditTaskModal from '../todos/EditTaskModal';
 import { SEVERITY_COLORS, THEME_COLORS, getStoredTheme, setStoredTheme, ThemeColor } from '@/lib/theme-colors';
+import { usePWAMode } from '@/hooks/usePWAMode';
 
 interface RealTimeSimpleTeamHubProps {
   className?: string;
@@ -20,6 +21,7 @@ interface RealTimeSimpleTeamHubProps {
 
 export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimpleTeamHubProps) {
   const { user } = useAuth();
+  const { shouldShowNativeUI } = usePWAMode();
   
   // Utility function to remove duplicate todos by ID
   const deduplicateTodos = (todos: Todo[]): Todo[] => {
@@ -649,7 +651,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       {/* Header */}
       <div style={{
         background: getDynamicHeaderGradient(),
-        padding: '60px 20px 20px',
+        padding: shouldShowNativeUI ? '20px 20px 20px' : '60px 20px 20px', // Reduced padding for PWA
         color: '#fff',
         position: 'relative',
         transition: 'background 0.8s ease-in-out',
@@ -700,46 +702,18 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
           background: `linear-gradient(90deg, transparent 0%, ${currentTheme.primary} 50%, transparent 100%)`,
           animation: 'glow 3s ease-in-out infinite alternate'
         }} />
-        {/* Top Bar with Logo and Controls */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '20px',
-          position: 'relative',
-          zIndex: 10
-        }}>
-          {/* Brand Logo */}
+        {/* Top Bar with Logo and Controls - Hide in PWA native mode */}
+        {!shouldShowNativeUI && (
           <div style={{
-            width: '40px',
-            height: '40px',
-            background: 'rgba(255, 255, 255, 0.12)',
-            borderRadius: '12px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
-            overflow: 'hidden',
-            transition: 'all 0.3s ease'
+            justifyContent: 'space-between',
+            marginBottom: '20px',
+            position: 'relative',
+            zIndex: 10
           }}>
-            <img 
-              src="/logo1.png" 
-              alt="AGGRANDIZE Logo" 
-              style={{
-                width: '24px',
-                height: '24px',
-                objectFit: 'contain'
-              }}
-            />
-          </div>
-          
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            style={{
+            {/* Brand Logo */}
+            <div style={{
               width: '40px',
               height: '40px',
               background: 'rgba(255, 255, 255, 0.12)',
@@ -751,22 +725,52 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
               backdropFilter: 'blur(10px)',
               WebkitBackdropFilter: 'blur(10px)',
               boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              fontSize: '18px'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'scale(1.05)';
-              e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.15)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.1)';
-            }}
-          >
-            {isDarkMode ? '🌙' : '☀️'}
-          </button>
-        </div>
+              overflow: 'hidden',
+              transition: 'all 0.3s ease'
+            }}>
+              <img 
+                src="/logo1.png" 
+                alt="AGGRANDIZE Logo" 
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  objectFit: 'contain'
+                }}
+              />
+            </div>
+            
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              style={{
+                width: '40px',
+                height: '40px',
+                background: 'rgba(255, 255, 255, 0.12)',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                fontSize: '18px'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.15)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.1)';
+              }}
+            >
+              {isDarkMode ? '🌙' : '☀️'}
+            </button>
+          </div>
+        )}
 
         {/* Welcome Section */}
         <div style={{ textAlign: 'center', marginBottom: '20px', position: 'relative', zIndex: 10 }}>

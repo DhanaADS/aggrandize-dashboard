@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePWAMode } from '@/hooks/usePWAMode';
 
 interface MobileAppShellProps {
   children: React.ReactNode;
@@ -9,25 +10,14 @@ interface MobileAppShellProps {
 
 export default function MobileAppShell({ children, currentPath }: MobileAppShellProps) {
   const [isMobile, setIsMobile] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const { isPWA, isStandalone, shouldShowNativeUI } = usePWAMode();
 
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
 
-    const checkStandalone = () => {
-      const isInStandaloneMode = 
-        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
-        (window.navigator as any).standalone ||
-        document.referrer.includes('android-app://');
-      
-      setIsStandalone(isInStandaloneMode);
-    };
-
     checkMobile();
-    checkStandalone();
-
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
@@ -43,8 +33,8 @@ export default function MobileAppShell({ children, currentPath }: MobileAppShell
       display: 'flex',
       flexDirection: 'column',
       background: 'var(--background-primary, #0a0a0a)',
-      paddingTop: isStandalone ? 'env(safe-area-inset-top)' : '60px', // Handle safe area
-      paddingBottom: 'env(safe-area-inset-bottom)', // Handle safe area
+      paddingTop: shouldShowNativeUI ? 'env(safe-area-inset-top)' : (isStandalone ? 'env(safe-area-inset-top)' : '60px'),
+      paddingBottom: shouldShowNativeUI ? 'env(safe-area-inset-bottom)' : 'env(safe-area-inset-bottom)',
       paddingLeft: 'env(safe-area-inset-left)',
       paddingRight: 'env(safe-area-inset-right)',
       // Optimize for native scrolling
@@ -52,8 +42,8 @@ export default function MobileAppShell({ children, currentPath }: MobileAppShell
       overscrollBehavior: 'contain',
       touchAction: 'pan-y'
     }}>
-      {/* Status Bar Spacer for iOS PWA */}
-      {isStandalone && (
+      {/* Status Bar Spacer for iOS PWA - Only show in non-native PWA mode */}
+      {isStandalone && !shouldShowNativeUI && (
         <div style={{
           height: '44px',
           background: 'linear-gradient(135deg, #00ff88 0%, #00d4ff 100%)',
@@ -86,27 +76,28 @@ export default function MobileAppShell({ children, currentPath }: MobileAppShell
         {children}
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: '70px',
-        background: 'rgba(0, 0, 0, 0.95)',
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(20px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-around',
-        padding: '0 20px',
-        zIndex: 100,
-        paddingBottom: `calc(${isStandalone ? '20px' : '0px'} + env(safe-area-inset-bottom))`, // Better safe area handling
-        // Ensure it doesn't block scrolling
-        WebkitTouchCallout: 'none',
-        WebkitTapHighlightColor: 'transparent',
-        userSelect: 'none'
-      }}>
+      {/* Mobile Bottom Navigation - Only show in non-native PWA mode */}
+      {!shouldShowNativeUI && (
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '70px',
+          background: 'rgba(0, 0, 0, 0.95)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(20px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-around',
+          padding: '0 20px',
+          zIndex: 100,
+          paddingBottom: `calc(${isStandalone ? '20px' : '0px'} + env(safe-area-inset-bottom))`, // Better safe area handling
+          // Ensure it doesn't block scrolling
+          WebkitTouchCallout: 'none',
+          WebkitTapHighlightColor: 'transparent',
+          userSelect: 'none'
+        }}>
         <MobileNavButton 
           icon="🏠" 
           label="Home" 
@@ -136,26 +127,29 @@ export default function MobileAppShell({ children, currentPath }: MobileAppShell
           }}
           isPrimary
         />
-      </div>
-
-      {/* Gesture Hints */}
-      <div style={{
-        position: 'fixed',
-        top: '50%',
-        right: '10px',
-        transform: 'translateY(-50%)',
-        opacity: 0.3,
-        pointerEvents: 'none',
-        zIndex: 50
-      }}>
-        <div style={{
-          writing: 'vertical-lr',
-          fontSize: '12px',
-          color: '#fff'
-        }}>
-          ← Swipe
         </div>
-      </div>
+      )}
+
+      {/* Gesture Hints - Only show in non-native PWA mode */}
+      {!shouldShowNativeUI && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          right: '10px',
+          transform: 'translateY(-50%)',
+          opacity: 0.3,
+          pointerEvents: 'none',
+          zIndex: 50
+        }}>
+          <div style={{
+            writing: 'vertical-lr',
+            fontSize: '12px',
+            color: '#fff'
+          }}>
+            ← Swipe
+          </div>
+        </div>
+      )}
     </div>
   );
 }
