@@ -631,7 +631,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
 
   return (
     <div style={{
-      minHeight: '100vh',
+      minHeight: '100dvh', // Use dynamic viewport height for PWA
       background: '#1A1A1A',
       fontFamily: 'Inter, system-ui, sans-serif',
       // Native-like smooth scrolling
@@ -642,7 +642,9 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       backfaceVisibility: 'hidden',
       perspective: '1000px',
       transform: 'translateZ(0)',
-      willChange: 'scroll-position'
+      willChange: 'scroll-position',
+      // Better mobile touch handling
+      touchAction: 'pan-y'
     }}>
       {/* Header */}
       <div style={{
@@ -1106,11 +1108,13 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       {/* Content Area */}
       <div style={{
         background: '#1A1A1A', // Match the main background
-        minHeight: 'calc(100vh - 240px)',
+        minHeight: 'calc(100dvh - 240px)', // Use dynamic viewport height
         borderTopLeftRadius: '30px',
         borderTopRightRadius: '30px',
-        padding: '30px 20px 100px',
+        padding: '30px 20px calc(100px + env(safe-area-inset-bottom))', // Add safe area padding
         position: 'relative',
+        // Enable scrolling for content
+        overflow: 'auto',
         // Native-like smooth scrolling for content
         WebkitOverflowScrolling: 'touch',
         overscrollBehaviorY: 'contain',

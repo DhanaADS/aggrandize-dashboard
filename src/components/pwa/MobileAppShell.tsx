@@ -39,11 +39,18 @@ export default function MobileAppShell({ children, currentPath }: MobileAppShell
 
   return (
     <div style={{
-      minHeight: '100vh',
+      minHeight: '100dvh', // Use dynamic viewport height
       display: 'flex',
       flexDirection: 'column',
       background: 'var(--background-primary, #0a0a0a)',
-      paddingTop: isStandalone ? '0' : '60px' // Account for browser header
+      paddingTop: isStandalone ? 'env(safe-area-inset-top)' : '60px', // Handle safe area
+      paddingBottom: 'env(safe-area-inset-bottom)', // Handle safe area
+      paddingLeft: 'env(safe-area-inset-left)',
+      paddingRight: 'env(safe-area-inset-right)',
+      // Optimize for native scrolling
+      WebkitOverflowScrolling: 'touch',
+      overscrollBehavior: 'contain',
+      touchAction: 'pan-y'
     }}>
       {/* Status Bar Spacer for iOS PWA */}
       {isStandalone && (
@@ -55,7 +62,11 @@ export default function MobileAppShell({ children, currentPath }: MobileAppShell
           justifyContent: 'center',
           color: '#000',
           fontWeight: '600',
-          fontSize: '16px'
+          fontSize: '16px',
+          // Ensure it doesn't interfere with scrolling
+          position: 'sticky',
+          top: 0,
+          zIndex: 100
         }}>
           Team Hub
         </div>
@@ -65,7 +76,12 @@ export default function MobileAppShell({ children, currentPath }: MobileAppShell
       <div style={{
         flex: 1,
         position: 'relative',
-        overflow: 'hidden'
+        // Enable natural scrolling instead of hidden
+        overflow: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehavior: 'contain',
+        scrollBehavior: 'smooth',
+        touchAction: 'pan-y'
       }}>
         {children}
       </div>
@@ -85,7 +101,11 @@ export default function MobileAppShell({ children, currentPath }: MobileAppShell
         justifyContent: 'space-around',
         padding: '0 20px',
         zIndex: 100,
-        paddingBottom: isStandalone ? '20px' : '0' // Safe area for PWA
+        paddingBottom: `calc(${isStandalone ? '20px' : '0px'} + env(safe-area-inset-bottom))`, // Better safe area handling
+        // Ensure it doesn't block scrolling
+        WebkitTouchCallout: 'none',
+        WebkitTapHighlightColor: 'transparent',
+        userSelect: 'none'
       }}>
         <MobileNavButton 
           icon="🏠" 
@@ -169,7 +189,23 @@ function MobileNavButton({ icon, label, active, onClick, isPrimary }: MobileNavB
         transition: 'all 0.2s ease',
         minWidth: isPrimary ? '48px' : '44px',
         minHeight: isPrimary ? '48px' : '44px',
-        color: isPrimary ? '#000' : active ? '#00ff88' : '#fff'
+        color: isPrimary ? '#000' : active ? '#00ff88' : '#fff',
+        // Better touch interactions
+        WebkitTapHighlightColor: 'transparent',
+        WebkitTouchCallout: 'none',
+        userSelect: 'none',
+        touchAction: 'manipulation',
+        // Add tap feedback
+        transform: 'scale(1)',
+        WebkitTransform: 'scale(1)'
+      }}
+      onTouchStart={(e) => {
+        e.currentTarget.style.transform = 'scale(0.95)';
+        e.currentTarget.style.WebkitTransform = 'scale(0.95)';
+      }}
+      onTouchEnd={(e) => {
+        e.currentTarget.style.transform = 'scale(1)';
+        e.currentTarget.style.WebkitTransform = 'scale(1)';
       }}
     >
       <span style={{ 

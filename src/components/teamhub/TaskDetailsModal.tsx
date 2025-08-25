@@ -174,68 +174,92 @@ export default function TaskDetailsModal({
     }
   };
 
+  // Handle swipe gestures
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+  
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+  
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    
+    // Right swipe to go back
+    if (isRightSwipe) {
+      onClose();
+    }
+  };
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.6)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 2000,
-      animation: 'fadeIn 0.3s ease',
-      padding: '20px'
-    }}>
+    <div 
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: '#2a2a2a',
+        zIndex: 2000,
+        animation: 'slideInRight 0.3s ease',
+        // Enable native momentum scrolling
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehavior: 'contain',
+        scrollBehavior: 'smooth',
+        touchAction: 'pan-y'
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <div style={{
-        background: '#1a1a1a',
-        width: '100%',
-        maxWidth: '500px',
-        borderRadius: '24px',
-        overflow: 'hidden',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4)',
-        animation: 'scaleIn 0.3s ease',
-        border: '1px solid #333'
+        minHeight: '100dvh', // Use dynamic viewport height
+        paddingBottom: 'calc(100px + env(safe-area-inset-bottom))', // Space for actions + safe area
+        // GPU acceleration for smooth scrolling
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden',
+        willChange: 'scroll-position'
       }}>
-        {/* Modern Header */}
+        {/* Header with Back Button */}
         <div style={{
-          background: `linear-gradient(135deg, ${getStatusColor(task.status)}15 0%, ${getPriorityColor(task.priority || 'medium')}10 100%)`,
-          padding: '24px 24px 20px',
-          borderBottom: '1px solid #333'
+          background: '#2a2a2a', // Solid dark background
+          padding: `calc(60px + env(safe-area-inset-top)) 20px 20px`, // Safe area + status bar padding
+          borderBottom: '1px solid #333',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          // Better touch interactions
+          WebkitTouchCallout: 'none',
+          userSelect: 'none'
         }}>
+          {/* Back Button Bar */}
           <div style={{
             display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            marginBottom: '16px'
+            alignItems: 'center',
+            marginBottom: '20px'
           }}>
-            <h1 style={{
-              fontSize: '24px',
-              fontWeight: '700',
-              color: '#ffffff',
-              margin: 0,
-              lineHeight: '1.2',
-              flex: 1,
-              paddingRight: '16px'
-            }}>
-              {task.title}
-            </h1>
             <button
               onClick={onClose}
               style={{
                 background: 'rgba(255, 255, 255, 0.1)',
                 border: 'none',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
+                borderRadius: '12px',
+                padding: '12px 16px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
+                gap: '8px',
                 cursor: 'pointer',
                 color: '#ffffff',
-                fontSize: '18px',
+                fontSize: '16px',
+                fontWeight: '500',
                 transition: 'all 0.2s ease'
               }}
               onMouseOver={(e) => {
@@ -245,8 +269,23 @@ export default function TaskDetailsModal({
                 e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
               }}
             >
-              ×
+              ← Back
             </button>
+          </div>
+          
+          {/* Task Title */}
+          <div style={{
+            marginBottom: '16px'
+          }}>
+            <h1 style={{
+              fontSize: '24px',
+              fontWeight: '700',
+              color: '#ffffff',
+              margin: 0,
+              lineHeight: '1.2'
+            }}>
+              {task.title}
+            </h1>
           </div>
           
           {/* Status Pills */}
@@ -307,14 +346,28 @@ export default function TaskDetailsModal({
               borderRadius: '12px',
               border: '1px solid #333'
             }}>
-              <p style={{
-                fontSize: '15px',
-                color: '#cccccc',
-                lineHeight: '1.6',
-                margin: 0
-              }}>
-                {task.description}
-              </p>
+              <div 
+                style={{
+                  fontSize: '15px',
+                  color: '#cccccc',
+                  lineHeight: '1.6',
+                  margin: 0,
+                  whiteSpace: 'pre-wrap', // Preserve line breaks and spaces
+                  wordWrap: 'break-word'
+                }}
+                dangerouslySetInnerHTML={{
+                  __html: task.description
+                    .replace(/\n/g, '<br>') // Convert line breaks to <br>
+                    .replace(
+                      /(https?:\/\/[^\s]+)/g, 
+                      '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #4A9EFF; text-decoration: underline;">$1</a>'
+                    ) // Convert URLs to clickable links
+                    .replace(
+                      /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
+                      '<a href="mailto:$1" style="color: #4A9EFF; text-decoration: underline;">$1</a>'
+                    ) // Convert emails to clickable mailto links
+                }}
+              />
             </div>
           )}
 
@@ -545,11 +598,20 @@ export default function TaskDetailsModal({
           )}
         </div>
 
-        {/* Action Bar */}
+        {/* Fixed Bottom Action Bar */}
         <div style={{
-          padding: '24px',
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: '20px',
+          paddingBottom: `calc(20px + env(safe-area-inset-bottom))`, // Safe area padding
+          background: '#2a2a2a', // Solid dark background
           borderTop: '1px solid #333',
-          background: 'rgba(255, 255, 255, 0.02)'
+          zIndex: 20,
+          // Better touch interactions
+          WebkitTouchCallout: 'none',
+          userSelect: 'none'
         }}>
           {/* Primary Actions */}
           <div style={{ 
@@ -750,14 +812,12 @@ export default function TaskDetailsModal({
           to { opacity: 1; }
         }
         
-        @keyframes scaleIn {
+        @keyframes slideInRight {
           from { 
-            opacity: 0; 
-            transform: scale(0.9) translateY(20px); 
+            transform: translateX(100%); 
           }
           to { 
-            opacity: 1; 
-            transform: scale(1) translateY(0); 
+            transform: translateX(0); 
           }
         }
       `}</style>
