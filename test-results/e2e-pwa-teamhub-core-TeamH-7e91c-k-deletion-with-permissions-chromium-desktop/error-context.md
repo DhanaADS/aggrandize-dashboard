@@ -1,0 +1,149 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e6] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e7] [cursor=pointer]:
+      - img [ref=e8] [cursor=pointer]
+    - generic [ref=e11] [cursor=pointer]:
+      - button "Open issues overlay" [ref=e12] [cursor=pointer]:
+        - generic [ref=e13] [cursor=pointer]:
+          - generic [ref=e14] [cursor=pointer]: "0"
+          - generic [ref=e15] [cursor=pointer]: "1"
+        - generic [ref=e16] [cursor=pointer]: Issue
+      - button "Collapse issues badge" [ref=e17] [cursor=pointer]:
+        - img [ref=e18] [cursor=pointer]
+  - generic [ref=e20]:
+    - navigation [ref=e21]:
+      - generic [ref=e22]:
+        - button "AGGRANDIZE Dashboard Logo" [ref=e24] [cursor=pointer]:
+          - img "AGGRANDIZE Logo" [ref=e26] [cursor=pointer]
+          - generic [ref=e27] [cursor=pointer]:
+            - generic [ref=e28] [cursor=pointer]: AGGRANDIZE
+            - generic [ref=e29] [cursor=pointer]: Dashboard
+        - generic [ref=e30]:
+          - generic [ref=e31]:
+            - img "Profile" [ref=e33]
+            - generic [ref=e34]:
+              - generic [ref=e35]: Dhana%40aggrandizedigital.com
+              - generic [ref=e36]: 👑 Admin
+          - button "🚪 Sign Out" [ref=e37] [cursor=pointer]:
+            - generic [ref=e38] [cursor=pointer]: 🚪
+            - generic [ref=e39] [cursor=pointer]: Sign Out
+      - generic [ref=e41]:
+        - button "Order" [ref=e42] [cursor=pointer]:
+          - generic [ref=e43] [cursor=pointer]: Order
+        - button "Processing" [ref=e44] [cursor=pointer]:
+          - generic [ref=e45] [cursor=pointer]: Processing
+        - button "Inventory" [ref=e46] [cursor=pointer]:
+          - generic [ref=e47] [cursor=pointer]: Inventory
+        - button "Tools" [ref=e48] [cursor=pointer]:
+          - generic [ref=e49] [cursor=pointer]: Tools
+        - button "Payments" [ref=e50] [cursor=pointer]:
+          - generic [ref=e51] [cursor=pointer]: Payments
+        - button "Team Hub" [ref=e52] [cursor=pointer]:
+          - generic [ref=e53] [cursor=pointer]: Team Hub
+        - button "Admin" [ref=e55] [cursor=pointer]:
+          - generic [ref=e56] [cursor=pointer]: Admin
+      - generic [ref=e57]:
+        - generic [ref=e60]: Online
+        - generic [ref=e61]: dhana%40aggrandizedigital.com
+    - main [ref=e62]:
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - img "AGGRANDIZE Logo" [ref=e69]
+          - generic [ref=e70]:
+            - heading "Good Evening, Team Hub!" [level=1] [ref=e71]
+            - generic [ref=e73]:
+              - generic [ref=e74]:
+                - generic [ref=e75]: "0"
+                - generic [ref=e76]: Pending Tasks
+              - generic [ref=e77]:
+                - generic [ref=e78]: "0"
+                - generic [ref=e79]: Urgent
+        - generic [ref=e80]:
+          - button "Tasks" [ref=e81] [cursor=pointer]
+          - button "Completed" [ref=e82] [cursor=pointer]
+          - button "Chat" [ref=e83] [cursor=pointer]
+        - generic [ref=e84]:
+          - generic [ref=e85]:
+            - heading "Today's Tasks" [level=2] [ref=e86]
+            - generic [ref=e87]:
+              - generic [ref=e88]: 🎉
+              - heading "All done!" [level=3] [ref=e89]
+              - paragraph [ref=e90]: You've completed all your tasks
+          - button "+" [ref=e91] [cursor=pointer]
+        - generic [ref=e93]:
+          - generic [ref=e94]:
+            - heading "Create New Task" [level=2] [ref=e95]
+            - button "×" [ref=e96] [cursor=pointer]
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - generic [ref=e99]: Task Title *
+              - textbox "What needs to be done?" [active] [ref=e100]: Task to Delete
+            - generic [ref=e101]:
+              - generic [ref=e102]: Description
+              - textbox "Add more details..." [ref=e103]
+            - generic [ref=e104]:
+              - generic [ref=e105]:
+                - generic [ref=e106]: Priority
+                - combobox [ref=e107]:
+                  - option "Low"
+                  - option "Medium" [selected]
+                  - option "High"
+                  - option "Urgent"
+              - generic [ref=e108]:
+                - generic [ref=e109]: Category
+                - combobox [ref=e110]:
+                  - option "General" [selected]
+                  - option "Work"
+                  - option "Meeting"
+                  - option "Review"
+                  - option "Bug"
+                  - option "Feature"
+            - generic [ref=e111]:
+              - generic [ref=e112]: Due Date
+              - textbox [ref=e113]
+            - generic [ref=e114]:
+              - generic [ref=e115]: Assign To *
+              - generic [ref=e116]:
+                - button "A Abbas Manthri processing" [ref=e117] [cursor=pointer]:
+                  - generic [ref=e118] [cursor=pointer]: A
+                  - generic [ref=e119] [cursor=pointer]:
+                    - generic [ref=e120] [cursor=pointer]: Abbas Manthri
+                    - generic [ref=e121] [cursor=pointer]: processing
+                - button "D Dhanapal Elango admin" [ref=e122] [cursor=pointer]:
+                  - generic [ref=e123] [cursor=pointer]: D
+                  - generic [ref=e124] [cursor=pointer]:
+                    - generic [ref=e125] [cursor=pointer]: Dhanapal Elango
+                    - generic [ref=e126] [cursor=pointer]: admin
+                - button "g gokul krishnan processing" [ref=e127] [cursor=pointer]:
+                  - generic [ref=e128] [cursor=pointer]: g
+                  - generic [ref=e129] [cursor=pointer]:
+                    - generic [ref=e130] [cursor=pointer]: gokul krishnan
+                    - generic [ref=e131] [cursor=pointer]: processing
+                - button "L Laura Keen marketing" [ref=e132] [cursor=pointer]:
+                  - generic [ref=e133] [cursor=pointer]: L
+                  - generic [ref=e134] [cursor=pointer]:
+                    - generic [ref=e135] [cursor=pointer]: Laura Keen
+                    - generic [ref=e136] [cursor=pointer]: marketing
+                - button "S Saran marketing" [ref=e137] [cursor=pointer]:
+                  - generic [ref=e138] [cursor=pointer]: S
+                  - generic [ref=e139] [cursor=pointer]:
+                    - generic [ref=e140] [cursor=pointer]: Saran
+                    - generic [ref=e141] [cursor=pointer]: marketing
+                - button "S Shang admin" [ref=e142] [cursor=pointer]:
+                  - generic [ref=e143] [cursor=pointer]: S
+                  - generic [ref=e144] [cursor=pointer]:
+                    - generic [ref=e145] [cursor=pointer]: Shang
+                    - generic [ref=e146] [cursor=pointer]: admin
+                - button "V Veerakeswaran G marketing" [ref=e147] [cursor=pointer]:
+                  - generic [ref=e148] [cursor=pointer]: V
+                  - generic [ref=e149] [cursor=pointer]:
+                    - generic [ref=e150] [cursor=pointer]: Veerakeswaran G
+                    - generic [ref=e151] [cursor=pointer]: marketing
+            - generic [ref=e152]:
+              - button "Cancel" [ref=e153] [cursor=pointer]
+              - button "Create Task" [disabled] [ref=e154]
+  - alert [ref=e155]
+```

@@ -4,6 +4,7 @@ import {
   Todo, 
   TodoComment, 
   TodoAttachment,
+  TaskFeedback,
   CreateTodoRequest, 
   UpdateTodoRequest, 
   TodoFilters,
@@ -256,7 +257,7 @@ export const todosApi = {
     }
   },
 
-  // Create a new todo
+  // Create a new todo with optional file attachments
   async createTodo(todoData: CreateTodoRequest, userEmail: string): Promise<Todo> {
     try {
       // Use secure function to bypass RLS issues
@@ -297,12 +298,130 @@ export const todosApi = {
           throw new Error(`Failed to create todo: ${fallbackError.message}`);
         }
 
-        return fallbackData;
+        const createdTodo = fallbackData;
+        
+        // Handle file attachments if provided
+        if (todoData.attachments && todoData.attachments.length > 0) {
+          try {
+            await this.uploadTaskAttachments(createdTodo.id, todoData.attachments, userEmail);
+          } catch (attachmentError) {
+            console.error('Warning: Task created but attachment upload failed:', attachmentError);
+            // Don't fail the entire operation if attachments fail
+          }
+        }
+        
+        return createdTodo;
       }
 
-      return data;
+      const createdTodo = data;
+      
+      // Handle file attachments if provided
+      if (todoData.attachments && todoData.attachments.length > 0) {
+        try {
+          await this.uploadTaskAttachments(createdTodo.id, todoData.attachments, userEmail);
+        } catch (attachmentError) {
+          console.error('Warning: Task created but attachment upload failed:', attachmentError);
+          // Don't fail the entire operation if attachments fail
+        }
+      }
+      
+      return createdTodo;
     } catch (error) {
       console.error('API Error - createTodo:', error);
+      throw error;
+    }
+  },
+
+  // Upload multiple files as task attachments
+  async uploadTaskAttachments(todoId: string, files: File[], userEmail: string): Promise<TodoAttachment[]> {
+    try {
+      console.log(`📎 Uploading ${files.length} attachments for task:`, todoId);
+      const uploadPromises = files.map(file => this.uploadTaskAttachment(todoId, file, userEmail));
+      const attachments = await Promise.all(uploadPromises);
+      console.log('✅ All attachments uploaded successfully');
+      return attachments;
+    } catch (error) {
+      console.error('API Error - uploadTaskAttachments:', error);
+      throw error;
+    }
+  },
+
+  // Upload a single file as task attachment
+  async uploadTaskAttachment(todoId: string, file: File, userEmail: string): Promise<TodoAttachment> {
+    try {
+      // Check file size (50MB limit)
+      const maxSizeInBytes = 50 * 1024 * 1024;
+      if (file.size > maxSizeInBytes) {
+        throw new Error(`File too large: ${file.name}. Maximum size is 50MB.`);
+      }
+
+      const fileName = `${Date.now()}-${file.name}`;
+      const filePath = `tasks/${todoId}/${fileName}`;
+
+      // Upload to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('todo-attachments')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw new Error(`File upload failed: ${uploadError.message}`);
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('todo-attachments')
+        .getPublicUrl(filePath);
+
+      // Create thumbnail for images
+      let thumbnailPath = null;
+      if (file.type.startsWith('image/')) {
+        thumbnailPath = filePath; // Use same image as thumbnail for now
+      }
+
+      // Save attachment metadata to database
+      const { data, error } = await supabase
+        .from('todo_attachments')
+        .insert({
+          todo_id: todoId,
+          file_name: file.name,
+          file_url: urlData.publicUrl,
+          file_size: file.size,
+          file_type: file.type,
+          thumbnail_url: thumbnailPath ? urlData.publicUrl : null,
+          uploaded_by: userEmail
+        })
+        .select()
+        .single();
+
+      if (error) {
+        // If database save fails, try to clean up the uploaded file
+        try {
+          await supabase.storage
+            .from('todo-attachments')
+            .remove([filePath]);
+        } catch (cleanupError) {
+          console.warn('Failed to cleanup uploaded file after database error:', cleanupError);
+        }
+        throw new Error(`Database save failed: ${error.message}`);
+      }
+
+      return {
+        id: data.id,
+        todo_id: todoId,
+        comment_id: undefined,
+        file_name: data.file_name,
+        file_url: urlData.publicUrl,
+        file_type: data.file_type,
+        file_size: data.file_size,
+        thumbnail_url: thumbnailPath ? urlData.publicUrl : undefined,
+        uploaded_by: data.uploaded_by,
+        created_at: data.created_at
+      };
+    } catch (error) {
+      console.error('API Error - uploadTaskAttachment:', error);
       throw error;
     }
   },
@@ -338,14 +457,57 @@ export const todosApi = {
         updates = { ...updates, completed_at: null };
       }
 
+      // Filter out fields that might not exist in database schema yet
+      const safeUpdates = {
+        ...updates
+      };
+      
+      // Remove workflow fields that might not exist yet
+      const workflowFields = ['approval_requested_at', 'approved_at', 'approved_by', 'last_edited_at', 'last_edited_by'];
+      const existingFields = { ...safeUpdates };
+      
+      // Try with all fields first, then fallback to safe fields if it fails
+      let finalUpdates = existingFields;
+      
+      console.log('🔄 Attempting to update todo with fields:', Object.keys(finalUpdates));
+
       const { data, error } = await supabase
         .from('todos')
-        .update(updates)
+        .update(finalUpdates)
         .eq('id', id)
         .select()
         .single();
 
       if (error) {
+        // If update failed due to missing columns, try with basic fields only
+        if (error.message.includes('column') && error.message.includes('schema cache')) {
+          console.warn('⚠️ Some columns missing, trying with basic fields only:', error.message);
+          
+          const basicUpdates: any = {};
+          const basicFields = ['title', 'description', 'status', 'progress', 'priority', 'category', 'due_date'];
+          
+          basicFields.forEach(field => {
+            if (finalUpdates.hasOwnProperty(field)) {
+              basicUpdates[field] = finalUpdates[field];
+            }
+          });
+          
+          console.log('🔄 Retrying with basic fields:', Object.keys(basicUpdates));
+          
+          const { data: retryData, error: retryError } = await supabase
+            .from('todos')
+            .update(basicUpdates)
+            .eq('id', id)
+            .select()
+            .single();
+            
+          if (retryError) {
+            throw new Error(`Failed to update todo (retry): ${retryError.message}`);
+          }
+          
+          return retryData;
+        }
+        
         throw new Error(`Failed to update todo: ${error.message}`);
       }
 
@@ -444,6 +606,12 @@ export const todosApi = {
         });
 
         if (!error) {
+          // Broadcast delete event
+          await supabase.channel('teamhub-todos-broadcast').send({
+            type: 'broadcast',
+            event: 'delete',
+            payload: { id },
+          });
           return;
         }
         
@@ -459,6 +627,13 @@ export const todosApi = {
       if (error) {
         throw new Error(`Failed to delete todo: ${error.message}`);
       }
+
+      // Broadcast delete event
+      await supabase.channel('teamhub-todos-broadcast').send({
+        type: 'broadcast',
+        event: 'delete',
+        payload: { id },
+      });
     } catch (error) {
       console.error('API Error - deleteTodo:', error);
       throw error;
@@ -1060,34 +1235,63 @@ export const todoAttachmentsApi = {
     try {
       console.log('🔄 Fetching attachments for todo:', todoId);
       
-      // First try using the secure function
+      // Always use direct table access for better debugging
       const { data, error } = await supabase
-        .rpc('get_todo_attachments', { p_todo_id: todoId });
+        .from('todo_attachments')
+        .select('*')
+        .eq('todo_id', todoId)
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.warn('RPC function failed, trying direct table access:', error);
+        console.error('❌ Error fetching attachments:', error);
+        console.error('❌ Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         
-        // Fallback to direct table access
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('todo_attachments')
-          .select('*')
-          .eq('todo_id', todoId)
-          .order('created_at', { ascending: false });
-
-        if (fallbackError) {
-          console.error('Error fetching attachments:', fallbackError);
-          throw new Error(`Failed to fetch attachments: ${fallbackError.message}`);
-        }
-
-        console.log('✅ Loaded attachments (fallback):', fallbackData?.length || 0);
-        return fallbackData || [];
+        // Return empty array instead of throwing to prevent UI breaks
+        return [];
       }
 
-      console.log('✅ Loaded attachments (RPC):', data?.length || 0);
-      return data || [];
+      console.log('✅ Loaded attachments successfully:', data?.length || 0);
+      if (data && data.length > 0) {
+        console.log('📎 Attachment details:', data.map(att => ({
+          id: att.id,
+          file_name: att.file_name,
+          file_size: att.file_size,
+          uploaded_by: att.uploaded_by,
+          file_url: att.file_url
+        })));
+      }
+      
+      // Ensure file URLs are properly accessible
+      const processedAttachments = (data || []).map(attachment => ({
+        ...attachment,
+        // Generate fresh public URL to ensure accessibility
+        file_url: attachment.file_url || this.getPublicFileUrl(attachment.file_name, todoId)
+      }));
+      
+      return processedAttachments;
     } catch (error) {
       console.error('API Error - getTaskAttachments:', error);
-      throw error;
+      // Return empty array instead of throwing to prevent UI breaks
+      return [];
+    }
+  },
+
+  // Helper function to generate public file URLs
+  getPublicFileUrl(fileName: string, todoId: string): string {
+    try {
+      const filePath = `tasks/${todoId}/${fileName}`;
+      const { data } = supabase.storage
+        .from('todo-attachments')
+        .getPublicUrl(filePath);
+      return data.publicUrl;
+    } catch (error) {
+      console.warn('Failed to generate public URL for file:', fileName);
+      return '';
     }
   },
 
@@ -1406,6 +1610,166 @@ export const todoReactionsApi = {
     } catch (error) {
       console.error('API Error - getReactions:', error);
       throw error;
+    }
+  }
+};
+
+// Task Feedback API
+export const taskFeedbackApi = {
+  // Create feedback from creator to assignee
+  async createTaskFeedback(
+    todoId: string, 
+    feedbackBy: string, 
+    feedbackTo: string, 
+    message: string, 
+    type: 'revision' | 'approval' | 'rejection' = 'revision'
+  ): Promise<TaskFeedback> {
+    try {
+      console.log('📝 Creating task feedback:', { todoId, feedbackBy, feedbackTo, type });
+      
+      // Use the secure function
+      const { data, error } = await supabase
+        .rpc('create_task_feedback', {
+          p_todo_id: todoId,
+          p_feedback_by: feedbackBy,
+          p_feedback_to: feedbackTo,
+          p_feedback_message: message,
+          p_feedback_type: type
+        });
+
+      if (error) {
+        console.warn('RPC function failed, trying direct insert:', error);
+        
+        // Fallback to direct insert
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('task_feedback')
+          .insert({
+            todo_id: todoId,
+            feedback_by: feedbackBy,
+            feedback_to: feedbackTo,
+            feedback_message: message,
+            feedback_type: type
+          })
+          .select()
+          .single();
+
+        if (fallbackError) {
+          throw new Error(`Failed to create feedback: ${fallbackError.message}`);
+        }
+
+        console.log('✅ Feedback created (fallback):', fallbackData.id);
+        return fallbackData;
+      }
+
+      // Get the created feedback
+      const { data: feedbackData, error: fetchError } = await supabase
+        .from('task_feedback')
+        .select('*')
+        .eq('id', data)
+        .single();
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch created feedback: ${fetchError.message}`);
+      }
+
+      console.log('✅ Feedback created (RPC):', feedbackData.id);
+      return feedbackData;
+    } catch (error) {
+      console.error('API Error - createTaskFeedback:', error);
+      throw error;
+    }
+  },
+
+  // Get all feedback for a task
+  async getTaskFeedback(todoId: string): Promise<TaskFeedback[]> {
+    try {
+      console.log('🔄 Fetching feedback for todo:', todoId);
+      
+      // Try using the secure function first
+      const { data, error } = await supabase
+        .rpc('get_task_feedback', { p_todo_id: todoId });
+
+      if (error) {
+        console.warn('RPC function failed, trying direct query:', error);
+        
+        // Fallback to direct query
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('task_feedback')
+          .select('*')
+          .eq('todo_id', todoId)
+          .order('created_at', { ascending: false });
+
+        if (fallbackError) {
+          console.error('Error fetching feedback:', fallbackError);
+          return [];
+        }
+
+        console.log('✅ Loaded feedback (fallback):', fallbackData?.length || 0);
+        return fallbackData || [];
+      }
+
+      console.log('✅ Loaded feedback (RPC):', data?.length || 0);
+      return data || [];
+    } catch (error) {
+      console.error('API Error - getTaskFeedback:', error);
+      return [];
+    }
+  },
+
+  // Mark feedback as read by assignee
+  async markFeedbackAsRead(feedbackId: string): Promise<boolean> {
+    try {
+      console.log('👁️ Marking feedback as read:', feedbackId);
+      
+      // Try using the secure function first
+      const { data, error } = await supabase
+        .rpc('mark_feedback_read', { p_feedback_id: feedbackId });
+
+      if (error) {
+        console.warn('RPC function failed, trying direct update:', error);
+        
+        // Fallback to direct update
+        const { error: fallbackError } = await supabase
+          .from('task_feedback')
+          .update({ read_at: new Date().toISOString() })
+          .eq('id', feedbackId)
+          .is('read_at', null);
+
+        if (fallbackError) {
+          console.error('Error marking feedback as read:', fallbackError);
+          return false;
+        }
+
+        console.log('✅ Feedback marked as read (fallback)');
+        return true;
+      }
+
+      console.log('✅ Feedback marked as read (RPC):', data);
+      return data === true;
+    } catch (error) {
+      console.error('API Error - markFeedbackAsRead:', error);
+      return false;
+    }
+  },
+
+  // Get unread feedback count for a user
+  async getUnreadFeedbackCount(userEmail: string): Promise<number> {
+    try {
+      const { data, error } = await supabase
+        .from('task_feedback')
+        .select('id', { count: 'exact' })
+        .eq('feedback_to', userEmail)
+        .is('read_at', null);
+
+      if (error) {
+        console.error('Error getting unread feedback count:', error);
+        return 0;
+      }
+
+      return data?.length || 0;
+    } catch (error) {
+      console.error('API Error - getUnreadFeedbackCount:', error);
+      return 0;
     }
   }
 };

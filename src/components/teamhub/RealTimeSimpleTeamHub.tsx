@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Todo, TodoStatus, TeamMember, CreateTodoRequest } from '@/types/todos';
 import { useAuth } from '@/lib/auth-nextauth';
-import { todosApi, unreadMessagesApi } from '@/lib/todos-api';
+import { todosApi, unreadMessagesApi, taskFeedbackApi } from '@/lib/todos-api';
 import { getTeamMembersCached } from '@/lib/team-members-api';
 import { hybridRealtime } from '@/lib/hybrid-realtime';
 import { notificationSounds } from '@/lib/notification-sounds';
 import CommentThread from '../todos/CommentThread';
 import SimpleTaskCreator from './SimpleTaskCreator';
 import TaskDetailsModal from './TaskDetailsModal';
+import MobileTaskCard from './MobileTaskCard';
 import { SEVERITY_COLORS } from '@/lib/theme-colors';
 
 interface RealTimeSimpleTeamHubProps {
@@ -34,7 +35,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
   };
   const [todos, setTodos] = useState<Todo[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [activeTab, setActiveTab] = useState<'tasks' | 'completed' | 'chat'>('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'pending' | 'completed' | 'chat'>('tasks');
   const [loading, setLoading] = useState(true);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [showTaskCreator, setShowTaskCreator] = useState(false);
@@ -90,7 +91,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
     }
   }, []);
 
-  // Handle status updates with optimistic UI and real database operations
+  // Handle status updates with enhanced workflow logic
   const handleStatusUpdate = async (todoId: string, status: TodoStatus) => {
     console.log('🔄 Updating task status:', todoId, 'to:', status);
     
@@ -107,29 +108,99 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
         return;
       }
 
-      // Optimistic update
+      // Enhanced workflow logic
+      let updateData: any = { status };
+      let shouldUpdateProgress = true;
+
+      switch (status) {
+        case 'in_progress':
+          if (todo.status === 'assigned' || todo.status === 'revision' || todo.status === 'rejected') {
+            console.log('🚀 Assignee starting task');
+            updateData.progress = todo.status === 'revision' ? 50 : 10; // Continue from revision or start fresh
+          } else if (todo.status === 'done' && isTaskCreator) {
+            console.log('🔄 Creator restoring completed task');
+            updateData.progress = 75; // Set high progress since it was completed before
+            updateData.approved_at = null; // Clear approval timestamp
+            updateData.approved_by = null; // Clear approval info
+            updateData.completed_at = null; // Clear completion timestamp
+          }
+          break;
+
+        case 'pending_approval':
+          if (todo.status === 'in_progress' && isTaskReceiver) {
+            console.log('📋 Assignee requesting completion approval');
+            updateData.approval_requested_at = new Date().toISOString();
+            updateData.progress = 100;
+          } else {
+            alert('Only assignees can request approval for in-progress tasks.');
+            return;
+          }
+          break;
+
+        case 'done':
+          if (todo.status === 'pending_approval' && isTaskCreator) {
+            console.log('✅ Creator approving task completion');
+            updateData.approved_at = new Date().toISOString();
+            updateData.approved_by = user.email;
+            updateData.completed_at = new Date().toISOString();
+            updateData.progress = 100;
+          } else if (todo.status === 'in_progress' && isTaskCreator) {
+            // Direct completion by creator (bypassing approval)
+            console.log('✅ Creator directly completing task');
+            updateData.completed_at = new Date().toISOString();
+            updateData.approved_by = user.email;
+            updateData.progress = 100;
+          } else {
+            alert('Only task creators can approve completion.');
+            return;
+          }
+          break;
+
+        default:
+          // For other status changes, use existing logic
+          if (shouldUpdateProgress) {
+            updateData.progress = status === 'done' ? 100 : status === 'in_progress' ? 50 : 0;
+          }
+      }
+
+      // Optimistic update with enhanced data
       setTodos(prevTodos => 
         prevTodos.map(t => 
           t.id === todoId 
-            ? { ...t, status, updated_at: new Date().toISOString() }
+            ? { 
+                ...t, 
+                ...updateData,
+                updated_at: new Date().toISOString(),
+                last_edited_by: user.email,
+                last_edited_at: new Date().toISOString()
+              }
             : t
         )
       );
 
-      // Play sound feedback
+      // Play appropriate sound feedback
       try {
-        notificationSounds.playTaskComplete();
+        switch (status) {
+          case 'in_progress':
+            notificationSounds.playProgress();
+            break;
+          case 'pending_approval':
+            notificationSounds.playAssignment();
+            break;
+          case 'done':
+            notificationSounds.playSuccess();
+            break;
+          default:
+            notificationSounds.playSuccess();
+        }
       } catch (soundError) {
         console.log('Sound notification failed:', soundError);
       }
 
-      // Update on server with real database operation
-      await todosApi.updateTodo(todoId, { 
-        status,
-        progress: status === 'done' ? 100 : status === 'in_progress' ? 50 : 0
-      });
+      // Update on server with enhanced data
+      await todosApi.updateTodo(todoId, updateData);
       
-      console.log('✅ Task status updated successfully in database');
+      console.log('✅ Task status updated successfully in database:', updateData);
       
     } catch (error) {
       console.error('Failed to update task status:', error);
@@ -175,7 +246,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       
       // Play sound feedback
       try {
-        notificationSounds.playTaskAssigned();
+        notificationSounds.playAssignment();
       } catch (soundError) {
         console.log('Sound notification failed:', soundError);
       }
@@ -219,23 +290,46 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       // Set up event listeners for real-time updates
       const handleTodoUpdate = (event: any) => {
         const { todo } = event.detail;
-        if (todo && user.email !== todo.last_updated_by) {
-          console.log('📡 Real-time todo update received:', todo);
-          setTodos(prevTodos => 
-            prevTodos.map(t => t.id === todo.id ? { ...todo, ...t } : t)
-          );
-          notificationSounds.playTaskUpdate();
+        if (todo) {
+          console.log('📨 Received todo update:', todo.id, 'by:', todo.last_edited_by || 'unknown');
+          // Always update regardless of who made the change for now
+          setTodos(prevTodos => {
+            const existingTodo = prevTodos.find(t => t.id === todo.id);
+            if (existingTodo) {
+              // Update existing todo
+              return prevTodos.map(t => t.id === todo.id ? { ...t, ...todo } : t);
+            } else {
+              // Add new todo if it doesn't exist
+              return [todo, ...prevTodos];
+            }
+          });
+          
+          // Play sound only if it's not from the current user
+          if (user.email !== todo.last_edited_by && user.email !== todo.created_by) {
+            try {
+              notificationSounds.playProgress();
+            } catch (e) {
+              console.log('Sound notification failed:', e);
+            }
+          }
         }
       };
 
       const handleTodoInsert = (event: any) => {
         const { todo } = event.detail;
-        if (todo && user.email !== todo.created_by) {
-          console.log('📡 Real-time todo insert received:', todo);
+        if (todo) {
+          console.log('📨 Received new todo:', todo.id, 'created by:', todo.created_by);
           setTodos(prevTodos => {
             const exists = prevTodos.some(t => t.id === todo.id);
             if (!exists) {
-              notificationSounds.playTaskAssigned();
+              // Play sound only if it's not from the current user
+              if (user.email !== todo.created_by) {
+                try {
+                  notificationSounds.playAssignment();
+                } catch (e) {
+                  console.log('Sound notification failed:', e);
+                }
+              }
               return [todo, ...prevTodos];
             }
             return prevTodos;
@@ -246,7 +340,6 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       const handleTodoDelete = (event: any) => {
         const { todoId } = event.detail;
         if (todoId) {
-          console.log('📡 Real-time todo delete received:', todoId);
           setTodos(prevTodos => prevTodos.filter(t => t.id !== todoId));
         }
       };
@@ -282,6 +375,8 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
     }
   }, [user?.email]);
 
+  
+
   // Initialize data loading and real-time
   useEffect(() => {
     if (!user?.email) return;
@@ -293,20 +388,22 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
       return cleanup;
     };
 
-    let cleanup: (() => void) | undefined;
-    initialize().then(cleanupFn => {
-      cleanup = cleanupFn;
-    });
+    const cleanupPromise = initialize();
 
     return () => {
-      if (cleanup) cleanup();
+      cleanupPromise.then(cleanup => {
+        if (cleanup) {
+          cleanup();
+        }
+      });
     };
-  }, [user?.email, loadTodos, loadTeamMembers, initializeRealtime]);
+  }, [user?.email]);
 
   // Filter tasks and calculate stats
   const activeTasks = todos.filter(todo => 
-    ['assigned', 'in_progress', 'pending_approval'].includes(todo.status)
+    ['assigned', 'in_progress', 'revision', 'rejected'].includes(todo.status)
   );
+  const pendingApprovalTasks = todos.filter(todo => todo.status === 'pending_approval');
   const completedTasks = todos.filter(todo => todo.status === 'done');
   const totalUnreadMessages = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
   
@@ -317,122 +414,17 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
     return new Date(task.due_date) < new Date();
   }).length;
 
-  const renderTaskItem = (task: Todo, isCompleted = false) => (
-    <div
+  // Render tasks using new MobileTaskCard component
+  const renderTaskItem = (task: Todo) => (
+    <MobileTaskCard
       key={task.id}
-      style={{
-        background: '#2a2a2a',
-        borderRadius: '16px',
-        padding: '16px',
-        marginBottom: '12px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-        cursor: 'pointer',
-        position: 'relative',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-        border: '1px solid #404040'
-      }}
-      onClick={() => setSelectedTaskForDetails(task)}
-    >
-      {/* Unread message indicator */}
-      {unreadCounts[task.id] > 0 && (
-        <div style={{
-          position: 'absolute',
-          top: '8px',
-          right: '8px',
-          background: '#FF5252',
-          color: '#fff',
-          borderRadius: '50%',
-          width: '20px',
-          height: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '11px',
-          fontWeight: '600'
-        }}>
-          {unreadCounts[task.id]}
-        </div>
-      )}
-
-      {/* Task Icon/Checkbox */}
-      <div style={{
-        width: '24px',
-        height: '24px',
-        borderRadius: '6px',
-        background: isCompleted ? '#9C27B0' : '#E0E0E0',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#fff',
-        fontSize: '14px',
-        flexShrink: 0
-      }}>
-        {isCompleted ? '✓' : '📝'}
-      </div>
-
-      {/* Task Content */}
-      <div style={{ flex: 1 }}>
-        <div style={{
-          fontSize: '18px',
-          fontWeight: '500',
-          color: isCompleted ? '#b0b0b0' : '#ffffff',
-          textDecoration: isCompleted ? 'line-through' : 'none',
-          marginBottom: '4px'
-        }}>
-          {task.title}
-        </div>
-        {task.description && (
-          <div style={{
-            fontSize: '16px',
-            color: isCompleted ? '#888' : '#b0b0b0',
-            lineHeight: '1.4'
-          }}>
-            {task.description.length > 50 
-              ? `${task.description.substring(0, 50)}...` 
-              : task.description
-            }
-          </div>
-        )}
-        {/* Show assigned users */}
-        {(task.assigned_to_array || (task.assigned_to ? [task.assigned_to] : [])).length > 0 && (
-          <div style={{ marginTop: '8px', display: 'flex', gap: '4px' }}>
-            {(task.assigned_to_array || [task.assigned_to!]).slice(0, 3).map(email => {
-              const member = teamMembers.find(m => m.email === email);
-              return member ? (
-                <div
-                  key={email}
-                  style={{
-                    fontSize: '14px',
-                    background: isCompleted ? '#444' : '#404040',
-                    padding: '2px 6px',
-                    borderRadius: '8px',
-                    color: isCompleted ? '#ccc' : '#e0e0e0'
-                  }}
-                >
-                  {member.name}
-                </div>
-              ) : null;
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Priority Indicator */}
-      <div style={{
-        width: '8px',
-        height: '8px',
-        borderRadius: '50%',
-        background: task.priority === 'high' || task.priority === 'urgent' 
-          ? '#FF5252' 
-          : task.priority === 'medium' 
-            ? '#FF9800' 
-            : '#4CAF50',
-        flexShrink: 0
-      }} />
-    </div>
+      task={task}
+      teamMembers={teamMembers}
+      currentUser={user?.email || ''}
+      onStatusUpdate={handleStatusUpdate}
+      onTaskClick={setSelectedTaskForDetails}
+      unreadCount={unreadCounts[task.id] || 0}
+    />
   );
 
   return (
@@ -600,7 +592,8 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
         padding: '0 20px 20px',
       }}>
         {[
-          { key: 'tasks', label: 'Tasks' },
+          { key: 'tasks', label: 'Active' },
+          { key: 'pending', label: `Pending${pendingApprovalTasks.length > 0 ? ` (${pendingApprovalTasks.length})` : ''}` },
           { key: 'completed', label: 'Completed' },
           { key: 'chat', label: `Chat${totalUnreadMessages > 0 ? ` (${totalUnreadMessages})` : ''}` }
         ].map(tab => (
@@ -650,7 +643,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
           </div>
         ) : (
           <>
-            {/* Tasks Tab */}
+            {/* Active Tasks Tab */}
             {activeTab === 'tasks' && (
               <div>
                 <h2 style={{
@@ -659,7 +652,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
                   color: '#ffffff',
                   margin: '0 0 20px'
                 }}>
-                  Today's Tasks
+                  Active Tasks
                 </h2>
                 {activeTasks.length > 0 ? (
                   activeTasks.map(task => renderTaskItem(task))
@@ -669,11 +662,47 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
                     padding: '40px 20px',
                     color: '#ffffff'
                   }}>
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎉</div>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎯</div>
                     <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                      All done!
+                      No active tasks
                     </h3>
-                    <p style={{ color: '#ffffff' }}>You've completed all your tasks</p>
+                    <p style={{ color: '#ffffff' }}>All tasks are either completed or pending approval</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Pending Approval Tab */}
+            {activeTab === 'pending' && (
+              <div>
+                <h2 style={{
+                  fontSize: '22px',
+                  fontWeight: '600',
+                  color: '#ffffff',
+                  margin: '0 0 20px'
+                }}>
+                  Pending Approval
+                </h2>
+                <p style={{
+                  fontSize: '14px',
+                  color: '#b0b0b0',
+                  marginBottom: '20px'
+                }}>
+                  Tasks waiting for creator approval or feedback
+                </p>
+                {pendingApprovalTasks.length > 0 ? (
+                  pendingApprovalTasks.map(task => renderTaskItem(task))
+                ) : (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px 20px',
+                    color: '#ffffff'
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
+                    <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                      No pending approvals
+                    </h3>
+                    <p style={{ color: '#ffffff' }}>All tasks have been reviewed</p>
                   </div>
                 )}
               </div>
@@ -691,7 +720,7 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
                   Completed Tasks
                 </h2>
                 {completedTasks.length > 0 ? (
-                  completedTasks.map(task => renderTaskItem(task, true))
+                  completedTasks.map(task => renderTaskItem(task))
                 ) : (
                   <div style={{
                     textAlign: 'center',
@@ -963,8 +992,14 @@ export default function RealTimeSimpleTeamHub({ className = '' }: RealTimeSimple
         <TaskDetailsModal
           task={selectedTaskForDetails}
           teamMembers={teamMembers}
+          currentUser={user?.email || ''}
           onClose={() => setSelectedTaskForDetails(null)}
           onStatusUpdate={(status) => handleStatusUpdate(selectedTaskForDetails.id, status)}
+          onTaskUpdated={() => {
+            // Refresh todos when task is updated (e.g., status changed due to feedback)
+            console.log('🔄 Task updated, refreshing todo list');
+            loadTodos();
+          }}
           onEdit={() => {
             console.log('Edit task:', selectedTaskForDetails.id);
             // For now, close modal - full editing can be implemented later

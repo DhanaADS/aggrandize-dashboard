@@ -1,7 +1,7 @@
 // AGGRANDIZE Team Todos - TypeScript Types
 
 export type TodoPriority = 'low' | 'medium' | 'high' | 'urgent';
-export type TodoStatus = 'assigned' | 'in_progress' | 'pending_approval' | 'done' | 'blocked' | 'cancelled';
+export type TodoStatus = 'assigned' | 'in_progress' | 'pending_approval' | 'revision' | 'rejected' | 'done' | 'blocked' | 'cancelled';
 export type TodoCategory = 'general' | 'work' | 'meeting' | 'review' | 'bug' | 'feature';
 
 export interface Todo {
@@ -42,6 +42,11 @@ export interface Todo {
   updated_at: string;
   last_edited_at?: string; // When task was last edited
   last_edited_by?: string; // Who last edited the task
+  
+  // Workflow tracking
+  approval_requested_at?: string; // When assignee requested completion
+  approved_at?: string; // When creator approved the task
+  approved_by?: string; // Who approved the task
 }
 
 // Individual assignee status tracking
@@ -77,6 +82,17 @@ export interface TodoAttachment {
   created_at: string;
 }
 
+export interface TaskFeedback {
+  id: string;
+  todo_id: string;
+  feedback_by: string; // Creator email
+  feedback_to: string; // Assignee email
+  feedback_message: string;
+  feedback_type: 'revision' | 'approval' | 'rejection';
+  created_at: string;
+  read_at?: string; // When assignee read the feedback
+}
+
 export interface CreateTodoRequest {
   title: string;
   description?: string;
@@ -87,6 +103,7 @@ export interface CreateTodoRequest {
   due_date?: string;
   tags?: string[];
   is_team_todo?: boolean;
+  attachments?: File[]; // File attachments for upload
 }
 
 export interface UpdateTodoRequest {

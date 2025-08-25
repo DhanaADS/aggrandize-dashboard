@@ -13,18 +13,29 @@ export class HybridRealtimeService {
 
   async initialize(userEmail: string) {
     try {
-      console.log('🔄 Initializing reliable polling mode for user:', userEmail);
+      console.log('🔄 Initializing hybrid real-time for user:', userEmail);
       
-      // Use polling mode for all users for now (it's proven to work reliably)
-      await this.initializePolling();
-      this.usePolling = true;
+      const realtimeSuccess = await this.trySupabaseRealtime();
       
-      console.log('✅ Polling mode active for consistent real-time experience');
-      return true;
+      if (realtimeSuccess) {
+        console.log('✅ Real-time connection established');
+        return true;
+      } else {
+        console.log('⚠️ Real-time failed, falling back to polling');
+        await this.initializePolling();
+        return true;
+      }
       
     } catch (error) {
-      console.warn('Failed to initialize polling mode:', error);
-      return false;
+      console.error('Hybrid real-time initialization failed:', error);
+      // Attempt to start polling as a last resort
+      try {
+        await this.initializePolling();
+        return true;
+      } catch (pollingError) {
+        console.error('Fallback polling initialization failed:', pollingError);
+        return false;
+      }
     }
   }
 
@@ -34,24 +45,8 @@ export class HybridRealtimeService {
         let hasResolved = false;
         
         // Set up real-time channel for both comments and todos
-        this.channel = this.supabase
-          .channel('hybrid-realtime')
-          .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'todo_comments'
-          }, (payload) => {
-            console.log('📡 Real-time comment received:', payload.new);
-            this.handleNewComment(payload.new);
-          })
-          .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'todos'
-          }, (payload) => {
-            console.log('📡 Real-time todo update received:', payload.new);
-            this.handleTodoUpdate(payload.new);
-          })
+                this.channel = this.supabase.channel('teamhub-todos-db-changes');
+        this.channel
           .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
@@ -61,15 +56,22 @@ export class HybridRealtimeService {
             this.handleTodoInsert(payload.new);
           })
           .on('postgres_changes', {
-            event: 'DELETE',
+            event: 'UPDATE',
             schema: 'public',
             table: 'todos'
           }, (payload) => {
-            console.log('📡 Real-time todo delete received:', payload.old);
-            this.handleTodoDelete(payload.old);
+            console.log('📡 Real-time todo update received:', payload.new);
+            this.handleTodoUpdate(payload.new);
           })
-          .subscribe((status) => {
-            console.log(`📡 Hybrid real-time status: ${status}`);
+          .subscribe();
+
+        const broadcastChannel = this.supabase.channel('teamhub-todos-broadcast');
+        broadcastChannel.on('broadcast', { event: 'delete' }, (payload) => {
+            console.log('📡 Real-time todo delete broadcast received:', payload);
+            this.handleTodoDelete(payload.payload);
+          })
+          .subscribe((status, err) => {
+            console.log(`📡 Hybrid real-time status: ${status}`, err || '');
             
             if (status === 'SUBSCRIBED' && !hasResolved) {
               console.log('✅ Real-time connection successful');
@@ -309,7 +311,7 @@ export class HybridRealtimeService {
 
     // Dispatch event for deleted todos
     window.dispatchEvent(new CustomEvent('hybrid-todo-delete', {
-      detail: { todo }
+      detail: { todoId: todo.id }
     }));
 
     console.log('📡 Hybrid todo delete event dispatched for todo:', todo.id);

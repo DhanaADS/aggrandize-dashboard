@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { TeamMember, CreateTodoRequest, TodoPriority, TodoCategory } from '@/types/todos';
 
 interface SimpleTaskCreatorProps {
@@ -17,6 +17,8 @@ export default function SimpleTaskCreator({ teamMembers, onSubmit, onClose }: Si
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +42,8 @@ export default function SimpleTaskCreator({ teamMembers, onSubmit, onClose }: Si
         category,
         assigned_to_array: selectedAssignees,
         due_date: dueDate || undefined,
-        is_team_todo: true
+        is_team_todo: true,
+        attachments: attachments.length > 0 ? attachments : undefined
       };
 
       await onSubmit(taskData);
@@ -58,6 +61,42 @@ export default function SimpleTaskCreator({ teamMembers, onSubmit, onClose }: Si
         ? prev.filter(e => e !== email)
         : [...prev, email]
     );
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newFiles = Array.from(files);
+      
+      // Validate file size (50MB limit per file)
+      const maxSizeInBytes = 50 * 1024 * 1024;
+      const invalidFiles = newFiles.filter(file => file.size > maxSizeInBytes);
+      
+      if (invalidFiles.length > 0) {
+        const fileNames = invalidFiles.map(f => f.name).join(', ');
+        alert(`The following files exceed the 50MB limit: ${fileNames}`);
+        return;
+      }
+      
+      // Add files to attachments (avoiding duplicates)
+      setAttachments(prev => {
+        const existingNames = prev.map(f => f.name);
+        const uniqueFiles = newFiles.filter(f => !existingNames.includes(f.name));
+        return [...prev, ...uniqueFiles];
+      });
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   };
 
   return (
@@ -349,6 +388,133 @@ export default function SimpleTaskCreator({ teamMembers, onSubmit, onClose }: Si
                 );
               })}
             </div>
+          </div>
+
+          {/* File Attachments */}
+          <div style={{ marginBottom: '30px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '16px',
+              fontWeight: '600',
+              color: '#ffffff',
+              marginBottom: '8px'
+            }}>
+              Attachments
+            </label>
+            
+            {/* File Input (Hidden) */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+              accept="image/*,application/pdf,.doc,.docx,.txt,.xlsx,.csv,.zip"
+            />
+            
+            {/* Add Files Button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                width: '100%',
+                padding: '16px',
+                border: '2px dashed #555',
+                borderRadius: '12px',
+                background: 'transparent',
+                color: '#ffffff',
+                fontSize: '16px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                marginBottom: '16px'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.borderColor = '#667eea';
+                e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.borderColor = '#555';
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              📎 Add Files (Images, PDFs, Documents)
+            </button>
+
+            {/* Attached Files List */}
+            {attachments.length > 0 && (
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: '12px',
+                padding: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}>
+                <div style={{
+                  fontSize: '14px',
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  marginBottom: '8px',
+                  fontWeight: '500'
+                }}>
+                  {attachments.length} file{attachments.length > 1 ? 's' : ''} attached
+                </div>
+                {attachments.map((file, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      borderRadius: '8px',
+                      marginBottom: index < attachments.length - 1 ? '8px' : '0'
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        fontSize: '14px',
+                        color: '#ffffff',
+                        fontWeight: '500',
+                        marginBottom: '2px'
+                      }}>
+                        {file.name}
+                      </div>
+                      <div style={{
+                        fontSize: '12px',
+                        color: 'rgba(255, 255, 255, 0.6)'
+                      }}>
+                        {formatFileSize(file.size)} • {file.type || 'Unknown type'}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.2)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '6px',
+                        color: '#ef4444',
+                        padding: '4px 8px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
