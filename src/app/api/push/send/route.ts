@@ -3,11 +3,18 @@ import { createClient } from '@/lib/supabase/server';
 import webpush from 'web-push';
 
 // Configure web-push with VAPID keys
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:team@aggrandizedigital.com';
+const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+
+// Only configure VAPID if we have the keys
+if (vapidPublicKey && vapidPrivateKey) {
+  webpush.setVapidDetails(
+    vapidSubject,
+    vapidPublicKey,
+    vapidPrivateKey
+  );
+}
 
 interface NotificationPayload {
   title: string;
@@ -29,6 +36,17 @@ interface NotificationPayload {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if VAPID is configured
+    if (!vapidPublicKey || !vapidPrivateKey) {
+      console.warn('⚠️ VAPID keys not configured, push notifications disabled');
+      return NextResponse.json({
+        success: false,
+        error: 'Push notifications not configured',
+        sentCount: 0,
+        failedCount: 0
+      });
+    }
+
     const { 
       userEmail, 
       notificationType, 
