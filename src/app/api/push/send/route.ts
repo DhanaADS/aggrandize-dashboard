@@ -59,13 +59,20 @@ export async function POST(request: NextRequest) {
 
     // Configure VAPID details at runtime
     try {
+      // Ensure VAPID public key is in correct URL-safe Base64 format (without padding)
+      const formattedVapidPublicKey = vapidPublicKey.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+      
       webpush.setVapidDetails(
         vapidSubject,
-        vapidPublicKey,
+        formattedVapidPublicKey,
         vapidPrivateKey
       );
+      
+      console.log('✅ VAPID configuration successful');
     } catch (vapidError: any) {
       console.error('❌ VAPID configuration failed:', vapidError.message);
+      console.log('Debug - Original public key:', vapidPublicKey);
+      console.log('Debug - Formatted public key:', vapidPublicKey.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''));
       return NextResponse.json({
         success: false,
         error: `VAPID configuration error: ${vapidError.message}`,
