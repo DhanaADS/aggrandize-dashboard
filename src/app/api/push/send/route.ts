@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import webpush from 'web-push';
 
-// Configure web-push with VAPID keys
-const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:team@aggrandizedigital.com';
-const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-
-// Only configure VAPID if we have the keys
-if (vapidPublicKey && vapidPrivateKey) {
-  webpush.setVapidDetails(
-    vapidSubject,
-    vapidPublicKey,
-    vapidPrivateKey
-  );
+// Only import web-push in runtime, not during build
+let webpush: any = null;
+if (typeof window === 'undefined' && process.env.NODE_ENV !== 'test') {
+  try {
+    webpush = require('web-push');
+  } catch (error) {
+    console.warn('web-push not available');
+  }
 }
 
 interface NotificationPayload {
@@ -36,12 +31,44 @@ interface NotificationPayload {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if VAPID is configured
+    // Get VAPID configuration
+    const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:team@aggrandizedigital.com';
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+
+    // Check if web-push is available and VAPID is configured
+    if (!webpush) {
+      console.warn('⚠️ web-push library not available');
+      return NextResponse.json({
+        success: false,
+        error: 'Push notification library not available',
+        sentCount: 0,
+        failedCount: 0
+      });
+    }
+
     if (!vapidPublicKey || !vapidPrivateKey) {
       console.warn('⚠️ VAPID keys not configured, push notifications disabled');
       return NextResponse.json({
         success: false,
         error: 'Push notifications not configured',
+        sentCount: 0,
+        failedCount: 0
+      });
+    }
+
+    // Configure VAPID details at runtime
+    try {
+      webpush.setVapidDetails(
+        vapidSubject,
+        vapidPublicKey,
+        vapidPrivateKey
+      );
+    } catch (vapidError: any) {
+      console.error('❌ VAPID configuration failed:', vapidError.message);
+      return NextResponse.json({
+        success: false,
+        error: `VAPID configuration error: ${vapidError.message}`,
         sentCount: 0,
         failedCount: 0
       });
