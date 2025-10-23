@@ -390,6 +390,7 @@ Response format:
           // Add delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
+        }
       } catch (error) {
         console.error('Real API scraping failed:', error);
         // Fall back to demo mode with a message
