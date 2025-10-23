@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DecodoAPI } from '@/lib/web-scraping/decodo-api';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy initialization to avoid build-time errors
+function getOpenAIClient() {
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+}
 
 interface ScrapingJob {
   id: string;
@@ -234,6 +237,7 @@ async function executeScrapingJob(jobId: string, config: any, prompt?: string, a
                   return `${field.name}: ${field.description || field.name} (${field.type})`;
                 }).join('\n');
 
+                const openai = getOpenAIClient();
                 const completion = await openai.chat.completions.create({
                   model: "gpt-4-turbo-preview",
                   messages: [
@@ -332,6 +336,7 @@ Response format:
                   return `${field.name}: ${field.description || field.name} (${field.type})`;
                 }).join('\n');
 
+                const openai = getOpenAIClient();
                 const completion = await openai.chat.completions.create({
                   model: "gpt-4-turbo-preview",
                   messages: [
@@ -389,6 +394,7 @@ Response format:
 
           // Add delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 1000));
+        }
         }
       } catch (error) {
         console.error('Real API scraping failed:', error);
