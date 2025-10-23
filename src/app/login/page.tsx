@@ -1,35 +1,35 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth-nextauth';
-import { LoginForm } from '@/components/auth/login-form';
-import { MinimalLogoLoading } from '@/components/ui/LoadingSpinner';
-import styles from './login.module.css';
+import { signIn } from 'next-auth/react';
+import { useState } from 'react';
 
 export default function LoginPage() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (isAuthenticated && !isLoading) {
-      router.push('/dashboard');
-    }
-  }, [isAuthenticated, isLoading, router]);
-
-  // Show loading while checking auth status
-  if (isLoading) {
-    return <MinimalLogoLoading text="Authenticating..." />;
-  }
-
-  // Don't show login form if already authenticated
-  if (isAuthenticated) {
-    return null;
-  }
+  const handleLogin = () => {
+    setIsLoading(true);
+    signIn('google', { callbackUrl: '/dashboard' });
+  };
 
   return (
-    <div className={styles.loginContainer}>
-      <LoginForm />
+    <div style={{
+      display: 'flex',
+      minHeight: '100vh',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: '#0a0a0a',
+    }}>
+      <button
+        onClick={handleLogin}
+        disabled={isLoading}
+        style={{
+          padding: '1rem 2rem',
+          fontSize: '1.2rem',
+          cursor: 'pointer',
+        }}
+      >
+        {isLoading ? 'Redirecting...' : 'Sign In with Google'}
+      </button>
     </div>
   );
 }

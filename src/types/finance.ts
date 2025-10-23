@@ -41,6 +41,9 @@ export interface Expense {
   // Joined data
   category?: ExpenseCategory;
   payment_method?: PaymentMethod;
+  attachments?: ExpenseAttachment[];
+  recurring_type?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  recurring_end_date?: string;
 }
 
 export interface Subscription {
@@ -373,6 +376,7 @@ export interface FinancialOverview {
 export interface ExpenseFilters {
   category_id?: string;
   person_paid?: string;
+  person_responsible?: string;
   payment_method_id?: string;
   payment_status?: string;
   date_from?: string;
@@ -532,4 +536,45 @@ export interface MonthlySalaryOverview {
   total_salary_amount: number;
   total_paid_amount: number;
   total_pending_amount: number;
+}
+
+export interface Budget {
+  id: string;
+  category_id: string;
+  amount: number;
+  month: string;
+  created_at: string;
+  updated_at: string;
+  category?: ExpenseCategory;
+}
+
+export interface BudgetFormData {
+  category_id: string;
+  amount: number;
+  month: string;
+}
+
+export interface ExpenseApproval {
+  id: string;
+  expense_id: string;
+  approver_id: string;
+  status: string;
+  comments?: string;
+  created_at: string;
+  approver?: { full_name: string };
+}
+
+export interface ExpenseApprovalFormData {
+  expense_id: string;
+  status: string;
+  comments?: string;
+}
+
+export interface ExpenseAttachment {
+  id: string;
+  expense_id: string;
+  file_name: string;
+  file_path: string;
+  file_type: string;
+  created_at: string;
 }

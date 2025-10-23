@@ -157,26 +157,42 @@ export function updateUserPermissions(email: string, permissions: RolePermission
 
   try {
     const users = getAllUsers();
-    const userIndex = users.findIndex(u => u.email === email);
+    let userIndex = users.findIndex(u => u.email === email);
     
-    if (userIndex !== -1) {
-      users[userIndex].permissions = permissions;
-      localStorage.setItem(USER_PERMISSIONS_KEY, JSON.stringify(users));
+    if (userIndex === -1) {
+      // User doesn't exist, create them as an external user
+      console.log(`User ${email} not found, creating as external user`);
       
-      // Trigger update event
-      window.dispatchEvent(new CustomEvent('user-permissions-updated', { 
-        detail: { email, permissions } 
-      }));
+      const newUser: UserPermissions = {
+        userId: `external_${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
+        email: email,
+        name: email.split('@')[0], // Use name part of email
+        role: 'marketing', // Default role for external users
+        permissions: permissions
+      };
       
-      // Also trigger a storage event for cross-tab communication
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: USER_PERMISSIONS_KEY,
-        newValue: localStorage.getItem(USER_PERMISSIONS_KEY),
-        url: window.location.href
-      }));
-    } else {
-      console.error(`User ${email} not found`);
+      users.push(newUser);
+      userIndex = users.length - 1;
     }
+    
+    // Update user permissions
+    users[userIndex].permissions = permissions;
+    localStorage.setItem(USER_PERMISSIONS_KEY, JSON.stringify(users));
+    
+    // Trigger update event
+    window.dispatchEvent(new CustomEvent('user-permissions-updated', { 
+      detail: { email, permissions } 
+    }));
+    
+    // Also trigger a storage event for cross-tab communication
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: USER_PERMISSIONS_KEY,
+      newValue: localStorage.getItem(USER_PERMISSIONS_KEY),
+      url: window.location.href
+    }));
+    
+    console.log(`Successfully updated permissions for ${email}`);
+    
   } catch (error) {
     console.error('Error saving user permissions:', error);
     throw error;

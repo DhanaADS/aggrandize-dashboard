@@ -1,109 +1,118 @@
 'use client';
 
-import { useState } from 'react';
-import { SettlementList } from './settlement-list';
-import { MonthNavigator } from './month-navigator';
+import { useState, useEffect, useCallback } from 'react';
+import { getSettlements, updateSettlement } from '@/lib/finance-api';
+import { Settlement } from '@/types/finance';
+import {
+  Box,
+  Typography,
+  Paper,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Skeleton,
+  Chip,
+  IconButton
+} from '@mui/material';
+import { ArrowBackIos, ArrowForwardIos } from '@mui/icons-material';
+
+const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
 
 export function SettlementsTab() {
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  
-  // Initialize with current month
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
-  // Determine if current month is editable
-  const getCurrentMonth = () => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const isCurrentMonth = selectedMonth === new Date().toISOString().slice(0, 7);
+
+  const loadSettlements = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const allSettlements = await getSettlements();
+      const filtered = allSettlements.filter(s => s.settlement_date && s.settlement_date.startsWith(selectedMonth));
+      setSettlements(filtered);
+    } catch (error) {
+      console.error('Error loading settlements:', error);
+      setSettlements([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedMonth]);
+
+  useEffect(() => { loadSettlements(); }, [loadSettlements]);
+
+  const navigateMonth = (direction: number) => {
+    const currentDate = new Date(`${selectedMonth}-01`);
+    currentDate.setMonth(currentDate.getMonth() + direction);
+    setSelectedMonth(currentDate.toISOString().slice(0, 7));
   };
 
-  const isCurrentMonth = selectedMonth === getCurrentMonth();
-  const isEditable = isCurrentMonth;
-
-  const formatMonthDisplay = (monthString: string) => {
-    const [year, month] = monthString.split('-');
-    const date = new Date(parseInt(year), parseInt(month) - 1);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long' 
-    });
+  const handleMarkAsSettled = async (settlementId: string) => {
+    const originalSettlements = [...settlements];
+    setSettlements(prev => prev.map(s => s.id === settlementId ? { ...s, settlement_status: 'completed' } : s));
+    try {
+      await updateSettlement(settlementId, { settlement_status: 'completed' });
+    } catch (error) {
+      console.error('Failed to update settlement:', error);
+      setSettlements(originalSettlements); // Revert on error
+    }
   };
 
-  const handleMonthChange = (newMonth: string) => {
-    setSelectedMonth(newMonth);
-    setRefreshTrigger(prev => prev + 1);
-  };
+  const formatMonthDisplay = (monthStr: string) => new Date(`${monthStr}-01`).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
 
   return (
-    <div>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '2rem'
-      }}>
-        <div>
-          <h2 style={{ 
-            color: '#ffffff', 
-            fontSize: '1.5rem', 
-            fontWeight: '700',
-            margin: '0 0 0.5rem 0'
-          }}>
-            🤝 Team Settlements - {formatMonthDisplay(selectedMonth)}
-          </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <p style={{ 
-              color: 'rgba(255, 255, 255, 0.6)',
-              margin: '0',
-              fontSize: '0.95rem'
-            }}>
-              Track payments between team members
-            </p>
-            {!isEditable && (
-              <span style={{
-                background: 'rgba(255, 193, 7, 0.2)',
-                border: '1px solid rgba(255, 193, 7, 0.4)',
-                color: '#ffc107',
-                padding: '0.25rem 0.75rem',
-                borderRadius: '12px',
-                fontSize: '0.8rem',
-                fontWeight: '500',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem'
-              }}>
-                🔒 Read Only - Previous Month
-              </span>
-            )}
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <MonthNavigator
-            selectedMonth={selectedMonth}
-            onMonthChange={handleMonthChange}
-            isEditable={isEditable}
-          />
-          <div style={{ 
-            color: 'rgba(255, 255, 255, 0.8)',
-            fontSize: '0.85rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem'
-          }}>
-            <span>💡</span>
-            <span>Shows team members who paid on behalf of others</span>
-          </div>
-        </div>
-      </div>
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+        <Typography variant="h5" component="h2">Settlements</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <IconButton onClick={() => navigateMonth(-1)}><ArrowBackIos /></IconButton>
+          <Typography variant="h6" component="span" sx={{ width: '150px', textAlign: 'center' }}>{formatMonthDisplay(selectedMonth)}</Typography>
+          <IconButton onClick={() => navigateMonth(1)}><ArrowForwardIos /></IconButton>
+        </Box>
+      </Box>
 
-      {/* Settlement List */}
-      <SettlementList 
-        refreshTrigger={refreshTrigger}
-        selectedMonth={selectedMonth}
-        isEditable={isEditable}
-      />
-    </div>
+      <Paper elevation={3} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+        <TableContainer>
+          <Table>
+            <TableHead sx={{ backgroundColor: 'action.focus' }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold' }}>From</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>To</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Purpose</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold' }}>Amount</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>Status</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold' }}>Action</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {isLoading ? (
+                Array.from(new Array(5)).map((_, i) => <TableRow key={i}>{Array.from(new Array(6)).map((_, j) => <TableCell key={j}><Skeleton /></TableCell>)}</TableRow>)
+              ) : settlements.length === 0 ? (
+                <TableRow><TableCell colSpan={6} align="center">No settlements for {formatMonthDisplay(selectedMonth)}.</TableCell></TableRow>
+              ) : (
+                settlements.map((settlement) => (
+                  <TableRow key={settlement.id} sx={{ '&:hover': { backgroundColor: 'action.hover' } }}>
+                    <TableCell>{settlement.from_person}</TableCell>
+                    <TableCell>{settlement.to_person}</TableCell>
+                    <TableCell>{settlement.purpose}</TableCell>
+                    <TableCell align="right">{formatCurrency(settlement.amount_inr)}</TableCell>
+                    <TableCell align="center"><Chip label={settlement.settlement_status} size="small" color={settlement.settlement_status === 'completed' ? 'success' : 'warning'} /></TableCell>
+                    <TableCell align="center">
+                      {settlement.settlement_status !== 'completed' && isCurrentMonth && (
+                        <Button variant="contained" size="small" onClick={() => handleMarkAsSettled(settlement.id)}>Mark as Settled</Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+    </Box>
   );
 }

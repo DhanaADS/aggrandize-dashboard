@@ -1,0 +1,138 @@
+/* FORCE LIGHT THEME FOR PAYMENTS PAGE - Global Override */
+/* This file forces light theme for all payments page elements regardless of global dark theme */
+
+/* Override body background when on payments page */
+body:has(.payments-page) {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+/* Override all dashboard containers */
+[data-theme="dark"] body:has(.payments-page) .dashboardContainer,
+[data-theme="dark"] body:has(.payments-page) .mainContent,
+[data-theme="dark"] body:has(.payments-page) .mainContentWithSidebar,
+[data-theme="dark"] body:has(.payments-page) .contentWrapper {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+/* Override all payments-specific elements - EXCLUDE SIDEBAR */
+[data-theme="dark"] .payments-page .mainContentWithSidebar,
+[data-theme="dark"] .payments-page .mainContentWithSidebar *,
+[data-theme="dark"] .payments-page .contentWrapper,
+[data-theme="dark"] .payments-page .contentWrapper * {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+/* Force white backgrounds on all cards and panels */
+[data-theme="dark"] .payments-page [class*="card"],
+[data-theme="dark"] .payments-page [class*="Card"],
+[data-theme="dark"] .payments-page [class*="widget"],
+[data-theme="dark"] .payments-page [class*="panel"],
+[data-theme="dark"] .payments-page [class*="container"] {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  border-color: #e5e7eb !important;
+  color: #111827 !important;
+}
+
+/* Force light backgrounds on module headers */
+[data-theme="dark"] .payments-page [class*="module"] {
+  background-color: #f8fafc !important;
+  background: #f8fafc !important;
+  color: #111827 !important;
+}
+
+/* Force light theme on tables */
+[data-theme="dark"] .payments-page table,
+[data-theme="dark"] .payments-page table th,
+[data-theme="dark"] .payments-page table td {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+}
+
+/* Force light theme on form elements */
+[data-theme="dark"] .payments-page input,
+[data-theme="dark"] .payments-page textarea,
+[data-theme="dark"] .payments-page select,
+[data-theme="dark"] .payments-page button {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #111827 !important;
+}
+
+/* Force light text colors */
+[data-theme="dark"] .payments-page h1,
+[data-theme="dark"] .payments-page h2,
+[data-theme="dark"] .payments-page h3,
+[data-theme="dark"] .payments-page h4,
+[data-theme="dark"] .payments-page h5,
+[data-theme="dark"] .payments-page h6 {
+  color: #111827 !important;
+}
+
+[data-theme="dark"] .payments-page p,
+[data-theme="dark"] .payments-page span,
+[data-theme="dark"] .payments-page div,
+[data-theme="dark"] .payments-page label {
+  color: #374151 !important;
+}
+
+/* Override any inline dark backgrounds */
+[data-theme="dark"] .payments-page [style*="background: #1a1a1a"],
+[data-theme="dark"] .payments-page [style*="background: #1e1e1e"],
+[data-theme="dark"] .payments-page [style*="background: #2d2d2d"],
+[data-theme="dark"] .payments-page [style*="background-color: #1a1a1a"],
+[data-theme="dark"] .payments-page [style*="background-color: #1e1e1e"],
+[data-theme="dark"] .payments-page [style*="background-color: #2d2d2d"] {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+}
+
+/* ABSOLUTE OVERRIDE: FORCE SIDEBAR TO STAY DARK */
+body aside,
+body [class*="sidebar"],
+aside,
+[class*="sidebar"],
+aside *,
+[class*="sidebar"] * {
+  background-color: var(--sidebar-bg) !important;
+  background: var(--sidebar-bg) !important;
+  color: var(--sidebar-text-primary) !important;
+}
+
+/* Specific fix for any white space above AGGRANDIZE branding */
+[data-theme="dark"] body:has(.payments-page) aside,
+[data-theme="dark"] body:has(.payments-page) [class*="sidebar"],
+[data-theme="dark"] body:has(.payments-page) [class*="sidebar"] * {
+  background-color: var(--sidebar-bg) !important;
+  background: var(--sidebar-bg) !important;
+  color: var(--sidebar-text-primary) !important;
+}
+
+/* Force specific sidebar elements to stay dark */
+[data-theme="dark"] .payments-page + * aside,
+[data-theme="dark"] .payments-page ~ * aside,
+[data-theme="dark"] body:has(.payments-page) .logoSection,
+[data-theme="dark"] body:has(.payments-page) .logoSection *,
+[data-theme="dark"] body:has(.payments-page) .brandName {
+  background-color: var(--sidebar-bg) !important;
+  background: var(--sidebar-bg) !important;
+  color: var(--sidebar-text-primary) !important;
+}
+
+/* Remove any white banners from sidebar area */
+[data-theme="dark"] body:has(.payments-page) aside::before,
+[data-theme="dark"] body:has(.payments-page) aside::after,
+[data-theme="dark"] body:has(.payments-page) [class*="sidebar"]::before,
+[data-theme="dark"] body:has(.payments-page) [class*="sidebar"]::after {
+  display: none !important;
+  background: transparent !important;
+}

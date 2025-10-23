@@ -292,287 +292,145 @@ export function SettlementList({ onEdit, refreshTrigger }: SettlementListProps) 
     <div>
       {/* Monthly Summary Cards */}
       {!isLoading && teamSummaries.length > 0 && (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: '1rem',
-          marginBottom: '2rem'
-        }}>
+        <div className={styles.metricsGrid}>
           {/* Total Amount Card */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.1) 100%)',
-            border: '1px solid rgba(59, 130, 246, 0.3)',
-            borderRadius: '16px',
-            padding: '1.5rem',
-            backdropFilter: 'blur(20px)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '1.5rem' }}>💰</span>
-              <h4 style={{
-                color: '#3b82f6',
-                fontSize: '0.8rem',
-                fontWeight: '600',
-                margin: 0,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
-                TOTAL SETTLEMENTS
-              </h4>
+          <div className={styles.metricCard}>
+            <div className={styles.metricCardHeader}>
+              <div className={styles.metricIcon}>💰</div>
             </div>
-            <div style={{
-              color: '#ffffff',
-              fontSize: '1.8rem',
-              fontWeight: '800',
-              margin: '0.5rem 0'
-            }}>
-              {formatCurrency(monthlySummary.totalAmount)}
+            <div className={styles.metricInfo}>
+              <h4 className={styles.metricTitle}>Total Settlements</h4>
             </div>
-            <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.75rem' }}>
-              {monthlySummary.totalMembers} team members
+            <div className={styles.metricValue}>
+              <div className={styles.primaryValue}>
+                {formatCurrency(monthlySummary.totalAmount)}
+              </div>
+              <div className={styles.secondaryValue}>
+                {monthlySummary.totalMembers} team members
+              </div>
             </div>
           </div>
 
           {/* Settled Amount Card */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.1) 100%)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
-            borderRadius: '16px',
-            padding: '1.5rem',
-            backdropFilter: 'blur(20px)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '1.5rem' }}>✅</span>
-              <h4 style={{
-                color: '#10b981',
-                fontSize: '0.8rem',
-                fontWeight: '600',
-                margin: 0,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
-                SETTLED
-              </h4>
+          <div className={styles.metricCard}>
+            <div className={styles.metricCardHeader}>
+              <div className={`${styles.metricIcon} ${styles.colorSuccess}`}>✅</div>
             </div>
-            <div style={{
-              color: '#ffffff',
-              fontSize: '1.8rem',
-              fontWeight: '800',
-              margin: '0.5rem 0'
-            }}>
-              {formatCurrency(monthlySummary.settledAmount)}
+            <div className={styles.metricInfo}>
+              <h4 className={styles.metricTitle}>Settled</h4>
             </div>
-            <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.75rem' }}>
-              Completed settlements
+            <div className={styles.metricValue}>
+              <div className={`${styles.primaryValue} ${styles.colorSuccess}`}>
+                {formatCurrency(monthlySummary.settledAmount)}
+              </div>
+              <div className={styles.secondaryValue}>
+                Completed settlements
+              </div>
             </div>
           </div>
 
           {/* Pending Amount Card */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '16px',
-            padding: '1.5rem',
-            backdropFilter: 'blur(20px)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '1.5rem' }}>⏳</span>
-              <h4 style={{
-                color: '#ef4444',
-                fontSize: '0.8rem',
-                fontWeight: '600',
-                margin: 0,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
-                PENDING
-              </h4>
+          <div className={styles.metricCard}>
+            <div className={styles.metricCardHeader}>
+              <div className={`${styles.metricIcon} ${styles.colorWarning}`}>⏳</div>
             </div>
-            <div style={{
-              color: '#ffffff',
-              fontSize: '1.8rem',
-              fontWeight: '800',
-              margin: '0.5rem 0'
-            }}>
-              {formatCurrency(monthlySummary.pendingAmount)}
+            <div className={styles.metricInfo}>
+              <h4 className={styles.metricTitle}>Pending</h4>
             </div>
-            <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.75rem' }}>
-              Awaiting settlements
+            <div className={styles.metricValue}>
+              <div className={`${styles.primaryValue} ${styles.colorWarning}`}>
+                {formatCurrency(monthlySummary.pendingAmount)}
+              </div>
+              <div className={styles.secondaryValue}>
+                Awaiting settlements
+              </div>
             </div>
           </div>
         </div>
       )}
 
       <div className={styles.card}>
-        <h3 style={{ 
-          color: '#ffffff', 
-          fontSize: '1.1rem', 
-          fontWeight: '600',
-          margin: '0 0 1.5rem 0'
-        }}>
+        <h3 className={styles.metricTitle}>
           Team Settlement Summary ({teamSummaries.length} members)
         </h3>
 
         {/* Loading */}
         {isLoading && (
-          <div style={{ 
-            color: 'rgba(255, 255, 255, 0.6)', 
-            textAlign: 'center',
-            padding: '2rem'
-          }}>
+          <div className={styles.loading}>
             Loading team settlement data...
           </div>
         )}
 
         {/* Empty State */}
         {!isLoading && teamSummaries.length === 0 && (
-          <div style={{ 
-            color: 'rgba(255, 255, 255, 0.6)', 
-            textAlign: 'center',
-            padding: '2rem'
-          }}>
+          <div className={styles.emptyState}>
             No team members have paid on behalf of others yet.
           </div>
         )}
 
       {/* Team Summary Table */}
       {!isLoading && teamSummaries.length > 0 && (
-        <div style={{ 
-          borderRadius: '16px',
-          background: 'rgba(15, 23, 42, 0.3)',
-          border: '1px solid rgba(148, 163, 184, 0.1)',
-          width: '100%'
-        }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'transparent', tableLayout: 'fixed' }}>
-            <thead>
-              <tr style={{ 
-                background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)',
-                borderBottom: '1px solid rgba(59, 130, 246, 0.2)'
-              }}>
-                <th style={{ 
-                  color: '#3b82f6', 
-                  padding: '0.75rem 1rem', 
-                  textAlign: 'left', 
-                  fontSize: '0.75rem',
-                  fontWeight: '700',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.03em',
-                  width: '30%'
-                }}>TEAM MEMBER</th>
-                <th style={{ 
-                  color: '#3b82f6', 
-                  padding: '0.75rem 1rem', 
-                  textAlign: 'center', 
-                  fontSize: '0.75rem',
-                  fontWeight: '700',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.03em',
-                  width: '20%'
-                }}>COUNT</th>
-                <th style={{ 
-                  color: '#3b82f6', 
-                  padding: '0.75rem 1rem', 
-                  textAlign: 'right', 
-                  fontSize: '0.75rem',
-                  fontWeight: '700',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.03em',
-                  width: '30%'
-                }}>TOTAL AMOUNT</th>
-                <th style={{ 
-                  color: '#3b82f6', 
-                  padding: '0.75rem 1rem', 
-                  textAlign: 'center', 
-                  fontSize: '0.75rem',
-                  fontWeight: '700',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.03em',
-                  width: '20%'
-                }}>SETTLEMENT</th>
-              </tr>
-            </thead>
-            <tbody>
-              {teamSummaries.map((member, index) => (
-                <tr 
-                  key={member.memberName} 
-                  style={{ 
-                    borderBottom: '1px solid rgba(148, 163, 184, 0.08)',
-                    transition: 'all 0.2s ease',
-                    background: index % 2 === 0 ? 'rgba(15, 23, 42, 0.2)' : 'transparent'
-                  }}
-                >
-                  {/* Team Member */}
-                  <td style={{ padding: '0.75rem 1rem', color: '#ffffff', fontWeight: '600', fontSize: '0.9rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <div style={{ 
-                        background: 'rgba(59, 130, 246, 0.2)',
-                        color: '#3b82f6',
-                        width: '2rem',
-                        height: '2rem',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.8rem',
-                        fontWeight: '700'
-                      }}>
-                        {member.memberName.charAt(0).toUpperCase()}
-                      </div>
-                      {member.memberName}
-                    </div>
-                  </td>
-                  
-                  {/* Count */}
-                  <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Team Member</th>
+              <th className={styles.textCenter}>Count</th>
+              <th className={styles.textRight}>Total Amount</th>
+              <th className={styles.textCenter}>Settlement</th>
+            </tr>
+          </thead>
+          <tbody>
+            {teamSummaries.map((member, index) => (
+              <tr key={member.memberName}>
+                {/* Team Member */}
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <div style={{ 
-                      background: 'rgba(251, 146, 60, 0.2)',
-                      color: '#fb923c',
-                      padding: '0.25rem 0.75rem',
-                      borderRadius: '12px',
+                      background: '#f8fafc',
+                      color: '#3b82f6',
+                      width: '2rem',
+                      height: '2rem',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       fontSize: '0.8rem',
-                      fontWeight: '700',
-                      display: 'inline-block'
+                      fontWeight: '700'
                     }}>
-                      {member.count} items
+                      {member.memberName.charAt(0).toUpperCase()}
                     </div>
-                  </td>
-                  
-                  {/* Total Amount */}
-                  <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                    <div style={{ color: '#00ff88', fontWeight: '700', fontSize: '1rem' }}>
-                      {formatCurrency(member.totalAmount)}
-                    </div>
-                  </td>
-                  
-                  {/* Settlement Status Toggle */}
-                  <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                    <button
-                      onClick={() => handleToggleSettlement(member.memberName, member.isSettled)}
-                      style={{
-                        background: member.isSettled 
-                          ? 'rgba(16, 185, 129, 0.2)' 
-                          : 'rgba(239, 68, 68, 0.2)',
-                        color: member.isSettled ? '#10b981' : '#ef4444',
-                        border: member.isSettled 
-                          ? '1px solid rgba(16, 185, 129, 0.3)' 
-                          : '1px solid rgba(239, 68, 68, 0.3)',
-                        padding: '0.5rem 1rem',
-                        borderRadius: '8px',
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        fontWeight: '600',
-                        transition: 'all 0.2s ease',
-                        minWidth: '100px'
-                      }}
-                      title={`Click to mark as ${member.isSettled ? 'pending' : 'settled'}`}
-                    >
-                      {member.isSettled ? '✅ SETTLED' : '⏳ PENDING'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    <span className={styles.fontBold}>{member.memberName}</span>
+                  </div>
+                </td>
+                
+                {/* Count */}
+                <td className={styles.textCenter}>
+                  <span className={`${styles.statusBadge} ${styles.colorWarning}`}>
+                    {member.count} items
+                  </span>
+                </td>
+                
+                {/* Total Amount */}
+                <td className={styles.textRight}>
+                  <span className={`${styles.fontBold} ${styles.colorSuccess}`}>
+                    {formatCurrency(member.totalAmount)}
+                  </span>
+                </td>
+                
+                {/* Settlement Status Toggle */}
+                <td className={styles.textCenter}>
+                  <button
+                    onClick={() => handleToggleSettlement(member.memberName, member.isSettled)}
+                    className={member.isSettled ? styles.buttonSuccess : styles.buttonDanger}
+                    title={`Click to mark as ${member.isSettled ? 'pending' : 'settled'}`}
+                  >
+                    {member.isSettled ? '✅ SETTLED' : '⏳ PENDING'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
       </div>
     </div>

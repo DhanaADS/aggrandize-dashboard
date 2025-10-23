@@ -13,8 +13,11 @@ interface DashboardStats {
   automations: number;
 }
 
+import { useTheme } from '@/contexts/ThemeContext';
+
 export default function MailForgePage() {
   const router = useRouter();
+  const { theme } = useTheme();
   const [stats, setStats] = useState<DashboardStats>({
     totalCampaigns: 0,
     emailsSent: 0,
@@ -122,7 +125,7 @@ export default function MailForgePage() {
 
   if (loading) {
     return (
-      <div className={styles.container}>
+      <div className={`${styles.container} dashboard-page-content`}>
         <div className={styles.loading}>
           <div className={styles.spinner}></div>
           <p>Loading dashboard...</p>
@@ -132,7 +135,7 @@ export default function MailForgePage() {
   }
 
   return (
-    <div className={styles.container}>
+    <div className={`${styles.container} ${theme === 'dark' ? styles.dark : ''} dashboard-page-content`}>
       {/* Header Section */}
       <div className={styles.header}>
         <div className={styles.headerContent}>

@@ -201,6 +201,33 @@ export async function deleteUserFromSupabase(userId: string) {
   const supabase = createClient()
   
   try {
+    // First check if user exists in auth and delete from there using admin client
+    try {
+      const adminSupabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
+      );
+      
+      // Delete user from Supabase Auth using admin client
+      const { error: authDeleteError } = await adminSupabase.auth.admin.deleteUser(userId);
+      
+      if (authDeleteError) {
+        console.warn('Could not delete user from auth:', authDeleteError.message);
+        // Continue with profile deletion even if auth deletion fails
+      } else {
+        console.log('Successfully deleted user from auth');
+      }
+    } catch (authError) {
+      console.warn('Error deleting user from auth:', authError);
+      // Continue with profile deletion even if auth deletion fails
+    }
+    
     // Delete user profile from database
     const { error: profileError } = await supabase
       .from('user_profiles')
@@ -208,14 +235,14 @@ export async function deleteUserFromSupabase(userId: string) {
       .eq('id', userId)
 
     if (profileError) {
-      throw new Error(profileError.message)
+      console.error('Error deleting user profile:', profileError);
+      throw new Error(profileError.message);
     }
 
-    // Note: Deleting from auth requires admin privileges
-    // For now, we'll just deactivate the profile
+    console.log('Successfully deleted user profile');
     return { success: true }
   } catch (error) {
-    console.error('Error deleting user:', error)
+    console.error('Error deleting user:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }

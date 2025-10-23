@@ -78,10 +78,20 @@ export async function DELETE(request: NextRequest) {
 
     console.log(`🗑️ Attempting to delete profile for ${email}`);
 
-    // Delete user profile
+    // Soft delete user profile by setting deleted_at timestamp
     const { data, error } = await supabase
       .from('user_profiles')
-      .delete()
+      .update({ 
+        deleted_at: new Date().toISOString(),
+        // Also clear sensitive fields for privacy
+        designation: null,
+        monthly_salary_inr: null,
+        joining_date: null,
+        pan_no: null,
+        bank_account: null,
+        bank_name: null,
+        ifsc_code: null
+      })
       .eq('email', email)
       .select();
 
@@ -99,11 +109,11 @@ export async function DELETE(request: NextRequest) {
       }, { status: 404 });
     }
 
-    console.log(`✅ Successfully deleted profile for ${email}:`, data);
+    console.log(`✅ Successfully soft-deleted profile for ${email}:`, data);
 
     return NextResponse.json({ 
       success: true, 
-      message: 'User profile deleted successfully',
+      message: 'User profile soft-deleted successfully',
       deletedProfile: data[0]
     });
 

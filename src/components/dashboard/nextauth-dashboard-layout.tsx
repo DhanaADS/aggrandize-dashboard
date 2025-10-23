@@ -1,7 +1,6 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-nextauth';
-import { NextAuthDashboardNav } from './nextauth-dashboard-nav';
 import { TaskNotificationPopup } from '@/components/notifications/task-notification-popup';
 import { MinimalLogoLoading } from '@/components/ui/LoadingSpinner';
 import InstallPrompt from '@/components/pwa/InstallPrompt';
@@ -9,7 +8,6 @@ import SmartNotificationBanner from '@/components/pwa/SmartNotificationBanner';
 import MobileAppShell from '@/components/pwa/MobileAppShell';
 import EngagementTracker from '@/components/pwa/EngagementTracker';
 import { usePWAMode } from '@/hooks/usePWAMode';
-// Removed: PushNotifications and ABTestingSystem components
 import { usePathname } from 'next/navigation';
 import styles from './dashboard-layout.module.css';
 
@@ -22,7 +20,6 @@ export function NextAuthDashboardLayout({ children }: NextAuthDashboardLayoutPro
   const { shouldShowNativeUI } = usePWAMode();
   const pathname = usePathname();
   
-  // Check if we're in TeamHub and in PWA native mode
   const isTeamHubPWA = shouldShowNativeUI && pathname?.includes('/dashboard/teamhub');
 
   if (isLoading) {
@@ -40,14 +37,12 @@ export function NextAuthDashboardLayout({ children }: NextAuthDashboardLayoutPro
     );
   }
 
-  // For PWA native mode in TeamHub, render minimal layout
   if (isTeamHubPWA) {
     return (
       <MobileAppShell currentPath={pathname}>
-        {/* Minimal notifications only */}
         <TaskNotificationPopup />
-        <EngagementTracker userEmail={user?.email} />
-        <div style={{ minHeight: '100dvh', background: '#1a1a1a' }}>
+        <EngagementTracker userEmail={user?.email || undefined} />
+        <div style={{ minHeight: '100dvh', background: '#ffffff' }}>
           {children}
         </div>
       </MobileAppShell>
@@ -57,16 +52,15 @@ export function NextAuthDashboardLayout({ children }: NextAuthDashboardLayoutPro
   return (
     <MobileAppShell currentPath={pathname}>
       <div className={styles.dashboardContainer}>
-        <NextAuthDashboardNav />
         <TaskNotificationPopup />
         <InstallPrompt />
         <SmartNotificationBanner 
           currentPath={pathname} 
-          userEmail={user?.email} 
+          userEmail={user?.email || undefined} 
         />
-        {/* Removed: PushNotifications and ABTestingSystem components */}
-        <EngagementTracker userEmail={user?.email} />
-        <main className={styles.mainContent}>
+        <EngagementTracker userEmail={user?.email || undefined} />
+        
+        <main className={styles.mainContentWithSidebar}>
           <div className={styles.contentWrapper}>
             {children}
           </div>

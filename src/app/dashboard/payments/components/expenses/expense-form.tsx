@@ -122,7 +122,7 @@ export function ExpenseForm({ expense, onSubmit, onCancel, isSubmitting }: Expen
   if (isLoading) {
     return (
       <div className={styles.card}>
-        <p style={{ color: 'rgba(255, 255, 255, 0.6)', textAlign: 'center' }}>
+        <p style={{ color: 'rgba(31, 41, 55, 0.6)', textAlign: 'center' }}>
           Loading form...
         </p>
       </div>
@@ -132,7 +132,7 @@ export function ExpenseForm({ expense, onSubmit, onCancel, isSubmitting }: Expen
   return (
     <div className={styles.card}>
       <h3 style={{ 
-        color: '#ffffff', 
+        color: '#1f2937', 
         fontSize: '1.1rem', 
         fontWeight: '600',
         margin: '0 0 1.5rem 0'
@@ -176,7 +176,7 @@ export function ExpenseForm({ expense, onSubmit, onCancel, isSubmitting }: Expen
               onChange={(e) => handleInputChange('amount_usd', parseFloat(e.target.value) || 0)}
               placeholder="0.00"
             />
-            <div style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+            <div style={{ color: 'rgba(31, 41, 55, 0.5)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
               Auto-converted (Rate: 1 USD = ₹{USD_TO_INR_RATE})
             </div>
           </div>

@@ -1,0 +1,243 @@
+/* Global Dashboard Theme - Clean with Dark Mode Support */
+
+/* Minimal dashboard layout styling - with theme support */
+.dashboard-layout {
+  background: var(--bg-light);
+  color: var(--text-primary);
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Universal Page Content Styling - with Dark Mode Support */
+[class*="page-container"],
+[class*="main-content"],
+[class*="content-area"],
+.dashboard-page-content {
+  background: var(--surface);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border-light);
+  min-height: calc(100vh - 4rem);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  margin: 0;
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Universal Card Styling - with Dark Mode Support */
+[class*="card"],
+[class*="widget"],
+[class*="panel"],
+.dashboard-card {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-soft);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-primary);
+}
+
+[class*="card"]:hover,
+[class*="widget"]:hover,
+[class*="panel"]:hover,
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
+}
+
+/* Universal Table Styling - with Dark Mode Support */
+table,
+[class*="table"] {
+  background: var(--surface);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border-light);
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+table th,
+[class*="table"] th,
+table thead th {
+  background: var(--bg-light);
+  color: var(--text-primary);
+  font-weight: 600;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-light);
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+table td,
+[class*="table"] td {
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-light);
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+table tr:hover,
+[class*="table"] tr:hover {
+  background: var(--hover-bg);
+}
+
+/* Universal Button Styling - with Dark Mode Support */
+button:not([class*="sidebar"]):not([class*="nav"]),
+[class*="button"]:not([class*="sidebar"]):not([class*="nav"]),
+[class*="btn"]:not([class*="sidebar"]):not([class*="nav"]) {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-soft);
+}
+
+button:hover:not([class*="sidebar"]):not([class*="nav"]),
+[class*="button"]:hover:not([class*="sidebar"]):not([class*="nav"]),
+[class*="btn"]:hover:not([class*="sidebar"]):not([class*="nav"]) {
+  background: var(--hover-bg);
+  border-color: var(--border-light);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-medium);
+}
+
+/* Primary Action Buttons - with Dark Mode Support */
+button[class*="primary"],
+[class*="button-primary"],
+[class*="btn-primary"] {
+  background: var(--brand-blue);
+  color: white;
+  border: 1px solid var(--brand-blue);
+}
+
+button[class*="primary"]:hover,
+[class*="button-primary"]:hover,
+[class*="btn-primary"]:hover {
+  background: var(--brand-blue-hover);
+  border-color: var(--brand-blue-hover);
+}
+
+/* Universal Form Styling - with Dark Mode Support */
+input:not([class*="sidebar"]),
+textarea:not([class*="sidebar"]),
+select:not([class*="sidebar"]) {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+input:focus:not([class*="sidebar"]),
+textarea:focus:not([class*="sidebar"]),
+select:focus:not([class*="sidebar"]) {
+  outline: none;
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* Universal Modal/Dialog Styling - with Dark Mode Support */
+[class*="modal"],
+[class*="dialog"],
+[class*="overlay"] {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+[class*="modal-content"],
+[class*="dialog-content"] {
+  background: var(--surface);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  box-shadow: var(--shadow-large);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Universal Text Styling - with Dark Mode Support */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 600;
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+p, span, div {
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Status Badge Styling - Simplified */
+[class*="status"],
+[class*="badge"] {
+  border-radius: 1.25rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Success/Positive Status */
+[class*="success"],
+[class*="paid"],
+[class*="completed"],
+[class*="active"] {
+  background: var(--success-green-light);
+  color: var(--success-green);
+  border: 1px solid var(--success-green-light);
+}
+
+/* Warning/Pending Status */
+[class*="warning"],
+[class*="pending"],
+[class*="processing"] {
+  background: var(--warning-amber-light);
+  color: var(--warning-amber);
+  border: 1px solid var(--warning-amber-light);
+}
+
+/* Error/Rejected Status */
+[class*="error"],
+[class*="rejected"],
+[class*="failed"] {
+  background: var(--error-red-light);
+  color: var(--error-red);
+  border: 1px solid var(--error-red-light);
+}
+
+/* Responsive Design - Simplified */
+@media (max-width: 1024px) {
+  [class*="page-container"],
+  [class*="main-content"],
+  [class*="content-area"],
+  .dashboard-page-content {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  [class*="page-container"],
+  [class*="main-content"],
+  [class*="content-area"],
+  .dashboard-page-content {
+    padding: 1rem;
+    border-radius: 1rem;
+  }
+  
+  [class*="card"],
+  [class*="widget"],
+  [class*="panel"],
+  .dashboard-card {
+    padding: 1rem;
+    border-radius: 1rem;
+  }
+}

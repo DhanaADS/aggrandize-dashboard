@@ -11,7 +11,7 @@ import { Todo, TodoAttachment, CreateTodoRequest, UpdateTodoRequest, TeamMember,
 import TaskBubble from './TaskBubble';
 import CommentThread from './CommentThread';
 import FileAttachmentZone from './FileAttachmentZone';
-import CompletedTasksSidebar from './CompletedTasksSidebar';
+
 import EditTaskModal from './EditTaskModal';
 import { notificationSounds } from '@/lib/notification-sounds';
 import { realtimePresence } from '@/lib/realtime-presence';
@@ -1042,17 +1042,7 @@ export default function TaskChatContainer({ className = '' }: TaskChatContainerP
         position: 'relative'
       }}>
       {/* Completed Tasks Sidebar */}
-      <CompletedTasksSidebar
-        completedTasks={completedTasks}
-        teamMembers={teamMembers}
-        currentUser={user?.email || ''}
-        onTaskClick={(task) => {
-          const params = new URLSearchParams(searchParams.toString());
-          params.set('task', task.id);
-          router.replace(`?${params.toString()}`, { scroll: false });
-        }}
-        onRestoreTask={handleRestoreTask}
-      />
+
       
       {/* Main Content Area */}
       <div style={{

@@ -47,19 +47,13 @@ export function MonthNavigator({ selectedMonth, onMonthChange, isEditable }: Mon
   };
 
   return (
-    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+    <div className={styles.monthNavigator}>
       {/* Previous Month Button */}
       <button
         onClick={handlePrevious}
-        className={styles.buttonSecondary}
-        style={{ 
-          fontSize: '0.9rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem'
-        }}
+        className={styles.monthButton}
       >
-        ◀ Previous
+        ◀
       </button>
 
       {/* Month Picker */}
@@ -69,28 +63,16 @@ export function MonthNavigator({ selectedMonth, onMonthChange, isEditable }: Mon
         onChange={(e) => onMonthChange(e.target.value)}
         max={currentMonth}
         className={styles.input}
-        style={{ 
-          width: '160px',
-          textAlign: 'center',
-          fontWeight: '500'
-        }}
+        style={{ width: '160px', textAlign: 'center', fontWeight: '500' }}
       />
 
       {/* Next Month Button */}
       <button
         onClick={handleNext}
         disabled={!canGoNext}
-        className={styles.buttonSecondary}
-        style={{ 
-          fontSize: '0.9rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          opacity: canGoNext ? 1 : 0.5,
-          cursor: canGoNext ? 'pointer' : 'not-allowed'
-        }}
+        className={styles.monthButton}
       >
-        Next ▶
+        ▶
       </button>
 
       {/* Current Month Button */}
@@ -98,41 +80,20 @@ export function MonthNavigator({ selectedMonth, onMonthChange, isEditable }: Mon
         <button
           onClick={handleCurrentMonth}
           className={styles.button}
-          style={{ 
-            fontSize: '0.85rem',
-            padding: '0.5rem 1rem'
-          }}
+          style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}
         >
-          Current Month
+          Current
         </button>
       )}
 
       {/* Edit Status Indicator */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center',
-        marginLeft: '0.5rem'
-      }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginLeft: '0.5rem' }}>
         {isEditable ? (
-          <span style={{
-            color: '#10b981',
-            fontSize: '0.8rem',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.25rem'
-          }}>
+          <span className={`${styles.colorSuccess} ${styles.fontBold}`} style={{ fontSize: '0.8rem' }}>
             ✏️ Editable
           </span>
         ) : (
-          <span style={{
-            color: '#fbbf24',
-            fontSize: '0.8rem',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.25rem'
-          }}>
+          <span className={`${styles.colorWarning} ${styles.fontBold}`} style={{ fontSize: '0.8rem' }}>
             🔒 Read-only
           </span>
         )}

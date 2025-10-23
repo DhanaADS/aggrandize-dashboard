@@ -1,71 +1,114 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ThemeColor, getStoredTheme, setStoredTheme, DEFAULT_THEME } from '@/lib/theme-colors';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { ThemeProvider as MuiThemeProvider, createTheme, ThemeOptions } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { lightTheme, darkTheme } from '@/theme/professional-theme';
 
 interface ThemeContextType {
-  currentTheme: ThemeColor;
-  setTheme: (theme: ThemeColor) => void;
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+  mounted: boolean;
 }
 
-const ThemeContext = createContext<ThemeContextType>({
-  currentTheme: DEFAULT_THEME,
-  setTheme: () => {}
-});
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
-};
-
-interface ThemeProviderProps {
-  children: React.ReactNode;
-}
-
-export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [currentTheme, setCurrentTheme] = useState<ThemeColor>(DEFAULT_THEME);
-  const [isInitialized, setIsInitialized] = useState(false);
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Load theme from localStorage on mount
-    const storedTheme = getStoredTheme();
-    setCurrentTheme(storedTheme);
-    setIsInitialized(true);
+    const storedTheme = localStorage.getItem('aggrandize-theme') as 'light' | 'dark' | null;
+    let initialTheme: 'light' | 'dark' = 'light';
+
+    if (storedTheme) {
+      initialTheme = storedTheme;
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      initialTheme = prefersDark ? 'dark' : 'light';
+    }
+
+    setTheme(initialTheme);
+    setMounted(true);
   }, []);
 
-  const setTheme = (theme: ThemeColor) => {
-    setCurrentTheme(theme);
-    setStoredTheme(theme.id);
+  const toggleTheme = () => {
+    setTheme(prevTheme => {
+      const newTheme = prevTheme === 'light' ? 'dark' : 'light';
+      localStorage.setItem('aggrandize-theme', newTheme);
+      return newTheme;
+    });
   };
 
-  // Don't render until theme is loaded to prevent flash
-  if (!isInitialized) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{
-          width: '40px',
-          height: '40px',
-          border: '3px solid rgba(255, 255, 255, 0.3)',
-          borderTop: '3px solid #ffffff',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }} />
-      </div>
-    );
+  useEffect(() => {
+    if (mounted) {
+      document.documentElement.classList.remove('light', 'dark');
+      document.documentElement.classList.add(theme);
+    }
+  }, [theme, mounted]);
+
+  const muiTheme = useMemo(() => {
+    const professionalTheme = theme === 'light' ? lightTheme : darkTheme;
+
+    const themeOptions: ThemeOptions = {
+      palette: {
+        mode: theme,
+        primary: {
+          main: professionalTheme.colors.primary.main,
+        },
+        background: {
+          default: professionalTheme.colors.background.default,
+          paper: professionalTheme.colors.background.paper,
+        },
+        text: {
+          primary: professionalTheme.colors.text.primary,
+          secondary: professionalTheme.colors.text.secondary,
+        },
+        divider: professionalTheme.colors.border.default,
+        action: {
+          hover: professionalTheme.colors.hover.main,
+          selected: professionalTheme.colors.active.main,
+        },
+      },
+      typography: {
+        fontFamily: 'Inter, sans-serif',
+      },
+      shape: {
+        borderRadius: 8,
+      },
+      components: {
+        MuiCssBaseline: {
+          styleOverrides: {
+            body: {
+              backgroundColor: professionalTheme.colors.background.default,
+              color: professionalTheme.colors.text.primary,
+            },
+          },
+        },
+      },
+    };
+
+    return createTheme(themeOptions);
+  }, [theme]);
+
+  if (!mounted) {
+    return null;
   }
 
   return (
-    <ThemeContext.Provider value={{ currentTheme, setTheme }}>
-      {children}
+    <ThemeContext.Provider value={{ theme, toggleTheme, mounted }}>
+      <MuiThemeProvider theme={muiTheme}>
+        <CssBaseline />
+        {children}
+      </MuiThemeProvider>
     </ThemeContext.Provider>
   );
-};
+}
+
+export function useTheme() {
+  const context = useContext(ThemeContext);
+  if (context === undefined) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+}

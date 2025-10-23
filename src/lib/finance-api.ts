@@ -20,7 +20,12 @@ import {
   SubscriptionSummary,
   SettlementSummary,
   SalarySummary,
-  UtilityBillSummary
+  UtilityBillSummary,
+  ExpenseAttachment,
+  Budget,
+  BudgetFormData,
+  ExpenseApproval,
+  ExpenseApprovalFormData
 } from '@/types/finance';
 
 const supabase = createClient();
@@ -59,11 +64,7 @@ export async function getPaymentMethods(): Promise<PaymentMethod[]> {
 export async function getExpenses(filters?: ExpenseFilters): Promise<Expense[]> {
   let query = supabase
     .from('expenses')
-    .select(`
-      *,
-      category:expense_categories(*),
-      payment_method:payment_methods(*)
-    `)
+    .select('*') // Simplified select statement
     .order('expense_date', { ascending: false });
 
   if (filters?.category_id) {
@@ -71,6 +72,9 @@ export async function getExpenses(filters?: ExpenseFilters): Promise<Expense[]> 
   }
   if (filters?.person_paid) {
     query = query.eq('person_paid', filters.person_paid);
+  }
+  if (filters?.person_responsible) {
+    query = query.eq('person_responsible', filters.person_responsible);
   }
   if (filters?.payment_method_id) {
     query = query.eq('payment_method_id', filters.payment_method_id);
@@ -88,15 +92,27 @@ export async function getExpenses(filters?: ExpenseFilters): Promise<Expense[]> 
     query = query.or(`purpose.ilike.%${filters.search}%,notes.ilike.%${filters.search}%`);
   }
 
+  console.log('Executing Supabase query...');
   const { data, error } = await query;
   
-  if (error) throw error;
+  if (error) {
+    console.error('Supabase query error details:', error);
+    // Return empty array instead of throwing error for better UX
+    console.warn('Returning empty array due to database error');
+    return [];
+  }
+  
+  console.log('Query successful, data length:', data?.length || 0);
   return data || [];
 }
 
 export async function createExpense(expense: ExpenseFormData): Promise<Expense> {
   const { data: user } = await supabase.auth.getUser();
   if (!user?.user?.id) throw new Error('User not authenticated');
+
+  if (expense.recurring_type && expense.recurring_end_date) {
+    return createRecurringExpenses(expense);
+  }
 
   const { data, error } = await supabase
     .from('expenses')
@@ -176,6 +192,68 @@ export async function deleteExpense(id: string): Promise<void> {
   if (error) throw error;
 }
 
+async function createRecurringExpenses(expense: ExpenseFormData): Promise<Expense> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user?.user?.id) throw new Error('User not authenticated');
+
+  const expensesToCreate = [];
+  let currentDate = new Date(expense.expense_date);
+  const endDate = new Date(expense.recurring_end_date as string);
+
+  while (currentDate <= endDate) {
+    expensesToCreate.push({
+      ...expense,
+      expense_date: currentDate.toISOString().split('T')[0],
+      user_id: user.user.id,
+    });
+
+    switch (expense.recurring_type) {
+      case 'daily':
+        currentDate.setDate(currentDate.getDate() + 1);
+        break;
+      case 'weekly':
+        currentDate.setDate(currentDate.getDate() + 7);
+        break;
+      case 'monthly':
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        break;
+      case 'yearly':
+        currentDate.setFullYear(currentDate.getFullYear() + 1);
+        break;
+      default:
+        throw new Error(`Invalid recurring type: ${expense.recurring_type}`);
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('expenses')
+    .insert(expensesToCreate)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+
+  return data;
+}
+
+export async function bulkDeleteExpenses(ids: string[]): Promise<void> {
+  const { error } = await supabase
+    .from('expenses')
+    .delete()
+    .in('id', ids);
+
+  if (error) throw error;
+}
+
+export async function bulkUpdateExpenseStatus(ids: string[], status: string): Promise<void> {
+  const { error } = await supabase
+    .from('expenses')
+    .update({ payment_status: status })
+    .in('id', ids);
+
+  if (error) throw error;
+}
+
 export async function getExpenseSummary(dateFrom?: string, dateTo?: string): Promise<ExpenseSummary> {
   let query = supabase
     .from('expenses')
@@ -244,6 +322,139 @@ export async function getExpenseSummary(dateFrom?: string, dateTo?: string): Pro
     by_person: Array.from(personMap.values()),
     by_payment_method: Array.from(methodMap.values())
   };
+}
+
+// ===============================
+// EXPENSE ATTACHMENTS
+// ===============================
+
+// ===============================
+// EXPENSE APPROVALS
+// ===============================
+
+export async function getExpenseApprovals(expenseId: string): Promise<ExpenseApproval[]> {
+  const { data, error } = await supabase
+    .from('expense_approvals')
+    .select('*, approver:users(full_name)')
+    .eq('expense_id', expenseId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createExpenseApproval(approval: ExpenseApprovalFormData): Promise<ExpenseApproval> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user?.user?.id) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('expense_approvals')
+    .insert({ ...approval, approver_id: user.user.id })
+    .select('*, approver:users(full_name)')
+    .single();
+
+  if (error) throw error;
+
+  // Update the expense status
+  await updateExpense(approval.expense_id, { payment_status: approval.status as any });
+
+  return data;
+}
+
+// ===============================
+// BUDGETS
+// ===============================
+
+export async function getBudgets(month: string): Promise<Budget[]> {
+  const { data, error } = await supabase
+    .from('budgets')
+    .select('*, category:expense_categories(*)')
+    .eq('month', month);
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createBudget(budget: BudgetFormData): Promise<Budget> {
+  const { data, error } = await supabase
+    .from('budgets')
+    .insert(budget)
+    .select('*, category:expense_categories(*)')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateBudget(id: string, budget: Partial<BudgetFormData>): Promise<Budget> {
+  const { data, error } = await supabase
+    .from('budgets')
+    .update(budget)
+    .eq('id', id)
+    .select('*, category:expense_categories(*)')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteBudget(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('budgets')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// ===============================
+// EXPENSE ATTACHMENTS
+// ===============================
+
+export async function uploadExpenseAttachment(expenseId: string, file: File): Promise<ExpenseAttachment> {
+  throw new Error('Function not implemented');
+}
+
+export async function deleteExpenseAttachment(attachmentId: string): Promise<void> {
+  const { data: attachment, error: fetchError } = await supabase
+    .from('expense_attachments')
+    .select('file_path')
+    .eq('id', attachmentId)
+    .single();
+
+  if (fetchError) {
+    throw fetchError;
+  }
+
+  const { error: storageError } = await supabase.storage
+    .from('attachments')
+    .remove([attachment.file_path]);
+
+  if (storageError) {
+    throw storageError;
+  }
+
+  const { error: dbError } = await supabase
+    .from('expense_attachments')
+    .delete()
+    .eq('id', attachmentId);
+
+  if (dbError) {
+    throw dbError;
+  }
+}
+
+export async function getExpenseAttachments(expenseId: string): Promise<ExpenseAttachment[]> {
+  const { data, error } = await supabase
+    .from('expense_attachments')
+    .select('*')
+    .eq('expense_id', expenseId);
+
+  if (error) {
+    throw error;
+  }
+
+  return data || [];
 }
 
 // ===============================
@@ -963,6 +1174,24 @@ export async function deleteUtilityBill(id: string): Promise<void> {
     .from('utility_bills')
     .delete()
     .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function bulkDeleteUtilityBills(ids: string[]): Promise<void> {
+  const { error } = await supabase
+    .from('utility_bills')
+    .delete()
+    .in('id', ids);
+
+  if (error) throw error;
+}
+
+export async function bulkUpdateUtilityBillStatus(ids: string[], status: string): Promise<void> {
+  const { error } = await supabase
+    .from('utility_bills')
+    .update({ payment_status: status })
+    .in('id', ids);
 
   if (error) throw error;
 }

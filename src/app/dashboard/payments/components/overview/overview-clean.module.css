@@ -1,0 +1,278 @@
+/* Overview Tab - Clean Design Matching Other Tabs */
+
+/* ===== MAIN LAYOUT ===== */
+.overviewContainer {
+  padding: 2rem 2.5rem;
+  background: #f9fafb;
+  min-height: 100vh;
+}
+
+.contentWrapper {
+  max-width: 112rem; /* max-w-7xl */
+  margin: 0 auto;
+}
+
+/* ===== HEADER ===== */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.titleSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.subtitle {
+  color: #6b7280;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.newPaymentButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #f9f506;
+  color: black;
+  border: none;
+  border-radius: 50px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.newPaymentButton:hover {
+  background: #d4c805;
+}
+
+.newPaymentButton:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(249, 245, 6, 0.5);
+}
+
+.buttonIcon {
+  font-size: 1.25rem;
+}
+
+/* ===== DATE RANGE SELECTOR ===== */
+.dateRangeContainer {
+  margin-bottom: 2rem;
+}
+
+.dateRangeSelector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border-radius: 50px;
+  padding: 0.25rem;
+  max-width: 24rem;
+  margin: 0 auto;
+}
+
+.rangeOption {
+  display: flex;
+  cursor: pointer;
+  height: 100%;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50px;
+  padding: 0.5rem 1rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.rangeOptionActive {
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  color: #1f2937;
+}
+
+.rangeOption input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  pointer-events: none;
+}
+
+/* ===== METRICS CARDS ===== */
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+@media (min-width: 768px) {
+  .metricsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.metricCard {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.metricLabel {
+  color: #6b7280;
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.metricValue {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1f2937;
+  letter-spacing: -0.025em;
+}
+
+/* ===== PAYMENT BREAKDOWN TABLE ===== */
+.breakdownContainer {
+  background: white;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.breakdownHeader {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.breakdownTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.tableContainer {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+}
+
+.tableHead {
+  background: #f9fafb;
+}
+
+.tableHeadCell {
+  padding: 0.75rem 1.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tableBody {
+  background: white;
+}
+
+.tableRow {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.tableCell {
+  padding: 1rem 1.5rem;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  vertical-align: middle;
+}
+
+.categoryCell {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.amountCell {
+  color: #6b7280;
+}
+
+/* ===== LOADING & ERROR STATES ===== */
+.loadingState {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+.errorState {
+  text-align: center;
+  padding: 2rem;
+  color: #dc2626;
+  font-size: 1rem;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+  .overviewContainer {
+    padding: 1rem;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .dateRangeSelector {
+    max-width: 100%;
+  }
+  
+  .rangeOption {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+  
+  .table {
+    font-size: 0.8125rem;
+  }
+  
+  .tableCell,
+  .tableHeadCell {
+    padding: 0.75rem 1rem;
+  }
+}

@@ -1,0 +1,417 @@
+/* Modern Dashboard Styles */
+
+.welcomeContent {
+  background: #111827;
+  border-radius: 24px;
+  padding: 2rem;
+  min-height: calc(100vh - 4rem);
+  color: #f3f4f6;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.topStatsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.statCard {
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 20px;
+  padding: 1.5rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.statNumber {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0.5rem 0;
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.widgetsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.progressWidget,
+.timeTrackerWidget,
+.todosWidget {
+  background: #1f2937;
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid #374151;
+  transition: all 0.2s ease;
+}
+
+.progressWidget:hover,
+.timeTrackerWidget:hover,
+.todosWidget:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.widgetHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.widgetTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+.widgetSubtitle {
+  font-size: 0.9rem;
+  color: #9ca3af;
+}
+
+.progressChart {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.progressBars {
+  display: flex;
+  align-items: end;
+  gap: 0.5rem;
+  height: 80px;
+}
+
+.progressBar {
+  flex: 1;
+  background: linear-gradient(180deg, #3b82f6 0%, #60a5fa 100%);
+  border-radius: 6px;
+  min-height: 20px;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+.progressInfo {
+  text-align: center;
+}
+
+.progressLabel {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.progressSubtext {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.circularProgress {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.progressCircle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #3b82f6 0deg 120deg, #374151 120deg 360deg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.progressCircle::before {
+  content: '';
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  background: #1f2937;
+  border-radius: 50%;
+}
+
+.progressValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  z-index: 1;
+}
+
+.progressCircle .progressLabel {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  z-index: 1;
+}
+
+.timerControls {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.playButton,
+.pauseButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid #374151;
+  background: #1f2937;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+}
+
+.playButton:hover,
+.pauseButton:hover {
+  background: #374151;
+  transform: scale(1.05);
+}
+
+.statChange {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  width: fit-content;
+}
+
+.positive {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.negative {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.neutral {
+  color: #9ca3af;
+  background: rgba(156, 163, 175, 0.1);
+}
+
+/* Today's Todos */
+.todosSection {
+  background: #1f2937;
+  border-radius: 20px;
+  padding: 2rem;
+  margin: 2rem 0;
+  border: 1px solid #374151;
+}
+
+.todosHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.todosTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.todosCount {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  color: #ffffff;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.viewAllButton {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 8px 16px;
+  color: #ffffff;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.viewAllButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.noTodos {
+  text-align: center;
+  padding: 3rem 0;
+  color: #9ca3af;
+}
+
+.noTodosIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.noTodosTitle {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.noTodosText {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.todosGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.todoCard {
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.todoCard:hover {
+  background: #4b5563;
+  transform: translateY(-2px);
+}
+
+.todoPriority {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.todoContent {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-right: 80px;
+}
+
+.todoStatusIndicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.todoInfo {
+  flex: 1;
+}
+
+.todoTitle {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.4;
+}
+
+.todoDescription {
+  margin: 0 0 8px 0;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+.todoMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.todoAssignedTo {
+  /* No custom style needed */
+}
+
+.todoDueDate {
+  /* No custom style needed */
+}
+
+.todoStatus {
+  color: #111827;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.loadingSection {
+  background: #1f2937;
+  border-radius: 20px;
+  padding: 2rem;
+  margin: 2rem 0;
+  border: 1px solid #374151;
+}
+
+.loadingSpinnerContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
+.loadingSpinner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #9ca3af;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #4b5563;
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

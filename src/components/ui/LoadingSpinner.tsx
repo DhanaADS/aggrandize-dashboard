@@ -166,7 +166,7 @@ export const MinimalLogoLoading: FC<{ text?: string }> = ({ text }) => (
   <div className={styles.minimalLogoContainer}>
     <div className={styles.logoWrapper}>
       <img 
-        src="/logo.png" 
+        src="/logo_dark_theme.png" 
         alt="AGGRANDIZE" 
         className={styles.minimalLogo}
       />

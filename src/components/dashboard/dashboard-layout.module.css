@@ -1,35 +1,97 @@
-/* NextAuth Dashboard Layout Styles - Web3 Theme */
+/* NextAuth Dashboard Layout Styles - Modern Professional Theme with Dark Mode */
 
 .dashboardContainer {
   min-height: 100vh;
-  background: transparent;
+  background: #FAFBFC !important;
+  background-color: #FAFBFC !important;
+  color: var(--text-primary);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  position: relative;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  outline: none !important;
+  top: 0 !important;
+  left: 0 !important;
+  box-shadow: none !important;
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mainContent {
   flex: 1;
   padding: 0;
-  background: transparent;
+  background: var(--bg-light);
   overflow-x: hidden;
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Main content with sidebar offset - Fixed scrolling behavior */
+.mainContentWithSidebar {
+  flex: 1;
+  margin-left: 16rem !important; /* Restore sidebar offset - 256px */
+  padding: 1rem !important; /* Keep padding for content spacing */
+  background: #f8fafc !important; /* Light gray background for content area */
+  background-color: #f8fafc !important;
+  overflow-x: hidden;
+  overflow-y: auto; /* Enable vertical scrolling for main content */
+  height: 100vh; /* Fixed height to prevent page scroll */
+  max-height: 100vh; /* Ensure it never exceeds viewport height */
+  position: relative;
+  width: calc(100vw - 16rem); /* Proper width calculation */
+  min-width: 0; /* Prevent flex item from overflowing */
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .contentWrapper {
-  max-width: 80rem;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 1rem !important; /* Add padding for visibility */
+  background: #f8fafc !important; /* Ensure content wrapper also has background */
+  background-color: #f8fafc !important;
+  min-height: 100vh !important; /* Ensure it takes full height */
+  position: relative;
+  left: 0; /* Ensure no negative positioning */
+  right: 0;
 }
 
-/* Loading States */
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .mainContentWithSidebar {
+    margin-left: 15rem !important; /* Match tablet sidebar width */
+    width: calc(100vw - 15rem) !important; /* Explicit width for tablet */
+    height: 100vh; /* Maintain fixed height */
+    overflow-y: auto; /* Maintain scrolling behavior */
+  }
+}
+
+@media (max-width: 768px) {
+  .mainContentWithSidebar {
+    margin-left: 0 !important; /* No margin on mobile, sidebar is overlay */
+    width: 100vw !important; /* Full width on mobile */
+    height: 100vh; /* Maintain fixed height on mobile */
+    overflow-y: auto; /* Maintain scrolling behavior on mobile */
+  }
+  
+  .contentWrapper {
+    padding: 1rem !important; /* Less padding on mobile */
+    min-height: fit-content; /* Maintain fit-content on mobile */
+    width: 100% !important;
+    margin: 0 !important;
+  }
+}
+
+/* Loading States with Dark Mode Support */
 .loadingContainer {
   display: flex;
   min-height: 100vh;
   align-items: center;
   justify-content: center;
-  background: #1a1a1a;
+  background: var(--bg-light);
   position: relative;
   flex-direction: column;
   padding: 2rem;
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .loadingSpinner {
@@ -42,10 +104,11 @@
 .spinner {
   width: 60px;
   height: 60px;
-  border: 3px solid rgba(255, 255, 255, 0.1);
-  border-top: 3px solid #00ff88;
+  border: 3px solid var(--border-light);
+  border-top: 3px solid var(--brand-blue);
   border-radius: 50%;
   animation: spin 1s linear infinite;
+  transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes spin {
@@ -55,12 +118,12 @@
 
 .loadingText {
   font-size: 1.125rem;
-  color: rgba(255, 255, 255, 0.7);
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
   font-weight: 500;
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Error States */
+/* Error States with Dark Mode Support */
 .errorContainer {
   display: flex;
   min-height: 100vh;
@@ -71,27 +134,60 @@
 }
 
 .errorCard {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: 1rem;
   padding: 3rem;
   text-align: center;
   max-width: 400px;
   width: 100%;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-medium);
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .errorCard h2 {
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 1.5rem;
   font-weight: 700;
   margin-bottom: 1rem;
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .errorCard p {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-secondary);
   font-size: 1rem;
   line-height: 1.6;
   margin: 0;
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Additional Responsive Design for Sidebar Layout */
+@media (max-width: 1024px) {
+  .mainContentWithSidebar {
+    margin-left: 15rem !important; /* Keep consistent with main responsive rules */
+    width: calc(100vw - 15rem) !important;
+    height: 100vh; /* Maintain fixed height */
+    overflow-y: auto; /* Maintain scrolling behavior */
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboardContainer {
+    flex-direction: column;
+  }
+  
+  .mainContentWithSidebar {
+    margin-left: 0 !important;
+    margin-top: 0 !important;
+    width: 100vw !important;
+    height: 100vh; /* Maintain fixed height on mobile */
+    overflow-y: auto; /* Maintain scrolling behavior on mobile */
+  }
+  
+  .contentWrapper {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    min-height: fit-content; /* Maintain fit-content on mobile */
+  }
 }

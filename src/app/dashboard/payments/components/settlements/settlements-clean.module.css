@@ -1,0 +1,258 @@
+/* Settlements Tab - Clean Design Matching Provided Image */
+
+/* ===== MAIN LAYOUT ===== */
+.settlementsContainer {
+  padding: 2rem 2.5rem;
+  background: #f9fafb;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.titleSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.titleSection h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.titleSection p {
+  font-size: 1rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* ===== MONTH NAVIGATOR ===== */
+.monthNavigator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 50px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.navButton {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.navButton:hover {
+  color: #6b7280;
+}
+
+.monthDisplay {
+  font-weight: 500;
+  color: #374151;
+  margin: 0 0.5rem;
+}
+
+/* ===== TABLE CONTAINER ===== */
+.tableContainer {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.tableHead {
+  background: #f9fafb;
+}
+
+.tableHeadCell {
+  padding: 0.75rem 1.5rem;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.tableRow {
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s;
+}
+
+.tableRow:hover {
+  background: #f9fafb;
+}
+
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.tableCell {
+  padding: 1rem 1.5rem;
+  font-size: 0.875rem;
+  color: #374151;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.personName {
+  color: #374151;
+  font-weight: 400;
+}
+
+.amount {
+  color: #374151;
+  font-weight: 500;
+}
+
+.purpose {
+  color: #374151;
+}
+
+/* ===== STATUS BADGES ===== */
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.statusSettled {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.statusUnsettled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ===== ACTION BUTTONS ===== */
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.actionButtonPrimary {
+  background: #374151;
+  color: white;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.actionButtonPrimary:hover {
+  background: #111827;
+}
+
+.actionButtonSecondary {
+  background: white;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.actionButtonSecondary:hover {
+  background: #f9fafb;
+}
+
+.actionButtonSecondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.actionIcon {
+  font-size: 1rem;
+}
+
+/* ===== LOADING & EMPTY STATES ===== */
+.loadingState {
+  text-align: center;
+  padding: 4rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 4rem;
+  color: #6b7280;
+}
+
+.emptyStateIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.emptyStateTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.emptyStateDescription {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+  .settlementsContainer {
+    padding: 1rem;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .table {
+    font-size: 0.75rem;
+  }
+  
+  .tableCell,
+  .tableHeadCell {
+    padding: 0.75rem 1rem;
+  }
+  
+  .actionButton {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.6875rem;
+  }
+}

@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 // Only import web-push in runtime, not during build
-let webpush: any = null;
-if (typeof window === 'undefined' && process.env.NODE_ENV !== 'test') {
-  try {
-    webpush = require('web-push');
-  } catch (error) {
-    console.warn('web-push not available');
+let webpush: unknown = null;
+async function loadWebPush() {
+  if (typeof window === 'undefined' && process.env.NODE_ENV !== 'test' && !webpush) {
+    try {
+      const webPushModule = await import('web-push');
+      webpush = webPushModule.default || webPushModule;
+    } catch (error) {
+      console.warn('web-push not available');
+    }
   }
+  return webpush;
 }
 
 interface NotificationPayload {
@@ -21,7 +25,7 @@ interface NotificationPayload {
     taskId?: string;
     url?: string;
     type: 'task_assigned' | 'new_comment' | 'task_status_change' | 'mention';
-    [key: string]: any;
+    [key: string]: unknown;
   };
   actions?: Array<{
     action: string;
@@ -62,15 +66,20 @@ export async function POST(request: NextRequest) {
       // Ensure VAPID public key is in correct URL-safe Base64 format (without padding)
       const formattedVapidPublicKey = vapidPublicKey.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
       
-      webpush.setVapidDetails(
+      const pushLib = await loadWebPush();
+      if (!pushLib) {
+        throw new Error('Web-push library not available');
+      }
+
+      pushLib.setVapidDetails(
         vapidSubject,
         formattedVapidPublicKey,
         vapidPrivateKey
       );
       
       console.log('✅ VAPID configuration successful');
-    } catch (vapidError: any) {
-      console.error('❌ VAPID configuration failed:', vapidError.message);
+    } catch (vapidError: unknown) {
+      console.error('❌ VAPID configuration failed:', vapidError instanceof Error ? vapidError.message : 'Unknown error');
       console.log('Debug - Original public key:', vapidPublicKey);
       console.log('Debug - Formatted public key:', vapidPublicKey.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''));
       return NextResponse.json({
@@ -159,7 +168,12 @@ export async function POST(request: NextRequest) {
           }
         };
 
-        await webpush.sendNotification(
+        const pushLib = await loadWebPush();
+        if (!pushLib) {
+          throw new Error('Web-push library not available');
+        }
+
+        await pushLib.sendNotification(
           pushSubscription,
           JSON.stringify(notificationPayload)
         );
@@ -173,9 +187,9 @@ export async function POST(request: NextRequest) {
         sentCount++;
         console.log(`📬 Push notification sent to ${userEmail} (${subscription.endpoint.slice(-10)})`);
 
-      } catch (pushError: any) {
+      } catch (pushError: unknown) {
         failedCount++;
-        console.error(`❌ Failed to send push to ${userEmail}:`, pushError.message);
+        console.error(`❌ Failed to send push to ${userEmail}:`, pushError instanceof Error ? pushError.message : 'Unknown error');
 
         // If subscription is invalid, deactivate it
         if (pushError.statusCode === 410 || pushError.statusCode === 404) {

@@ -62,7 +62,7 @@ export interface WorkflowRun {
   startedAt: Date;
   completedAt?: Date;
   inputData: unknown;
-  outputData: any;
+  outputData: unknown;
   error?: string;
   progress: {
     completedNodes: number;

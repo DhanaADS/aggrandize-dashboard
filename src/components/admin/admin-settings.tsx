@@ -1,226 +1,170 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAllUserPermissionsFromSupabase, updateUserPermissionsInSupabase } from '@/lib/supabase-permissions';
-import { updateUserPermissionsInDatabase } from '@/lib/user-permissions';
-import { RolePermissions, UserPermissions } from '@/types/auth';
-import styles from './admin-settings.module.css';
+import { useRouter } from 'next/navigation';
+import { UserPermissions, UserRole, RolePermissions } from '@/types/auth';
+import {
+  Box,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Switch,
+  Chip,
+  Button,
+  Snackbar,
+  Alert,
+  Skeleton
+} from '@mui/material';
 
-export function AdminSettings() {
-  const [users, setUsers] = useState<UserPermissions[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState('');
+interface AdminSettingsProps {
+  initialUsers: UserPermissions[];
+}
+
+const roleColors: Record<UserRole, 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
+  admin: 'error',
+  marketing: 'info',
+  processing: 'success'
+};
+
+const permissionOrder: (keyof RolePermissions)[] = [
+  'canAccessOrder',
+  'canAccessProcessing',
+  'canAccessInventory',
+  'canAccessTools',
+  'canAccessPayments'
+];
+
+export function AdminSettings({ initialUsers }: AdminSettingsProps) {
+  const [users, setUsers] = useState<UserPermissions[]>(initialUsers);
+  const [isSaving, setIsSaving] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' } | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    // Load all non-admin users from Supabase
-    const loadUsers = async () => {
-      try {
-        const allUsers = await getAllUserPermissionsFromSupabase();
-        setUsers(allUsers);
-      } catch (error) {
-        console.error('Error loading users:', error);
-      }
-    };
+    setUsers(initialUsers);
+  }, [initialUsers]);
 
-    loadUsers();
-
-    // Listen for user management updates
-    const handleUserUpdate = async () => {
-      await loadUsers();
-    };
-
-    window.addEventListener('user-permissions-updated', handleUserUpdate);
-    return () => window.removeEventListener('user-permissions-updated', handleUserUpdate);
-  }, []);
+  const handlePermissionChange = (userEmail: string, permission: keyof RolePermissions) => {
+    setUsers(prevUsers =>
+      prevUsers.map(user =>
+        user.email === userEmail
+          ? { ...user, permissions: { ...user.permissions, [permission]: !user.permissions[permission] } }
+          : user
+      )
+    );
+  };
 
   const handleSave = async () => {
-    setIsLoading(true);
-    setMessage('');
-
+    setIsSaving(true);
     try {
-      // Save all user permissions to the database using the new API
-      const savePromises = users.map(user => 
-        updateUserPermissionsInDatabase(user.email, user.permissions)
+      const savePromises = users.map(user =>
+        fetch('/api/admin/permissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.email, permissions: user.permissions }),
+        }).then(async res => {
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Failed to update permissions');
+          }
+          return res.json();
+        })
       );
-      
-      const results = await Promise.all(savePromises);
-      const failures = results.filter(result => !result);
-      
-      if (failures.length > 0) {
-        setMessage(`Error saving ${failures.length} users`);
-      } else {
-        setMessage('Settings saved successfully! Navigation will update after refresh.');
-        
-        // Force page reload after a delay to refresh session
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-      }
-      
-      setTimeout(() => setMessage(''), 3000);
-    } catch {
-      setMessage('Error saving settings');
+
+      await Promise.all(savePromises);
+      setSnackbar({ open: true, message: 'Permissions saved successfully!', severity: 'success' });
+      router.refresh();
+
+    } catch (error) {
+      console.error('Error saving permissions:', error);
+      setSnackbar({ open: true, message: error instanceof Error ? error.message : 'An error occurred.', severity: 'error' });
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
-  const toggleUserAccess = (userEmail: string, tab: keyof RolePermissions) => {
-    setUsers(prevUsers => {
-      const updatedUsers = prevUsers.map(user => 
-        user.email === userEmail 
-          ? {
-              ...user,
-              permissions: {
-                ...user.permissions,
-                [tab]: !user.permissions[tab]
-              }
-            }
-          : user
-      );
-      
-      // Defer permission saving until after React render cycle completes
-      setTimeout(async () => {
-        try {
-          const updatedUser = updatedUsers.find(u => u.email === userEmail);
-          if (updatedUser) {
-            const result = await updateUserPermissionsInSupabase(userEmail, updatedUser.permissions);
-            if (!result.success) {
-              console.error('Error saving permissions:', result.error);
-            }
-          }
-        } catch (error) {
-          console.error('Error saving permissions:', error);
-        }
-      }, 0);
-      
-      return updatedUsers;
-    });
-  };
+  const hasChanges = JSON.stringify(users) !== JSON.stringify(initialUsers);
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Admin Settings</h1>
-        <p className={styles.subtitle}>
-          Control tab access for different user roles
-        </p>
-        
-      </div>
+    <Box>
+      <Typography variant="h5" component="h2" gutterBottom>User Role Permissions</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Toggle access for different user roles. Changes must be saved.
+      </Typography>
 
-      {message && (
-        <div className={`${styles.message} ${message.includes('Error') ? styles.error : styles.success}`}>
-          {message}
-        </div>
+      <Paper elevation={3} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+        <TableContainer>
+          <Table>
+            <TableHead sx={{ backgroundColor: 'action.focus' }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>User</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Role</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Order</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Processing</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Inventory</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Tools</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Payments</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {users.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    {initialUsers.length === 0 ? <Skeleton height={40} /> : 'No users to display.'}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                users.map((user) => (
+                  <TableRow key={user.email} sx={{ '&:hover': { backgroundColor: 'action.hover' } }}>
+                    <TableCell>
+                      <Typography variant="subtitle2" fontWeight="600">{user.name}</Typography>
+                      <Typography variant="body2" color="text.secondary">{user.email}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip label={user.role} size="small" color={roleColors[user.role as UserRole] || 'default'} />
+                    </TableCell>
+                    {permissionOrder.map(perm => (
+                      <TableCell key={perm} align="center">
+                        <Switch
+                          checked={!!user.permissions[perm]}
+                          onChange={() => handlePermissionChange(user.email, perm)}
+                          size="small"
+                        />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+
+      {hasChanges && (
+        <Paper elevation={3} sx={{ p: 2, mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 2, borderRadius: 2 }}>
+          <Button onClick={() => setUsers(initialUsers)} disabled={isSaving}>Reset</Button>
+          <Button 
+            variant="contained" 
+            onClick={handleSave} 
+            disabled={isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </Paper>
       )}
 
-      <div className={styles.tableContainer}>
-        <table className={styles.permissionsTable}>
-          <thead>
-            <tr className={styles.tableHeader}>
-              <th className={styles.th}>User</th>
-              <th className={styles.th}>Role</th>
-              <th className={styles.th}>Order</th>
-              <th className={styles.th}>Processing</th>
-              <th className={styles.th}>Inventory</th>
-              <th className={styles.th}>Tools</th>
-              <th className={styles.th}>Payments</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.email} className={styles.tableRow}>
-                <td className={styles.td}>
-                  <div className={styles.userInfo}>
-                    <div className={styles.userName}>{user.name}</div>
-                    <div className={styles.userEmail}>{user.email}</div>
-                  </div>
-                </td>
-                <td className={styles.td}>
-                  <span className={`${styles.roleBadge} ${styles[user.role]}`}>
-                    {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                  </span>
-                </td>
-                <td className={styles.td}>
-                  <button
-                    className={`${styles.toggleBtn} ${user.permissions.canAccessOrder ? styles.enabled : styles.disabled}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleUserAccess(user.email, 'canAccessOrder');
-                    }}
-                    type="button"
-                  >
-                    {user.permissions.canAccessOrder ? 'ON' : 'OFF'}
-                  </button>
-                </td>
-                <td className={styles.td}>
-                  <button
-                    className={`${styles.toggleBtn} ${user.permissions.canAccessProcessing ? styles.enabled : styles.disabled}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleUserAccess(user.email, 'canAccessProcessing');
-                    }}
-                    type="button"
-                  >
-                    {user.permissions.canAccessProcessing ? 'ON' : 'OFF'}
-                  </button>
-                </td>
-                <td className={styles.td}>
-                  <button
-                    className={`${styles.toggleBtn} ${user.permissions.canAccessInventory ? styles.enabled : styles.disabled}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleUserAccess(user.email, 'canAccessInventory');
-                    }}
-                    type="button"
-                  >
-                    {user.permissions.canAccessInventory ? 'ON' : 'OFF'}
-                  </button>
-                </td>
-                <td className={styles.td}>
-                  <button
-                    className={`${styles.toggleBtn} ${user.permissions.canAccessTools ? styles.enabled : styles.disabled}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleUserAccess(user.email, 'canAccessTools');
-                    }}
-                    type="button"
-                  >
-                    {user.permissions.canAccessTools ? 'ON' : 'OFF'}
-                  </button>
-                </td>
-                <td className={styles.td}>
-                  <button
-                    className={`${styles.toggleBtn} ${user.permissions.canAccessPayments ? styles.enabled : styles.disabled}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleUserAccess(user.email, 'canAccessPayments');
-                    }}
-                    type="button"
-                  >
-                    {user.permissions.canAccessPayments ? 'ON' : 'OFF'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className={styles.saveSection}>
-        <button
-          onClick={handleSave}
-          disabled={isLoading}
-          className={styles.saveButton}
-        >
-          {isLoading ? 'Saving...' : 'Save Settings'}
-        </button>
-      </div>
-    </div>
+      {snackbar && (
+        <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+          <Alert onClose={() => setSnackbar(null)} severity={snackbar.severity} sx={{ width: '100%' }}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      )}
+    </Box>
   );
 }

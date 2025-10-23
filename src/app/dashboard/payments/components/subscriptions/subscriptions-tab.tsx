@@ -7,8 +7,7 @@ import { SubscriptionForm } from './subscription-form';
 import { SubscriptionList } from './subscription-list';
 import { SubscriptionAlerts } from './subscription-alerts';
 import { SubscriptionSummaryComponent } from './subscription-summary';
-import { MonthNavigator } from './month-navigator';
-import styles from '../../payments.module.css';
+import styles from './subscriptions-design.module.css';
 
 export function SubscriptionsTab() {
   const [showForm, setShowForm] = useState(false);
@@ -46,6 +45,47 @@ export function SubscriptionsTab() {
   const handleMonthChange = (newMonth: string) => {
     setSelectedMonth(newMonth);
     setRefreshTrigger(prev => prev + 1);
+  };
+
+  const navigateMonth = (direction: number) => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const newDate = new Date(year, month - 1 + direction, 1);
+    const newMonth = `${newDate.getFullYear()}-${String(newDate.getMonth() + 1).padStart(2, '0')}`;
+    setSelectedMonth(newMonth);
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  const renderCalendar = () => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    
+    const days = [];
+    const today = new Date();
+    const currentDate = new Date(startDate);
+    
+    for (let i = 0; i < 42; i++) {
+      const isCurrentMonth = currentDate.getMonth() === month - 1;
+      const isToday = currentDate.toDateString() === today.toDateString();
+      const isSelected = currentDate.getDate() === 5 && isCurrentMonth; // Highlighted day from design
+      
+      days.push(
+        <div 
+          key={i} 
+          className={`${styles.calendarDay} ${
+            isCurrentMonth ? styles.currentMonth : styles.otherMonth
+          } ${isToday ? styles.today : ''} ${isSelected ? styles.selectedDay : ''}`}
+        >
+          {currentDate.getDate()}
+        </div>
+      );
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return days;
   };
 
   // Load subscriptions and payment methods data
@@ -107,84 +147,263 @@ export function SubscriptionsTab() {
     }
   };
 
+  const handleDeleteSubscription = async (subscriptionId: string) => {
+    if (window.confirm('Are you sure you want to delete this subscription?')) {
+      try {
+        // Add delete API call here when available
+        setRefreshTrigger(prev => prev + 1);
+      } catch (error) {
+        console.error('Error deleting subscription:', error);
+        alert('Failed to delete subscription');
+      }
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    let statusClass = '';
+    let statusText = status;
+
+    switch (status.toLowerCase()) {
+      case 'active':
+        statusClass = styles.statusActive;
+        statusText = 'Active';
+        break;
+      case 'upcoming':
+        statusClass = styles.statusUpcoming;
+        statusText = 'Upcoming';
+        break;
+      case 'failed':
+        statusClass = styles.statusFailed;
+        statusText = 'Failed';
+        break;
+      case 'paused':
+        statusClass = styles.statusPaused;
+        statusText = 'Paused';
+        break;
+      default:
+        statusClass = styles.statusActive;
+        statusText = 'Active';
+        break;
+    }
+
+    return (
+      <span className={`${styles.statusBadge} ${statusClass}`}>
+        {statusText}
+      </span>
+    );
+  };
+
+  // Calculate monthly total
+  const monthlyTotal = subscriptions
+    .filter(sub => {
+      // Filter subscriptions for the selected month
+      const subDate = new Date(sub.renewal_date);
+      const [year, month] = selectedMonth.split('-').map(Number);
+      return subDate.getFullYear() === year && subDate.getMonth() === month - 1;
+    })
+    .reduce((total, sub) => total + sub.amount_usd, 0);
+
+  // Get alerts
+  const getAlerts = () => {
+    const alerts = [];
+    const today = new Date();
+    
+    subscriptions.forEach(sub => {
+      const renewalDate = new Date(sub.renewal_date);
+      const daysUntilRenewal = Math.ceil((renewalDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Payment failures
+      if (sub.payment_status === 'failed' || (sub.service_name && sub.service_name.toLowerCase().includes('failed'))) {
+        alerts.push({
+          type: 'error',
+          title: 'Payment Issue',
+          description: `${sub.service_name || 'Unknown service'} subscription payment failed.`,
+          icon: '⚠️'
+        });
+      }
+      
+      // Upcoming renewals (within 7 days)
+      if (daysUntilRenewal > 0 && daysUntilRenewal <= 7) {
+        alerts.push({
+          type: 'warning',
+          title: 'Upcoming Renewal',
+          description: `${sub.service_name || 'Unknown service'} due in ${daysUntilRenewal} days.`,
+          icon: '🔔'
+        });
+      }
+    });
+    
+    return alerts;
+  };
+
   return (
-    <div>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '2rem'
-      }}>
-        <div>
-          <h2 style={{ 
-            color: '#ffffff', 
-            fontSize: '1.5rem', 
-            fontWeight: '700',
-            margin: '0 0 0.5rem 0'
-          }}>
-            💳 Subscription Management - {formatMonthDisplay(selectedMonth)}
-          </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <p style={{ 
-              color: 'rgba(255, 255, 255, 0.6)',
-              margin: '0',
-              fontSize: '0.95rem'
-            }}>
-              Track office subscriptions, renewals, and costs
-            </p>
-            {!isEditable && (
-              <span style={{
-                background: 'rgba(255, 193, 7, 0.2)',
-                border: '1px solid rgba(255, 193, 7, 0.4)',
-                color: '#ffc107',
-                padding: '0.25rem 0.75rem',
-                borderRadius: '12px',
-                fontSize: '0.8rem',
-                fontWeight: '500',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem'
-              }}>
-                🔒 Read Only - Previous Month
-              </span>
-            )}
+    <div className={styles.subscriptionsContainer}>
+      {/* Header */}
+      <div className={styles.header}>
+        <div className={styles.titleSection}>
+          <h1>Subscriptions</h1>
+        </div>
+        <button 
+          className={styles.newSubscriptionButton}
+          onClick={handleAddSubscription}
+          disabled={showForm || !isEditable}
+        >
+          <span>+</span>
+          New Subscription
+        </button>
+      </div>
+
+      {/* Main Content Grid */}
+      <div className={styles.contentGrid}>
+        {/* Left Sidebar */}
+        <div className={styles.leftSidebar}>
+          {/* Month Navigator Calendar */}
+          <div className={styles.calendarCard}>
+            <h3 className={styles.calendarTitle}>Month Navigator</h3>
+            <div className={styles.monthNavigation}>
+              <button className={styles.navButton} onClick={() => navigateMonth(-1)}>‹</button>
+              <span className={styles.monthDisplay}>{formatMonthDisplay(selectedMonth)}</span>
+              <button className={styles.navButton} onClick={() => navigateMonth(1)}>›</button>
+            </div>
+            <div className={styles.calendar}>
+              <div className={styles.calendarHeader}>
+                <div className={styles.dayHeader}>S</div>
+                <div className={styles.dayHeader}>M</div>
+                <div className={styles.dayHeader}>T</div>
+                <div className={styles.dayHeader}>W</div>
+                <div className={styles.dayHeader}>T</div>
+                <div className={styles.dayHeader}>F</div>
+                <div className={styles.dayHeader}>S</div>
+              </div>
+              <div className={styles.calendarGrid}>
+                {renderCalendar()}
+              </div>
+            </div>
+          </div>
+
+          {/* Summary Card */}
+          <div className={styles.summaryCard}>
+            <h3 className={styles.summaryTitle}>Summary</h3>
+            <p className={styles.summarySubtitle}>Total for {formatMonthDisplay(selectedMonth)}</p>
+            <p className={styles.summaryAmount}>${monthlyTotal.toFixed(2)}</p>
+          </div>
+
+          {/* Alerts Card */}
+          <div className={styles.alertsCard}>
+            <h3 className={styles.alertsTitle}>Alerts</h3>
+            <div className={styles.alertsList}>
+              {getAlerts().map((alert, index) => (
+                <div key={index} className={styles.alertItem}>
+                  <div className={`${styles.alertIcon} ${
+                    alert.type === 'error' ? styles.alertIconError : styles.alertIconWarning
+                  }`}>
+                    {alert.icon}
+                  </div>
+                  <div className={styles.alertContent}>
+                    <p className={styles.alertTitle}>{alert.title}</p>
+                    <p className={styles.alertDescription}>{alert.description}</p>
+                  </div>
+                </div>
+              ))}
+              {getAlerts().length === 0 && (
+                <p className={styles.alertDescription}>No alerts at this time.</p>
+              )}
+            </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <MonthNavigator
-            selectedMonth={selectedMonth}
-            onMonthChange={handleMonthChange}
-            isEditable={isEditable}
-          />
-          <button 
-            className={styles.button}
-            onClick={handleAddSubscription}
-            disabled={showForm || !isEditable}
-            style={{
-              opacity: (!isEditable) ? 0.5 : 1,
-              cursor: (!isEditable) ? 'not-allowed' : 'pointer'
-            }}
-          >
-            + Add Subscription
-          </button>
+
+        {/* Right Content - Subscription Table */}
+        <div className={styles.rightContent}>
+          <div className={styles.tableContainer}>
+            <div className={styles.tableHeader}>
+              <h3 className={styles.tableTitle}>Subscription List</h3>
+            </div>
+            
+            {isLoading ? (
+              <div className={styles.loadingState}>
+                Loading subscriptions...
+              </div>
+            ) : (
+              <div className={styles.tableContent}>
+                <table className={styles.table}>
+                  <thead className={styles.tableHead}>
+                    <tr>
+                      <th className={styles.tableHeadCell}>Platform</th>
+                      <th className={styles.tableHeadCell}>Plan</th>
+                      <th className={styles.tableHeadCell}>Amount</th>
+                      <th className={styles.tableHeadCell}>Due Date</th>
+                      <th className={styles.tableHeadCell}>Status</th>
+                      <th className={`${styles.tableHeadCell} ${styles.tableHeadCellRight}`}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subscriptions.map((subscription) => (
+                      <tr key={subscription.id} className={styles.tableRow}>
+                        <td className={styles.tableCell}>
+                          <span className={styles.platformName}>{subscription.service_name || 'Unknown Service'}</span>
+                        </td>
+                        <td className={styles.tableCell}>
+                          <span className={styles.planName}>{subscription.plan_type || 'Standard'}</span>
+                        </td>
+                        <td className={styles.tableCell}>
+                          <span className={styles.amount}>${subscription.amount_usd.toFixed(2)}</span>
+                        </td>
+                        <td className={styles.tableCell}>
+                          <span className={styles.dueDate}>
+                            {new Date(subscription.renewal_date).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: '2-digit',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        </td>
+                        <td className={styles.tableCell}>
+                          {getStatusBadge(subscription.payment_status || 'active')}
+                        </td>
+                        <td className={`${styles.tableCell} ${styles.tableCellRight}`}>
+                          <div className={styles.actionButtons}>
+                            <button
+                              className={styles.actionButton}
+                              onClick={() => handleEditSubscription(subscription)}
+                              disabled={!isEditable}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              className={styles.actionButton}
+                              onClick={() => handleDeleteSubscription(subscription.id)}
+                              disabled={!isEditable}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {subscriptions.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className={styles.tableCell}>
+                          <div className={styles.emptyState}>
+                            <div className={styles.emptyStateIcon}>📋</div>
+                            <div className={styles.emptyStateTitle}>No Subscriptions Found</div>
+                            <div className={styles.emptyStateDescription}>
+                              Add your first subscription to get started.
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Subscription Form Modal */}
       {showForm && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
+        <div className={styles.modalOverlay}>
           <SubscriptionForm
             subscription={editingSubscription ? {
               ...editingSubscription,
@@ -196,28 +415,6 @@ export function SubscriptionsTab() {
           />
         </div>
       )}
-
-      {/* Smart Alerts & Notifications */}
-      {!isLoading && (
-        <SubscriptionAlerts 
-          subscriptions={subscriptions}
-          paymentMethods={paymentMethods}
-        />
-      )}
-
-      {/* Subscription List */}
-      <SubscriptionList 
-        onEdit={handleEditSubscription}
-        refreshTrigger={refreshTrigger}
-        selectedMonth={selectedMonth}
-        isEditable={isEditable}
-      />
-
-      {/* Monthly Summary */}
-      <SubscriptionSummaryComponent 
-        refreshTrigger={refreshTrigger}
-        selectedMonth={selectedMonth}
-      />
     </div>
   );
 }

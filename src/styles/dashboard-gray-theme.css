@@ -1,0 +1,20 @@
+/* Professional Gray Theme Override - DISABLED FOR NOW */
+
+/* Temporarily disabled to fix main dashboard visibility issue */
+/*
+body:not(.payments-page) .dashboard-container,
+body:not(.payments-page) [class*="dashboard"],
+body:not(.payments-page) [class*="container"]:not([class*="payments"]) {
+  background: #2a2a2a !important;
+  color: #ffffff !important;
+  min-height: 100vh !important;
+}
+
+body:not(.payments-page) [class*="card"],
+body:not(.payments-page) [class*="Card"] {
+  background: #3a3a3a !important;
+  background-color: #3a3a3a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+*/

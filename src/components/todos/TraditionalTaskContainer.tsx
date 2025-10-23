@@ -11,7 +11,7 @@ import { Todo, TodoAttachment, CreateTodoRequest, UpdateTodoRequest, TeamMember,
 import TaskBubble from './TaskBubble';
 import CommentThread from './CommentThread';
 import FileAttachmentZone from './FileAttachmentZone';
-import CompletedTasksSidebar from './CompletedTasksSidebar';
+
 import EditTaskModal from './EditTaskModal';
 import { notificationSounds } from '@/lib/notification-sounds';
 import { realtimePresence } from '@/lib/realtime-presence';

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/components/providers/session-provider";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import "./globals.css";
-import "../styles/minimal-design.css";
+import "../styles/modern-design-system.css";
+import Head from "next/head";
 
 export const metadata: Metadata = {
   title: "AGGRANDIZE Dashboard",
@@ -43,10 +45,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+      <head>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+      </head>
+      <body suppressHydrationWarning={true}>
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

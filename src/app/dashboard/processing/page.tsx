@@ -1,76 +1,43 @@
-import styles from './processing.module.css';
+'use client';
+
+import React from 'react';
+import { Box, Typography, Paper, Chip } from '@mui/material';
+import { DonutLarge as ProcessingIcon } from '@mui/icons-material';
 
 export default function ProcessingPage() {
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Processing Workflow</h1>
-          <p className={styles.subtitle}>
-            Monitor and manage order processing stages
-          </p>
-        </div>
-      </div>
-      
-      <div className={styles.metricsGrid}>
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>In Queue</h3>
-            <div className={styles.cardIcon}>⏳</div>
-          </div>
-          <div className={styles.cardValue}>23</div>
-          <p className={`${styles.cardChange} ${styles.neutral}`}>
-            Orders waiting for processing
-          </p>
-        </div>
+    <Box 
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '70vh', // Take up viewport height within the dashboard layout
+        textAlign: 'center',
+      }}
+    >
+      <Paper 
+        elevation={3}
+        sx={{
+          p: { xs: 3, sm: 6 },
+          borderRadius: 2,
+          maxWidth: '600px',
+          mx: 'auto',
+        }}
+      >
+        <Box sx={{ mb: 3 }}>
+          <ProcessingIcon sx={{ fontSize: '4rem', color: 'text.secondary' }} />
+        </Box>
         
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>In Progress</h3>
-            <div className={styles.cardIcon}>⚙️</div>
-          </div>
-          <div className={styles.cardValue}>12</div>
-          <p className={`${styles.cardChange} ${styles.positive}`}>
-            Currently being processed
-          </p>
-        </div>
+        <Chip label="Coming Soon" color="primary" sx={{ mb: 2 }} />
+
+        <Typography variant="h4" component="h1" fontWeight="600" sx={{ mb: 1 }}>
+          Processing Workflow
+        </Typography>
         
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>Quality Check</h3>
-            <div className={styles.cardIcon}>🔍</div>
-          </div>
-          <div className={styles.cardValue}>8</div>
-          <p className={`${styles.cardChange} ${styles.neutral}`}>
-            Awaiting quality review
-          </p>
-        </div>
-        
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>Completed Today</h3>
-            <div className={styles.cardIcon}>✅</div>
-          </div>
-          <div className={styles.cardValue}>34</div>
-          <p className={`${styles.cardChange} ${styles.positive}`}>
-            +18% from yesterday
-          </p>
-        </div>
-      </div>
-      
-      <div className={styles.largeCard}>
-        <h2 className={styles.largeCardTitle}>Processing Pipeline</h2>
-        <p className={styles.largeCardSubtitle}>
-          Current status of orders in the processing workflow
-        </p>
-        <div className={styles.comingSoon}>
-          <div className={styles.comingSoonIcon}>🔄</div>
-          <h3 className={styles.comingSoonTitle}>Workflow Management Coming Soon</h3>
-          <p className={styles.comingSoonText}>
-            Advanced processing pipeline management, real-time status tracking, and workflow automation features will be available here.
-          </p>
-        </div>
-      </div>
-    </div>
+        <Typography variant="body1" color="text.secondary">
+          We're building advanced workflow management and order processing automation, including real-time status tracking and quality control.
+        </Typography>
+      </Paper>
+    </Box>
   );
 }

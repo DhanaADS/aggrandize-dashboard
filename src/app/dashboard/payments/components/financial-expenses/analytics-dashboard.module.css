@@ -1,0 +1,353 @@
+.analyticsContainer {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.analyticsHeader {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.analyticsTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 8px 0;
+}
+
+.analyticsSubtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Metrics Row */
+.metricsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metricCard {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.metricCard:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.metricValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: #00ff88;
+  margin-bottom: 8px;
+}
+
+.metricLabel {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 4px;
+}
+
+.metricCount {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.metricBadge {
+  font-size: 12px;
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+/* Charts Row */
+.chartsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.chartCard {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chartTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  margin: 0 0 16px 0;
+}
+
+/* Trend Chart */
+.trendChart {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  height: 120px;
+  padding: 0 8px;
+}
+
+.trendBar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+}
+
+.trendBarFill {
+  width: 100%;
+  background: linear-gradient(to top, #3b82f6, #60a5fa);
+  border-radius: 4px 4px 0 0;
+  min-height: 8px;
+  transition: all 0.3s ease;
+}
+
+.trendLabel {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+.trendValue {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Category List */
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.categoryItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.categoryInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.categoryDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.categoryName {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.categoryStats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.categoryTotal {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+}
+
+.categoryCount {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Details Row */
+.detailsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.statusCard, .spendersCard {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Status Grid */
+.statusGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.statusItem {
+  text-align: center;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.statusCount {
+  font-size: 24px;
+  font-weight: 700;
+  color: #60a5fa;
+  margin-bottom: 4px;
+}
+
+.statusLabel {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Spenders List */
+.spendersList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.spenderItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.spenderRank {
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+}
+
+.spenderInfo {
+  flex: 1;
+}
+
+.spenderName {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
+.spenderCount {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.spenderTotal {
+  font-size: 14px;
+  font-weight: 600;
+  color: #00ff88;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .chartsRow, .detailsRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .analyticsContainer {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .metricsRow {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .trendChart {
+    height: 100px;
+    gap: 8px;
+  }
+  
+  .statusGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .chartTitle {
+    font-size: 14px;
+  }
+  
+  .metricValue {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .statusGrid {
+    gap: 8px;
+  }
+  
+  .statusItem {
+    padding: 12px;
+  }
+  
+  .statusCount {
+    font-size: 20px;
+  }
+  
+  .spenderItem {
+    padding: 8px;
+    gap: 8px;
+  }
+  
+  .categoryItem {
+    padding: 6px 0;
+  }
+}

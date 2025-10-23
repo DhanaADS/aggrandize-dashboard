@@ -228,7 +228,7 @@ function WorkflowEditor() {
   }, []);
 
   return (
-    <div className={styles.workflowEditor}>
+    <div className={`${styles.workflowEditor} dashboard-page-content`}>
       {/* Left Panel - Node Palette */}
       <div className={styles.leftPanel}>
         <div className={styles.panelHeader}>

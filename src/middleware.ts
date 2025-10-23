@@ -97,6 +97,6 @@ export const config = {
   matcher: [
     '/dashboard/:path*',
     '/login',
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|payments-static|test-minimal|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

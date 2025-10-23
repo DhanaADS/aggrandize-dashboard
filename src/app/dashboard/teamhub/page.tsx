@@ -2,47 +2,26 @@
 
 import { Suspense } from 'react';
 import { useAuth } from '@/lib/auth-nextauth';
-import RealTimeSimpleTeamHub from '@/components/teamhub/RealTimeSimpleTeamHub';
-import NotificationCenter from '@/components/todos/NotificationCenter';
-import PushNotifications from '@/components/pwa/PushNotifications';
-import PushNotificationDebug from '@/components/debug/PushNotificationDebug';
-import styles from './teamhub.module.css';
+import SimplifiedTeamHub from '@/components/teamhub/SimplifiedTeamHub';
+import { Skeleton, Box, Typography, Paper } from '@mui/material';
 
 export default function TeamHubPage() {
   const { user, isTeamMember } = useAuth();
 
   if (!user || !isTeamMember) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center p-8 bg-white/8 backdrop-blur-xl border border-white/12 rounded-2xl">
-          <h2 className="text-red-400 text-xl mb-4">Access Denied</h2>
-          <p className="text-white/70">
-            You need to be a team member to access the Team Hub.
-          </p>
-        </div>
-      </div>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
+          <Typography variant="h6" color="error">Access Denied</Typography>
+          <Typography color="text.secondary">You must be a team member to access the Team Hub.</Typography>
+        </Paper>
+      </Box>
     );
   }
 
   return (
-    <div className={styles.teamhubContainer}>
-      {/* Push Notifications Component */}
-      <PushNotifications userEmail={user?.email} />
-      
-      {/* Debug Component */}
-      <PushNotificationDebug userEmail={user?.email} />
-      
-      <Suspense fallback={
-        <div className={styles.loadingContainer}>
-          <div className={styles.loadingContent}>
-            <div className={styles.spinner}></div>
-            <p>Loading Team Hub...</p>
-          </div>
-        </div>
-      }>
-        <RealTimeSimpleTeamHub />
-      </Suspense>
-    </div>
+    <Suspense fallback={<Skeleton variant="rectangular" width="100%" height="calc(100vh - 120px)" />}>
+      <SimplifiedTeamHub />
+    </Suspense>
   );
 }
-

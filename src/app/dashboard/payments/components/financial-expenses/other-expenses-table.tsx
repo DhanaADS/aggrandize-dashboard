@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Expense, PaymentMethod, TEAM_MEMBERS } from '@/types/finance';
 import { updateExpense, deleteExpense, createExpense, getPaymentMethods, getExpenseCategories } from '@/lib/finance-api';
-import styles from '../../payments.module.css';
+import styles from './expenses-minimal.module.css';
 
 interface OtherExpensesTableProps {
   expenses: Expense[];
@@ -12,10 +12,20 @@ interface OtherExpensesTableProps {
   onRefresh: () => void;
 }
 
-export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefresh }: OtherExpensesTableProps) {
+interface OtherExpensesTableRef {
+  showAddForm: () => void;
+}
+
+export const OtherExpensesTable = forwardRef<OtherExpensesTableRef, OtherExpensesTableProps>(
+  ({ expenses, selectedMonth, isEditable, onRefresh }, ref) => {
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    showAddForm: () => setShowAddForm(true)
+  }));
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<any[]>([]);
@@ -249,263 +259,64 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
   const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount_inr, 0);
 
   return (
-    <div style={{
-      background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(51, 65, 85, 0.4) 100%)',
-      backdropFilter: 'blur(20px)',
-      border: '1px solid rgba(148, 163, 184, 0.1)',
-      borderRadius: '24px',
-      padding: '2rem',
-      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)'
-    }}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '2rem',
-        paddingBottom: '1rem',
-        borderBottom: '1px solid rgba(148, 163, 184, 0.1)'
-      }}>
-        <div>
-          <h3 style={{ 
-            color: '#ffffff', 
-            fontSize: '1.25rem', 
-            fontWeight: '700',
-            margin: '0 0 0.5rem 0',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
-          }}>
-            📝 Other Expenses
-          </h3>
-          <p style={{
-            color: 'rgba(148, 163, 184, 0.8)',
-            fontSize: '0.9rem',
-            margin: '0',
-            fontWeight: '500'
-          }}>
-            {formatMonthDisplay(selectedMonth)}
-          </p>
-        </div>
-        
-        {isEditable && (
-          <button 
-            onClick={() => setShowAddForm(true)}
-            style={{
-              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-              border: 'none',
-              borderRadius: '12px',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              fontSize: '0.9rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.4)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-            }}
-          >
-            + Add Expense
-          </button>
-        )}
-      </div>
+    <>
 
       {expenses.length === 0 ? (
-        <div style={{ 
-          color: 'rgba(255, 255, 255, 0.6)', 
-          textAlign: 'center',
-          padding: '2rem',
-          fontStyle: 'italic'
-        }}>
-          No other expenses recorded for {formatMonthDisplay(selectedMonth)}
-          {isEditable && (
-            <div style={{ marginTop: '1rem' }}>
-              <button 
-                onClick={() => setShowAddForm(true)}
-                style={{
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                  border: 'none',
-                  borderRadius: '12px',
-                  color: 'white',
-                  padding: '0.75rem 1.5rem',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.4)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-                }}
-              >
-                Add First Expense
-              </button>
-            </div>
-          )}
+        <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📝</div>
+          <div style={{ fontWeight: '600', color: '#111827', marginBottom: '0.5rem' }}>No Other Expenses</div>
+          <div style={{ fontSize: '0.875rem' }}>
+            No other expenses recorded for {formatMonthDisplay(selectedMonth)}
+          </div>
         </div>
       ) : (
-        <div style={{ 
-          borderRadius: '16px',
-          background: 'rgba(15, 23, 42, 0.3)',
-          border: '1px solid rgba(148, 163, 184, 0.1)'
-        }}>
-          <table style={{ 
-            width: '100%', 
-            borderCollapse: 'collapse', 
-            background: 'transparent'
-          }}>
-            <thead>
-              <tr style={{ 
-                background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)',
-                borderBottom: '1px solid rgba(59, 130, 246, 0.2)'
-              }}>
-                <th style={{ 
-                  color: '#3b82f6', 
-                  padding: '0.75rem 1rem', 
-                  textAlign: 'left', 
-                  fontSize: '0.875rem',
-                  fontWeight: '700',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em'
-                }}>
-                  PURPOSE
-                </th>
-                <th style={{ 
-                  color: '#3b82f6', 
-                  padding: '0.75rem 1rem', 
-                  textAlign: 'left', 
-                  fontSize: '0.875rem',
-                  fontWeight: '700',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em'
-                }}>
-                  Notes
-                </th>
-                <th style={{ 
-                  color: '#3b82f6', 
-                  padding: '0.75rem 1rem', 
-                  textAlign: 'right', 
-                  fontSize: '0.875rem',
-                  fontWeight: '700',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em'
-                }}>
-                  AMOUNT
-                </th>
-                <th style={{ 
-                  color: '#3b82f6', 
-                  padding: '0.75rem 1rem', 
-                  textAlign: 'center', 
-                  fontSize: '0.875rem',
-                  fontWeight: '700',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em'
-                }}>
-                  Paid by
-                </th>
+        <table className={styles.table}>
+            <thead className={styles.tableHead}>
+              <tr>
+                <th className={styles.tableHeadCell}>Purpose</th>
+                <th className={styles.tableHeadCell}>Notes</th>
+                <th className={`${styles.tableHeadCell} ${styles.tableHeadCellRight}`}>Amount</th>
+                <th className={`${styles.tableHeadCell} ${styles.tableHeadCellCenter}`}>Paid by</th>
                 {isEditable && (
-                  <th style={{ 
-                    color: '#3b82f6', 
-                    padding: '0.75rem 1rem', 
-                    textAlign: 'center', 
-                    fontSize: '0.875rem',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em'
-                  }}>
-                    ACTIONS
-                  </th>
+                  <th className={`${styles.tableHeadCell} ${styles.tableHeadCellCenter}`}>Actions</th>
                 )}
               </tr>
             </thead>
             <tbody>
               {expenses.map((expense, index) => (
-                <tr 
-                  key={expense.id} 
-                  style={{ 
-                    borderBottom: '1px solid rgba(148, 163, 184, 0.08)',
-                    transition: 'all 0.2s ease',
-                    background: index % 2 === 0 ? 'rgba(15, 23, 42, 0.2)' : 'transparent'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.05)';
-                    e.currentTarget.style.transform = 'translateX(4px)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = index % 2 === 0 ? 'rgba(15, 23, 42, 0.2)' : 'transparent';
-                    e.currentTarget.style.transform = 'translateX(0)';
-                  }}
-                >
-                  <td style={{ padding: '0.75rem 1rem', color: '#ffffff', fontWeight: '600' }}>
+                <tr key={expense.id} className={styles.tableRow}>
+                  <td className={`${styles.tableCell} ${styles.fontBold}`}>
                     {expense.purpose}
                   </td>
-                  <td style={{ padding: '0.75rem 1rem', color: 'rgba(148, 163, 184, 0.8)', fontSize: '0.85rem' }}>
+                  <td className={`${styles.tableCell} ${styles.textMuted}`}>
                     {expense.notes || '—'}
                   </td>
-                  <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                    <span style={{
-                      background: 'linear-gradient(135deg, rgba(0, 255, 136, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)',
-                      color: '#00ff88',
-                      padding: '0.4rem 0.8rem',
-                      borderRadius: '6px',
-                      border: '1px solid rgba(0, 255, 136, 0.2)',
-                      fontSize: '0.9rem',
-                      fontWeight: '700'
-                    }}>
+                  <td className={`${styles.tableCell} ${styles.tableCellRight}`}>
+                    <span className={styles.amountDisplay}>
                       {formatCurrency(expense.amount_inr)}
                     </span>
                   </td>
-                  <td style={{ padding: '0.75rem 1rem', textAlign: 'center', color: '#ffffff', fontWeight: '600' }}>
-                    {expense.person_paid}
+                  <td className={`${styles.tableCell} ${styles.tableCellCenter}`}>
+                    <span className={styles.paidByDisplay}>
+                      {expense.person_paid}
+                    </span>
                   </td>
                   {isEditable && (
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
+                    <td className={`${styles.tableCell} ${styles.tableCellCenter}`}>
+                      <div className={`${styles.flex} ${styles.flexGapHalf} ${styles.flexJustifyCenter}`}>
                         <button
                           onClick={() => handleEdit(expense.id)}
                           disabled={isUpdating === expense.id}
-                          style={{
-                            background: 'rgba(59, 130, 246, 0.2)',
-                            color: '#3b82f6',
-                            border: '1px solid rgba(59, 130, 246, 0.3)',
-                            padding: '0.25rem 0.4rem',
-                            borderRadius: '4px',
-                            fontSize: '0.7rem',
-                            cursor: 'pointer',
-                            fontWeight: '600',
-                            transition: 'all 0.2s ease'
-                          }}
+                          className={styles.editButton}
                         >
-                          ✏️ Edit
+                          Edit
                         </button>
                         <button
                           onClick={() => handleDelete(expense.id)}
                           disabled={isUpdating === expense.id}
-                          style={{
-                            background: 'rgba(239, 68, 68, 0.2)',
-                            color: '#ef4444',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
-                            padding: '0.25rem 0.4rem',
-                            borderRadius: '4px',
-                            fontSize: '0.7rem',
-                            cursor: 'pointer',
-                            fontWeight: '600',
-                            transition: 'all 0.2s ease'
-                          }}
+                          className={styles.deleteButton}
                         >
-                          🗑️ Delete
+                          Delete
                         </button>
                       </div>
                     </td>
@@ -513,99 +324,31 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
                 </tr>
               ))}
               
-              {/* Total Row */}
-              <tr style={{ 
-                borderTop: '2px solid rgba(59, 130, 246, 0.3)', 
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)',
-                fontWeight: 'bold'
-              }}>
-                <td colSpan={2} style={{ 
-                  color: '#ffffff', 
-                  padding: '0.75rem 1rem', 
-                  fontSize: '1.1rem', 
-                  fontWeight: '700',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div style={{
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      background: '#3b82f6'
-                    }}></div>
+              <tr className={styles.totalRow}>
+                <td colSpan={2} className={`${styles.tableCell} ${styles.fontBold}`}>
+                  <div className={`${styles.flex} ${styles.flexAlignCenter} ${styles.flexGapHalf}`}>
+                    <div className={`${styles.statusDot} ${styles.statusDotActive}`}></div>
                     TOTAL
                   </div>
                 </td>
-                <td style={{ 
-                  padding: '0.75rem 1rem', 
-                  fontSize: '1.2rem', 
-                  fontWeight: '800', 
-                  textAlign: 'right'
-                }}>
-                  <div style={{
-                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                    color: 'white',
-                    padding: '0.75rem 1.5rem',
-                    borderRadius: '12px',
-                    display: 'inline-block',
-                    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)'
-                  }}>
+                <td className={`${styles.tableCell} ${styles.tableCellRight} ${styles.fontBold}`}>
+                  <span className={styles.amountDisplay}>
                     {formatCurrency(totalAmount)}
-                  </div>
+                  </span>
                 </td>
-                <td style={{ padding: '0.75rem 1rem' }}></td>
-                {isEditable && <td style={{ padding: '0.75rem 1rem' }}></td>}
+                <td className={styles.tableCell}></td>
+                {isEditable && <td className={styles.tableCell}></td>}
               </tr>
             </tbody>
           </table>
-        </div>
       )}
 
       {/* Add/Edit Expense Form */}
       {(showAddForm || showEditForm) && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div ref={formRef} style={{
-            background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.95) 0%, rgba(51, 65, 85, 0.95) 100%)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(148, 163, 184, 0.2)',
-            borderRadius: '20px',
-            padding: '2rem',
-            maxWidth: '500px',
-            width: '90%',
-            maxHeight: '80vh',
-            overflowY: 'auto'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '2rem',
-              paddingBottom: '1rem',
-              borderBottom: '1px solid rgba(148, 163, 184, 0.1)'
-            }}>
-              <h3 style={{
-                color: '#ffffff',
-                fontSize: '1.25rem',
-                fontWeight: '700',
-                margin: 0,
-                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
-              }}>
+        <div className={styles.formOverlay}>
+          <div ref={formRef} className={styles.formContainer}>
+            <div className={styles.formHeader}>
+              <h3 className={styles.formTitle}>
                 📝 {editingExpense ? 'Edit Expense' : 'Add New Expense'}
               </h3>
               <button
@@ -615,29 +358,16 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
                   setEditingExpense(null);
                   resetForm();
                 }}
-                style={{
-                  background: 'rgba(239, 68, 68, 0.2)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: '50%',
-                  width: '36px',
-                  height: '36px',
-                  color: '#ef4444',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.2rem',
-                  fontWeight: 'bold'
-                }}
+                className={styles.closeButton}
               >
                 ×
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <form onSubmit={handleSubmit} className={styles.formGrid}>
               {/* Person Paid */}
-              <div>
-                <label style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>
+              <div className={styles.formField}>
+                <label className={styles.formLabel}>
                   Paid By *
                 </label>
                 {showCustomPaidBy ? (
@@ -647,15 +377,7 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
                       value={formData.person_paid}
                       onChange={(e) => setFormData({...formData, person_paid: e.target.value})}
                       placeholder="Enter custom name"
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        borderRadius: '8px',
-                        border: '1px solid rgba(148, 163, 184, 0.3)',
-                        background: 'rgba(15, 23, 42, 0.5)',
-                        color: '#ffffff',
-                        fontSize: '0.9rem'
-                      }}
+                      className={styles.formInput}
                       required
                     />
                     <button
@@ -669,10 +391,10 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
                         right: '0.5rem',
                         top: '50%',
                         transform: 'translateY(-50%)',
-                        background: 'rgba(239, 68, 68, 0.2)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        background: '#ef4444',
+                        border: 'none',
                         borderRadius: '4px',
-                        color: '#ef4444',
+                        color: 'white',
                         padding: '0.25rem',
                         cursor: 'pointer',
                         fontSize: '0.7rem'
@@ -692,15 +414,7 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
                         setFormData({...formData, person_paid: e.target.value});
                       }
                     }}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(148, 163, 184, 0.3)',
-                      background: 'rgba(15, 23, 42, 0.5)',
-                      color: '#ffffff',
-                      fontSize: '0.9rem'
-                    }}
+                    className={styles.formSelect}
                     required
                   >
                     <option value="">✓ Select team member</option>
@@ -713,8 +427,8 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
               </div>
 
               {/* Purpose */}
-              <div>
-                <label style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>
+              <div className={styles.formField}>
+                <label className={styles.formLabel}>
                   Purpose *
                 </label>
                 <input
@@ -722,22 +436,14 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
                   value={formData.purpose}
                   onChange={(e) => setFormData({...formData, purpose: e.target.value})}
                   placeholder="e.g., Office supplies, Processing costs"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(148, 163, 184, 0.3)',
-                    background: 'rgba(15, 23, 42, 0.5)',
-                    color: '#ffffff',
-                    fontSize: '0.9rem'
-                  }}
+                  className={styles.formInput}
                   required
                 />
               </div>
 
               {/* Amount */}
-              <div>
-                <label style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>
+              <div className={styles.formField}>
+                <label className={styles.formLabel}>
                   Amount (INR) *
                 </label>
                 <input
@@ -747,22 +453,14 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
                   placeholder="Enter amount in rupees"
                   step="0.01"
                   min="0"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(148, 163, 184, 0.3)',
-                    background: 'rgba(15, 23, 42, 0.5)',
-                    color: '#ffffff',
-                    fontSize: '0.9rem'
-                  }}
+                  className={styles.formInput}
                   required
                 />
               </div>
 
               {/* Payment Method */}
-              <div>
-                <label style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>
+              <div className={styles.formField}>
+                <label className={styles.formLabel}>
                   Payment Method *
                 </label>
                 {showCustomPaymentMethod ? (
@@ -772,15 +470,7 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
                       value={formData.payment_method_id}
                       onChange={(e) => setFormData({...formData, payment_method_id: e.target.value})}
                       placeholder="Enter custom payment method"
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        borderRadius: '8px',
-                        border: '1px solid rgba(148, 163, 184, 0.3)',
-                        background: 'rgba(15, 23, 42, 0.5)',
-                        color: '#ffffff',
-                        fontSize: '0.9rem'
-                      }}
+                      className={styles.formInput}
                       required
                     />
                     <button
@@ -794,10 +484,10 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
                         right: '0.5rem',
                         top: '50%',
                         transform: 'translateY(-50%)',
-                        background: 'rgba(239, 68, 68, 0.2)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        background: '#ef4444',
+                        border: 'none',
                         borderRadius: '4px',
-                        color: '#ef4444',
+                        color: 'white',
                         padding: '0.25rem',
                         cursor: 'pointer',
                         fontSize: '0.7rem'
@@ -817,15 +507,7 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
                         setFormData({...formData, payment_method_id: e.target.value});
                       }
                     }}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(148, 163, 184, 0.3)',
-                      background: 'rgba(15, 23, 42, 0.5)',
-                      color: '#ffffff',
-                      fontSize: '0.9rem'
-                    }}
+                    className={styles.formSelect}
                     required
                   >
                     <option value="">✓ Select payment method</option>
@@ -843,30 +525,22 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
               </div>
 
               {/* Expense Date */}
-              <div>
-                <label style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>
+              <div className={styles.formField}>
+                <label className={styles.formLabel}>
                   Expense Date *
                 </label>
                 <input
                   type="date"
                   value={formData.expense_date}
                   onChange={(e) => setFormData({...formData, expense_date: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(148, 163, 184, 0.3)',
-                    background: 'rgba(15, 23, 42, 0.5)',
-                    color: '#ffffff',
-                    fontSize: '0.9rem'
-                  }}
+                  className={styles.formInput}
                   required
                 />
               </div>
 
               {/* Notes */}
-              <div>
-                <label style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>
+              <div className={styles.formField}>
+                <label className={styles.formLabel}>
                   Notes
                 </label>
                 <textarea
@@ -874,62 +548,39 @@ export function OtherExpensesTable({ expenses, selectedMonth, isEditable, onRefr
                   onChange={(e) => setFormData({...formData, notes: e.target.value})}
                   placeholder="Additional details about the expense"
                   rows={3}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(148, 163, 184, 0.3)',
-                    background: 'rgba(15, 23, 42, 0.5)',
-                    color: '#ffffff',
-                    fontSize: '0.9rem',
-                    resize: 'vertical'
-                  }}
+                  className={styles.formTextarea}
                 />
               </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                style={{
-                  background: isSubmitting 
-                    ? 'rgba(148, 163, 184, 0.3)' 
-                    : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                  border: 'none',
-                  borderRadius: '12px',
-                  color: 'white',
-                  padding: '0.875rem 2rem',
-                  fontSize: '0.95rem',
-                  fontWeight: '600',
-                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s ease',
-                  marginTop: '0.5rem'
-                }}
-              >
-                {isSubmitting ? 'Saving...' : (editingExpense ? 'Update Expense' : 'Add Expense')}
-              </button>
+              {/* Form Actions */}
+              <div className={styles.formActions}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setShowEditForm(false);
+                    setEditingExpense(null);
+                    resetForm();
+                  }}
+                  className={styles.cancelButton}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className={styles.submitButton}
+                >
+                  {isSubmitting ? 'Saving...' : (editingExpense ? 'Update Expense' : 'Add Expense')}
+                </button>
+              </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Instructions */}
-      <div style={{ 
-        marginTop: '1.5rem',
-        padding: '1rem 1.5rem',
-        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.08) 100%)',
-        border: '1px solid rgba(59, 130, 246, 0.2)',
-        borderRadius: '12px',
-        fontSize: '0.85rem',
-        color: 'rgba(148, 163, 184, 0.9)',
-        fontWeight: '500',
-        backdropFilter: 'blur(10px)'
-      }}>
-        💡 {isEditable 
-          ? 'Track one-time and variable expenses like office supplies, stamps, processing costs, etc. Only current month data can be modified.'
-          : 'This is historical expense data from a previous month and cannot be modified.'
-        }
-      </div>
-    </div>
+    </>
   );
-}
+});
+
+OtherExpensesTable.displayName = 'OtherExpensesTable';

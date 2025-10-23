@@ -106,7 +106,7 @@ export function ExpenseList({ onEdit, refreshTrigger }: ExpenseListProps) {
         marginBottom: '1.5rem'
       }}>
         <h3 style={{ 
-          color: '#ffffff', 
+          color: '#1f2937', 
           fontSize: '1.1rem', 
           fontWeight: '600',
           margin: '0'
@@ -127,9 +127,9 @@ export function ExpenseList({ onEdit, refreshTrigger }: ExpenseListProps) {
         <div style={{ 
           marginBottom: '1.5rem',
           padding: '1rem',
-          background: 'rgba(255, 255, 255, 0.05)',
+          background: '#f8fafc',
           borderRadius: '8px',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
+          border: '1px solid #e2e8f0'
         }}>
           <div style={{ 
             display: 'grid', 
@@ -252,7 +252,7 @@ export function ExpenseList({ onEdit, refreshTrigger }: ExpenseListProps) {
       {/* Loading */}
       {isLoading && (
         <div style={{ 
-          color: 'rgba(255, 255, 255, 0.6)', 
+          color: 'rgba(31, 41, 55, 0.6)', 
           textAlign: 'center',
           padding: '2rem'
         }}>
@@ -263,7 +263,7 @@ export function ExpenseList({ onEdit, refreshTrigger }: ExpenseListProps) {
       {/* Empty State */}
       {!isLoading && expenses.length === 0 && (
         <div style={{ 
-          color: 'rgba(255, 255, 255, 0.6)', 
+          color: 'rgba(31, 41, 55, 0.6)', 
           textAlign: 'center',
           padding: '2rem'
         }}>
@@ -279,37 +279,37 @@ export function ExpenseList({ onEdit, refreshTrigger }: ExpenseListProps) {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                <th style={{ color: 'rgba(255, 255, 255, 0.8)', padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem' }}>Date</th>
-                <th style={{ color: 'rgba(255, 255, 255, 0.8)', padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem' }}>Purpose</th>
-                <th style={{ color: 'rgba(255, 255, 255, 0.8)', padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem' }}>Category</th>
-                <th style={{ color: 'rgba(255, 255, 255, 0.8)', padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem' }}>Person</th>
-                <th style={{ color: 'rgba(255, 255, 255, 0.8)', padding: '0.75rem', textAlign: 'right', fontSize: '0.85rem' }}>Amount</th>
-                <th style={{ color: 'rgba(255, 255, 255, 0.8)', padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem' }}>Status</th>
-                <th style={{ color: 'rgba(255, 255, 255, 0.8)', padding: '0.75rem', textAlign: 'center', fontSize: '0.85rem' }}>Actions</th>
+              <tr style={{ borderBottom: '1px solid rgba(31, 41, 55, 0.1)' }}>
+                <th style={{ color: 'rgba(31, 41, 55, 0.8)', padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem' }}>Date</th>
+                <th style={{ color: 'rgba(31, 41, 55, 0.8)', padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem' }}>Purpose</th>
+                <th style={{ color: 'rgba(31, 41, 55, 0.8)', padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem' }}>Category</th>
+                <th style={{ color: 'rgba(31, 41, 55, 0.8)', padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem' }}>Person</th>
+                <th style={{ color: 'rgba(31, 41, 55, 0.8)', padding: '0.75rem', textAlign: 'right', fontSize: '0.85rem' }}>Amount</th>
+                <th style={{ color: 'rgba(31, 41, 55, 0.8)', padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem' }}>Status</th>
+                <th style={{ color: 'rgba(31, 41, 55, 0.8)', padding: '0.75rem', textAlign: 'center', fontSize: '0.85rem' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {expenses.map((expense) => (
-                <tr key={expense.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <td style={{ color: 'rgba(255, 255, 255, 0.7)', padding: '0.75rem', fontSize: '0.9rem' }}>
+                <tr key={expense.id} style={{ borderBottom: '1px solid rgba(31, 41, 55, 0.05)' }}>
+                  <td style={{ color: 'rgba(31, 41, 55, 0.7)', padding: '0.75rem', fontSize: '0.9rem' }}>
                     {formatDate(expense.expense_date)}
                   </td>
-                  <td style={{ color: '#ffffff', padding: '0.75rem', fontSize: '0.9rem', fontWeight: '500' }}>
+                  <td style={{ color: '#1f2937', padding: '0.75rem', fontSize: '0.9rem', fontWeight: '500' }}>
                     {expense.purpose}
                     {expense.notes && (
-                      <div style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                      <div style={{ color: 'rgba(31, 41, 55, 0.5)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
                         {expense.notes}
                       </div>
                     )}
                   </td>
-                  <td style={{ color: 'rgba(255, 255, 255, 0.7)', padding: '0.75rem', fontSize: '0.9rem' }}>
+                  <td style={{ color: 'rgba(31, 41, 55, 0.7)', padding: '0.75rem', fontSize: '0.9rem' }}>
                     {expense.category?.icon} {expense.category?.name}
                   </td>
-                  <td style={{ color: 'rgba(255, 255, 255, 0.7)', padding: '0.75rem', fontSize: '0.9rem' }}>
+                  <td style={{ color: 'rgba(31, 41, 55, 0.7)', padding: '0.75rem', fontSize: '0.9rem' }}>
                     {expense.person_paid}
                     {expense.person_responsible && expense.person_responsible !== expense.person_paid && (
-                      <div style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.75rem' }}>
+                      <div style={{ color: 'rgba(31, 41, 55, 0.5)', fontSize: '0.75rem' }}>
                         For: {expense.person_responsible}
                       </div>
                     )}
@@ -319,7 +319,7 @@ export function ExpenseList({ onEdit, refreshTrigger }: ExpenseListProps) {
                       {formatCurrency(expense.amount_inr, 'INR')}
                     </div>
                     {expense.amount_usd && (
-                      <div style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.75rem' }}>
+                      <div style={{ color: 'rgba(31, 41, 55, 0.5)', fontSize: '0.75rem' }}>
                         {formatCurrency(expense.amount_usd, 'USD')}
                       </div>
                     )}

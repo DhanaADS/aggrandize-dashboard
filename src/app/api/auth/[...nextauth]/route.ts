@@ -60,6 +60,17 @@ const checkExternalUserExists = async (email: string): Promise<{ exists: boolean
   }
 };
 
+// Dynamic NextAuth URL for development with multiple ports
+const getDynamicNextAuthUrl = () => {
+  if (process.env.NODE_ENV === 'development') {
+    // In development, detect the port from the current request
+    // This will be overridden by the redirect callback if needed
+    const port = process.env.PORT || '3000';
+    return `http://localhost:${port}`;
+  }
+  return process.env.NEXTAUTH_URL;
+};
+
 export const authOptions = {
   providers: [
     GoogleProvider({
@@ -254,7 +265,49 @@ export const authOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Redirect to dashboard after successful login
+      // Handle dynamic ports for development
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          let currentPort = '3000';
+          
+          // Extract port from baseUrl (which should be a valid URL)
+          if (baseUrl) {
+            const baseUrlParsed = new URL(baseUrl);
+            currentPort = baseUrlParsed.port || '3000';
+          }
+          
+          const dynamicBaseUrl = `http://localhost:${currentPort}`;
+          
+          // Handle relative URLs
+          if (url.startsWith("/")) {
+            return `${dynamicBaseUrl}${url}`;
+          }
+          
+          // Handle absolute URLs - check if it's from the same origin
+          try {
+            const urlParsed = new URL(url);
+            const baseUrlParsed = new URL(dynamicBaseUrl);
+            if (urlParsed.origin === baseUrlParsed.origin) {
+              return url;
+            }
+          } catch (urlError) {
+            console.error('Error parsing URL in redirect:', urlError);
+          }
+          
+          // Default fallback
+          return `${dynamicBaseUrl}/dashboard`;
+        } catch (error) {
+          console.error('Error in NextAuth redirect:', error);
+          // Fallback to simple logic if anything fails
+          return baseUrl.startsWith('http://localhost:3004') ? 'http://localhost:3004/dashboard' :
+                 baseUrl.startsWith('http://localhost:3003') ? 'http://localhost:3003/dashboard' :
+                 baseUrl.startsWith('http://localhost:3002') ? 'http://localhost:3002/dashboard' :
+                 baseUrl.startsWith('http://localhost:3001') ? 'http://localhost:3001/dashboard' :
+                 'http://localhost:3000/dashboard';
+        }
+      }
+      
+      // Production behavior
       if (url.startsWith("/")) return `${baseUrl}${url}`;
       else if (new URL(url).origin === baseUrl) return url;
       return `${baseUrl}/dashboard`;

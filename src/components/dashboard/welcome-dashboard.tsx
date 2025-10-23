@@ -1,344 +1,263 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
-import { User } from '@/types/auth';
-import { canUserAccessRouteSupabase } from '@/lib/supabase-permissions';
-import { createClient } from '@/lib/supabase/client';
-import { Logo } from '@/components/ui/logo';
-import { ProfileIconDropdown } from '@/components/profile/profile-icon-dropdown';
-import { TodaysTodos } from './todays-todos';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/auth-nextauth';
+import { useTheme } from '@/contexts/ThemeContext';
 import styles from './welcome-dashboard.module.css';
+
+interface User {
+  name?: string;
+  email?: string;
+  image?: string;
+  role?: string;
+}
+
+interface Task {
+  id: string;
+  name: string;
+  project: string;
+  dueDate: string;
+  status: 'completed' | 'in-progress' | 'pending';
+  priority: 'high' | 'medium' | 'low';
+  priorityColor: string;
+}
 
 interface WelcomeDashboardProps {
   user?: User | null;
 }
 
 export function WelcomeDashboard({ user: propUser }: WelcomeDashboardProps = {}) {
-  const { data: session, status } = useSession();
-  const [user, setUser] = useState<User | null>(propUser || null);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [isLoading, setIsLoading] = useState(!propUser && status === 'loading');
-  const [accessibleActions, setAccessibleActions] = useState<typeof quickActions>([]);
-  const router = useRouter();
+  const { user: authUser } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const user = propUser || authUser;
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    async function loadUser() {
-      if (propUser) {
-        setUser(propUser);
-        setIsLoading(false);
-        return;
-      }
-
-      // Use NextAuth session for user data
-      if (status === 'authenticated' && session?.user) {
-        const sessionUser: User = {
-          id: session.user.id || '',
-          email: session.user.email || '',
-          name: session.user.name || '',
-          role: session.user.role as any,
-          profileIcon: session.user.image,
-          teamMember: session.user.teamMember,
-          isExternal: session.user.isExternal
-        };
-        setUser(sessionUser);
-        setIsLoading(false);
-        return;
-      }
-
-      if (status === 'unauthenticated') {
-        setIsLoading(false);
-        return;
-      }
+  // Mock task data - in real implementation, this would come from API
+  const [tasks, setTasks] = useState<Task[]>([
+    {
+      id: '1',
+      name: 'Finalize Q3 Marketing Report',
+      project: 'Marketing',
+      dueDate: 'Oct 25, 2023',
+      status: 'in-progress',
+      priority: 'high',
+      priorityColor: '#EF4444'
+    },
+    {
+      id: '2',
+      name: 'Design new homepage mockups',
+      project: 'Website Redesign',
+      dueDate: 'Oct 28, 2023',
+      status: 'pending',
+      priority: 'medium',
+      priorityColor: '#F59E0B'
+    },
+    {
+      id: '3',
+      name: 'Develop API for user authentication',
+      project: 'Mobile App',
+      dueDate: 'Nov 02, 2023',
+      status: 'completed',
+      priority: 'high',
+      priorityColor: '#10B981'
+    },
+    {
+      id: '4',
+      name: 'Review and approve budget proposal',
+      project: 'Finance',
+      dueDate: 'Nov 05, 2023',
+      status: 'pending',
+      priority: 'medium',
+      priorityColor: '#F59E0B'
+    },
+    {
+      id: '5',
+      name: 'Onboard new junior developer',
+      project: 'Team Management',
+      dueDate: 'Nov 10, 2023',
+      status: 'pending',
+      priority: 'low',
+      priorityColor: '#6B7280'
     }
+  ]);
 
-    loadUser();
-
-    // Update time every minute
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
-
-    return () => clearInterval(timer);
-  }, [propUser, session, status]);
-
-  // Dynamic permission checking function
-  const updateAccessibleActions = useCallback(async () => {
-    if (!user) {
-      setAccessibleActions([]);
-      return;
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return { text: 'Completed', class: 'statusCompleted' };
+      case 'in-progress':
+        return { text: 'In Progress', class: 'statusInProgress' };
+      case 'pending':
+        return { text: 'Pending', class: 'statusPending' };
+      default:
+        return { text: 'Pending', class: 'statusPending' };
     }
+  };
 
-    const actionPromises = quickActions.map(async action => {
-      const hasAccess = await canUserAccessRouteSupabase(user.email, action.route);
-      return hasAccess ? action : null;
-    });
-    
-    const results = await Promise.all(actionPromises);
-    const filteredActions = results.filter(action => action !== null) as typeof quickActions;
-    setAccessibleActions(filteredActions);
-  }, [user]);
-
-  // Update accessible actions when user changes
-  useEffect(() => {
-    if (user) {
-      updateAccessibleActions();
-    }
-  }, [user, updateAccessibleActions]);
-
-  // Listen for permission updates (both local events and real-time database changes)
-  useEffect(() => {
-    if (!user) return;
-
-    const supabase = createClient();
-
-    // Local event listener (for same browser updates)
-    const handlePermissionsUpdate = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.email === user.email) {
-        updateAccessibleActions();
-      }
+  const getPriorityDisplay = (priority: string, color: string) => {
+    const priorityConfig = {
+      high: { text: 'High', icon: 'trending_up', color: '#EF4444' },
+      medium: { text: 'Medium', icon: 'trending_flat', color: '#F59E0B' },
+      low: { text: 'Low', icon: 'trending_down', color: '#6B7280' }
     };
-
-    // Real-time database subscription (for cross-browser updates)
-    const channel = supabase
-      .channel('user_permissions_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_permissions',
-          filter: `user_email=eq.${user.email}`
-        },
-        () => {
-          // Small delay to ensure database consistency
-          setTimeout(() => {
-            updateAccessibleActions();
-          }, 500);
-        }
-      )
-      .subscribe();
-
-    window.addEventListener('user-permissions-updated', handlePermissionsUpdate);
     
-    return () => {
-      window.removeEventListener('user-permissions-updated', handlePermissionsUpdate);
-      supabase.removeChannel(channel);
+    return {
+      ...priorityConfig[priority as keyof typeof priorityConfig],
+      originalColor: color
     };
-  }, [user, updateAccessibleActions]);
-
-  const getGreeting = () => {
-    const hour = currentTime.getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
   };
 
-  const formatTime = () => {
-    return currentTime.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+  const handleNewTask = () => {
+    // TODO: Implement new task creation
+    console.log('New task creation');
   };
 
-  const formatDate = () => {
-    return currentTime.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+  const handleTaskAction = (taskId: string) => {
+    // TODO: Implement task actions
+    console.log('Task action for:', taskId);
   };
 
-  const quickActions = [
-    {
-      id: 'order',
-      title: 'Order Management',
-      description: 'Manage and track orders',
-      icon: '📋',
-      route: '/dashboard/order',
-      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-    },
-    {
-      id: 'processing',
-      title: 'Processing',
-      description: 'Monitor processing workflows',
-      icon: '⚙️',
-      route: '/dashboard/processing',
-      gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-    },
-    {
-      id: 'inventory',
-      title: 'Inventory',
-      description: 'Track stock and inventory',
-      icon: '📦',
-      route: '/dashboard/inventory',
-      gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
-    },
-    {
-      id: 'tools',
-      title: 'Tools',
-      description: 'Access system tools',
-      icon: '🛠️',
-      route: '/dashboard/tools',
-      gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
-    },
-    {
-      id: 'admin',
-      title: 'Admin Panel',
-      description: 'System administration',
-      icon: '👑',
-      route: '/dashboard/admin',
-      gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
-    }
-  ];
+  const getUserDisplayName = () => {
+    return user?.name?.split(' ')[0] || 'User';
+  };
 
-  const stats = [
-    {
-      title: 'Active Orders',
-      value: '24',
-      change: '+12%',
-      changeType: 'positive',
-      icon: '📈'
-    },
-    {
-      title: 'Processing Items',
-      value: '156',
-      change: '+8%',
-      changeType: 'positive',
-      icon: '⚡'
-    },
-    {
-      title: 'Inventory Items',
-      value: '1,247',
-      change: '-3%',
-      changeType: 'negative',
-      icon: '📊'
-    },
-    {
-      title: 'System Health',
-      value: '99.9%',
-      change: 'Stable',
-      changeType: 'neutral',
-      icon: '💚'
-    }
-  ];
-
-  if (isLoading) {
-    return (
-      <div className={styles.loading}>
-        <div className={styles.loadingSpinner}></div>
-        <p>Loading dashboard...</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className={styles.loading}>
-        <div className={styles.loadingSpinner}></div>
-        <p>Unable to load user data...</p>
-      </div>
-    );
-  }
+  const filteredTasks = tasks.filter(task => 
+    task.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    task.project.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className={styles.container}>
-      {/* Hero Section */}
-      <section className={styles.hero}>
-        <div className={styles.heroBackground}>
-          <div className={styles.heroGradient}></div>
-          {/* Particles removed for cleaner UI */}
-        </div>
-        
-        <div className={styles.heroContent}>
-          <div className={styles.logoSection}>
-            <Logo variant="white" size="large" showText={false} />
-          </div>
-          
-          <div className={styles.welcomeMessage}>
-            <h1 className={styles.greeting}>
-              {getGreeting()}, {user.name}!
+    <div className={`${styles.container} ${theme === 'dark' ? styles.dark : ''}`}>
+      {/* Header Section */}
+      <header className={styles.header}>
+        <div className={styles.headerContent}>
+          {user?.image ? (
+            <img
+              src={user.image}
+              alt="User avatar"
+              className={styles.userAvatar}
+            />
+          ) : (
+            <div className={styles.userAvatarPlaceholder}>
+              <span className="material-symbols-outlined">person</span>
+            </div>
+          )}
+          <div className={styles.welcomeText}>
+            <h1 className={styles.welcomeTitle}>
+              Welcome Back, {getUserDisplayName()}!
             </h1>
-            <p className={styles.subtitle}>
-              Welcome to your AGGRANDIZE Dashboard
+            <p className={styles.welcomeSubtitle}>
+              You have {tasks.filter(t => t.status !== 'completed').length} tasks to complete today. Good luck!
             </p>
           </div>
-          
-          <div className={styles.timeSection}>
-            <div className={styles.currentTime}>{formatTime()}</div>
-            <div className={styles.currentDate}>{formatDate()}</div>
+        </div>
+        
+        <div className={styles.headerActions}>
+          <div className={styles.searchContainer}>
+            <span className="material-symbols-outlined">search</span>
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={styles.searchInput}
+            />
           </div>
+          <button className={styles.notificationButton}>
+            <span className="material-symbols-outlined">notifications</span>
+          </button>
+          <button className={styles.quickActionButton}>
+            <span className="material-symbols-outlined">add</span>
+            Quick Actions
+          </button>
+          <button onClick={toggleTheme} className={styles.themeToggleButton}>
+            <span className="material-symbols-outlined">{theme === 'light' ? 'dark_mode' : 'light_mode'}</span>
+          </button>
         </div>
-      </section>
+      </header>
 
-      {/* Stats Section */}
-      <section className={styles.statsSection}>
-        <div className={styles.statsGrid}>
-          {stats.map((stat, index) => (
-            <div key={index} className={styles.statCard}>
-              <div className={styles.statIcon}>{stat.icon}</div>
-              <div className={styles.statContent}>
-                <h3 className={styles.statTitle}>{stat.title}</h3>
-                <div className={styles.statValue}>{stat.value}</div>
-                <div className={`${styles.statChange} ${styles[stat.changeType]}`}>
-                  {stat.change}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Today's Tasks */}
-      <TodaysTodos />
-
-      {/* Quick Actions */}
-      <section className={styles.actionsSection}>
-        <h2 className={styles.sectionTitle}>Quick Actions</h2>
-        <div className={styles.actionsGrid}>
-          {accessibleActions.map((action) => (
-            <div
-              key={action.id}
-              className={styles.actionCard}
-              onClick={() => router.push(action.route)}
-              style={{ background: action.gradient }}
+      {/* Task Table Section */}
+      <section className={styles.taskSection}>
+        <div className={styles.taskHeader}>
+          <h2 className={styles.taskTitle}>Current Tasks ({filteredTasks.length})</h2>
+          <div className={styles.taskActions}>
+            <button 
+              className={styles.filterButton}
+              onClick={() => setShowFilters(!showFilters)}
             >
-              <div className={styles.actionIcon}>{action.icon}</div>
-              <h3 className={styles.actionTitle}>{action.title}</h3>
-              <p className={styles.actionDescription}>{action.description}</p>
-              <div className={styles.actionArrow}>→</div>
-            </div>
-          ))}
+              <span className="material-symbols-outlined small">filter_list</span>
+              Filter
+            </button>
+            <button 
+              className={styles.newTaskButton}
+              onClick={handleNewTask}
+            >
+              <span className="material-symbols-outlined small">add</span>
+              New Task
+            </button>
+          </div>
         </div>
-      </section>
 
-      {/* User Info Section */}
-      <section className={styles.userSection}>
-        <div className={styles.userCard}>
-          <ProfileIconDropdown 
-            currentIcon={user.profileIcon}
-            userId={user.id}
-            onUpdate={async () => {
-              // Reload user data after profile update
-              const updatedUser = await getCurrentUser();
-              if (updatedUser) {
-                setUser(updatedUser);
-              }
-            }}
-          />
-          <div className={styles.userInfo}>
-            <h3 className={styles.userInfoName}>{user.name}</h3>
-            <p className={styles.userInfoEmail}>{user.email}</p>
-            <span className={`${styles.userRole} ${styles[user.role]}`}>
-              {user.role.charAt(0).toUpperCase() + user.role.slice(1)} Role
-            </span>
-          </div>
-          <div className={styles.userActions}>
-          </div>
+        <div className={styles.tableContainer}>
+          <table className={styles.taskTable}>
+            <thead>
+              <tr>
+                <th>Task Name</th>
+                <th>Project</th>
+                <th>Due Date</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th className={styles.actionsColumn}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTasks.map((task) => {
+                const status = getStatusDisplay(task.status);
+                const priority = getPriorityDisplay(task.priority, task.priorityColor);
+                
+                return (
+                  <tr key={task.id} className={styles.taskRow}>
+                    <td className={styles.taskNameCell}>
+                      <div className={styles.taskNameContainer}>
+                        <div 
+                          className={styles.priorityDot}
+                          style={{ backgroundColor: task.priorityColor }}
+                        ></div>
+                        <span className={styles.taskName}>{task.name}</span>
+                      </div>
+                    </td>
+                    <td className={styles.projectCell}>{task.project}</td>
+                    <td className={styles.dueDateCell}>{task.dueDate}</td>
+                    <td>
+                      <span className={`${styles.statusBadge} ${styles[status.class]}`}>
+                        {status.text}
+                      </span>
+                    </td>
+                    <td>
+                      <span 
+                        className={styles.priority}
+                        style={{ color: priority.color }}
+                      >
+                        <span className="material-symbols-outlined small">
+                          {priority.icon}
+                        </span>
+                        {priority.text}
+                      </span>
+                    </td>
+                    <td className={styles.actionsCell}>
+                      <button 
+                        className={styles.actionButton}
+                        onClick={() => handleTaskAction(task.id)}
+                      >
+                        <span className="material-symbols-outlined small">more_horiz</span>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </section>
     </div>

@@ -36,22 +36,18 @@ export function TodaysTodos() {
     try {
       setLoading(true);
       
-      // Get all todos for the user
       const allTodos = await todosApi.getTodos({});
       
-      // Filter for user's todos (created by or assigned to)
       const userTodos = allTodos.filter(todo => 
         todo.created_by === user.email || 
         todo.assigned_to === user.email ||
         (todo.assigned_to_array && todo.assigned_to_array.includes(user.email))
       );
 
-      // Get today's date range
       const today = new Date();
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
 
-      // Filter for today's todos (created today or due today) and not completed
       const todaysTodos = userTodos.filter(todo => {
         if (todo.status === 'done') return false;
         
@@ -59,12 +55,11 @@ export function TodaysTodos() {
         const dueDate = todo.due_date ? new Date(todo.due_date) : null;
         
         return (
-          (createdAt >= startOfDay && createdAt <= endOfDay) || // Created today
-          (dueDate && dueDate >= startOfDay && dueDate <= endOfDay) // Due today
+          (createdAt >= startOfDay && createdAt <= endOfDay) ||
+          (dueDate && dueDate >= startOfDay && dueDate <= endOfDay)
         );
       });
 
-      // Sort by priority and creation time
       const sortedTodos = todaysTodos.sort((a, b) => {
         const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
         const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
@@ -72,7 +67,7 @@ export function TodaysTodos() {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
 
-      setTodos(sortedTodos.slice(0, 5)); // Show max 5 todos
+      setTodos(sortedTodos.slice(0, 5));
     } catch (error) {
       console.error('Failed to load today\'s todos:', error);
     } finally {
@@ -99,34 +94,10 @@ export function TodaysTodos() {
 
   if (loading) {
     return (
-      <section style={{
-        background: 'rgba(255, 255, 255, 0.05)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        borderRadius: '20px',
-        padding: '2rem',
-        margin: '2rem 0'
-      }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '120px'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            color: 'rgba(255, 255, 255, 0.7)'
-          }}>
-            <div style={{
-              width: '20px',
-              height: '20px',
-              border: '2px solid rgba(255, 255, 255, 0.3)',
-              borderTop: '2px solid #00ff88',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite'
-            }} />
+      <section className="loadingSection">
+        <div className="loadingSpinnerContainer">
+          <div className="loadingSpinner">
+            <div className="spinner" />
             Loading today's tasks...
           </div>
         </div>
@@ -135,39 +106,12 @@ export function TodaysTodos() {
   }
 
   return (
-    <section style={{
-      background: 'rgba(255, 255, 255, 0.05)',
-      backdropFilter: 'blur(20px)',
-      border: '1px solid rgba(255, 255, 255, 0.1)',
-      borderRadius: '20px',
-      padding: '2rem',
-      margin: '2rem 0'
-    }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '1.5rem'
-      }}>
-        <h2 style={{
-          fontSize: '1.5rem',
-          fontWeight: 700,
-          color: '#ffffff',
-          margin: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}>
+    <section className="todosSection">
+      <div className="todosHeader">
+        <h2 className="todosTitle">
           📅 Today's Tasks
           {todos.length > 0 && (
-            <span style={{
-              background: 'linear-gradient(135deg, #00ff88, #00d4ff)',
-              color: '#000',
-              padding: '4px 12px',
-              borderRadius: '20px',
-              fontSize: '0.75rem',
-              fontWeight: 600
-            }}>
+            <span className="todosCount">
               {todos.length}
             </span>
           )}
@@ -176,22 +120,7 @@ export function TodaysTodos() {
         {todos.length > 0 && (
           <button
             onClick={() => router.push('/dashboard/teamhub')}
-            style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '10px',
-              padding: '8px 16px',
-              color: '#ffffff',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-            }}
+            className="viewAllButton"
           >
             View All →
           </button>
@@ -199,94 +128,39 @@ export function TodaysTodos() {
       </div>
 
       {todos.length === 0 ? (
-        <div style={{
-          textAlign: 'center',
-          padding: '3rem 0',
-          color: 'rgba(255, 255, 255, 0.6)'
-        }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✨</div>
-          <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>All caught up!</h3>
-          <p style={{ margin: 0, fontSize: '0.9rem' }}>No tasks for today. Great work!</p>
+        <div className="noTodos">
+          <div className="noTodosIcon">✨</div>
+          <h3 className="noTodosTitle">All caught up!</h3>
+          <p className="noTodosText">No tasks for today. Great work!</p>
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gap: '12px'
-        }}>
+        <div className="todosGrid">
           {todos.map((todo) => (
             <div
               key={todo.id}
               onClick={() => handleTodoClick(todo)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                borderRadius: '12px',
-                padding: '16px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                position: 'relative'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
+              className="todoCard"
             >
-              {/* Priority indicator */}
-              <div style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: PRIORITY_COLORS[todo.priority],
-                color: '#ffffff',
-                padding: '4px 8px',
-                borderRadius: '8px',
-                fontSize: '0.75rem',
-                fontWeight: 600
-              }}>
+              <div className="todoPriority" style={{ backgroundColor: PRIORITY_COLORS[todo.priority] }}>
                 {PRIORITY_ICONS[todo.priority]} {todo.priority.toUpperCase()}
               </div>
 
-              <div style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '12px',
-                paddingRight: '80px' // Space for priority badge
-              }}>
-                <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: todo.status === 'in_progress' ? '#00ff88' : 
-                            todo.status === 'blocked' ? '#ef4444' : '#3b82f6',
-                  marginTop: '6px',
-                  flexShrink: 0
-                }} />
+              <div className="todoContent">
+                <div 
+                  className="todoStatusIndicator" 
+                  style={{ 
+                    backgroundColor: todo.status === 'in_progress' ? '#00ff88' : 
+                                   todo.status === 'blocked' ? '#ef4444' : '#3b82f6'
+                  }}
+                />
                 
-                <div style={{ flex: 1 }}>
-                  <h4 style={{
-                    margin: '0 0 8px 0',
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    color: '#ffffff',
-                    lineHeight: '1.4'
-                  }}>
+                <div className="todoInfo">
+                  <h4 className="todoTitle">
                     {todo.title}
                   </h4>
                   
                   {todo.description && (
-                    <p style={{
-                      margin: '0 0 8px 0',
-                      fontSize: '0.875rem',
-                      color: 'rgba(255, 255, 255, 0.7)',
-                      lineHeight: '1.4'
-                    }}>
+                    <p className="todoDescription">
                       {todo.description.length > 80 
                         ? `${todo.description.substring(0, 80)}...`
                         : todo.description
@@ -294,35 +168,30 @@ export function TodaysTodos() {
                     </p>
                   )}
                   
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    fontSize: '0.75rem',
-                    color: 'rgba(255, 255, 255, 0.6)'
-                  }}>
+                  <div className="todoMeta">
                     {todo.assigned_to && (
-                      <span>👤 {todo.assigned_to.split('@')[0]}</span>
+                      <span className="todoAssignedTo">👤 {todo.assigned_to.split('@')[0]}</span>
                     )}
                     
                     {todo.due_date && (
-                      <span style={{
-                        color: getTimeUntilDue(todo.due_date).includes('Overdue') ? '#ef4444' : 
-                              getTimeUntilDue(todo.due_date).includes('Due now') ? '#f59e0b' : 'rgba(255, 255, 255, 0.6)'
-                      }}>
+                      <span 
+                        className="todoDueDate"
+                        style={{
+                          color: getTimeUntilDue(todo.due_date).includes('Overdue') ? '#ef4444' : 
+                                getTimeUntilDue(todo.due_date).includes('Due now') ? '#f59e0b' : '#9ca3af'
+                        }}
+                      >
                         ⏰ {getTimeUntilDue(todo.due_date)}
                       </span>
                     )}
                     
-                    <span style={{
-                      background: todo.status === 'in_progress' ? '#00ff88' : 
-                                todo.status === 'blocked' ? '#ef4444' : '#3b82f6',
-                      color: '#000',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      fontWeight: 600,
-                      textTransform: 'uppercase'
-                    }}>
+                    <span 
+                      className="todoStatus"
+                      style={{
+                        backgroundColor: todo.status === 'in_progress' ? '#00ff88' : 
+                                       todo.status === 'blocked' ? '#ef4444' : '#3b82f6'
+                      }}
+                    >
                       {todo.status.replace('_', ' ')}
                     </span>
                   </div>
@@ -332,13 +201,6 @@ export function TodaysTodos() {
           ))}
         </div>
       )}
-
-      <style jsx>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </section>
   );
 }

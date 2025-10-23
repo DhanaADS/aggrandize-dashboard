@@ -32,7 +32,7 @@ export default function MobileAppShell({ children, currentPath }: MobileAppShell
       minHeight: '100dvh', // Use dynamic viewport height
       display: 'flex',
       flexDirection: 'column',
-      background: 'var(--background-primary, #0a0a0a)',
+      background: 'var(--background-primary, #FAFBFC)',
       paddingTop: shouldShowNativeUI ? 'env(safe-area-inset-top)' : (isStandalone ? 'env(safe-area-inset-top)' : '60px'),
       paddingBottom: shouldShowNativeUI ? 'env(safe-area-inset-bottom)' : 'env(safe-area-inset-bottom)',
       paddingLeft: 'env(safe-area-inset-left)',

@@ -1,39 +1,53 @@
 'use client';
 
-import { useState } from 'react';
-import { AdminSettings } from '@/components/admin/admin-settings';
-import { UserManagement } from '@/components/admin/user-management';
-import styles from './admin-page.module.css';
-
-type AdminTab = 'permissions' | 'users';
+import { useState, useEffect } from 'react';
+import { AdminClientTabs } from '@/components/admin/admin-client-tabs';
+import { StandardPageLayout } from '@/components/dashboard/StandardPageLayout';
+import { UserPermissions } from '@/types/auth';
+import {
+  AdminPanelSettings as AdminIcon,
+} from '@mui/icons-material';
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<AdminTab>('permissions');
+  const [initialUsers, setInitialUsers] = useState<UserPermissions[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const response = await fetch('/api/admin/users');
+        if (!response.ok) throw new Error('Failed to fetch users');
+        const users = await response.json();
+        setInitialUsers(users);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchUsers();
+  }, []);
+
+  if (loading) {
+    return (
+      <StandardPageLayout
+        title="System Administration"
+        description="Manage users and system settings"
+        icon={<AdminIcon />}
+      >
+        <div>Loading users data...</div>
+      </StandardPageLayout>
+    );
+  }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Admin Dashboard</h1>
-        <div className={styles.tabNav}>
-          <button
-            className={`${styles.tab} ${activeTab === 'permissions' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('permissions')}
-          >
-            Permissions
-          </button>
-          <button
-            className={`${styles.tab} ${activeTab === 'users' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('users')}
-          >
-            Users
-          </button>
-        </div>
-      </div>
-
-      <div className={styles.content}>
-        {activeTab === 'permissions' && <AdminSettings />}
-        {activeTab === 'users' && <UserManagement />}
-      </div>
-    </div>
+    <StandardPageLayout
+      title="System Administration"
+      description="Manage users and system settings"
+      icon={<AdminIcon />}
+    >
+      <AdminClientTabs initialUsers={initialUsers} />
+    </StandardPageLayout>
   );
 }

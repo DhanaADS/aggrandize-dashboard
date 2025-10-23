@@ -1,181 +1,65 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth-nextauth';
 import { GoogleLoginButton } from './google-login-button';
-import { validateCredentials } from '@/lib/auth';
-import { LoginCredentials } from '@/types/auth';
-import styles from './login-form.module.css';
 
 export function LoginForm() {
-  const [credentials, setCredentials] = useState<LoginCredentials>({
-    email: '',
-    password: ''
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showLegacyLogin, setShowLegacyLogin] = useState(false);
-  const router = useRouter();
-  const { isAuthenticated } = useAuth();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const user = validateCredentials(credentials);
-      
-      if (!user) {
-        setError('Invalid email or password');
-        return;
-      }
-
-      // Store user in session/localStorage (temporary solution)
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      // Redirect to dashboard
-      router.push('/dashboard');
-    } catch {
-      setError('An error occurred during login');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleInputChange = (field: keyof LoginCredentials) => (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setCredentials(prev => ({
-      ...prev,
-      [field]: e.target.value
-    }));
-  };
-
   return (
-    <div className={`${styles.container} login-container`}>
-      <div className={styles.card}>
-        <div className={styles.header}>
-          <div className={styles.brandLogo}>
-            <img src="/logo.png" alt="AGGRANDIZE" className={styles.logoImage} />
+    <div style={{
+      display: 'flex',
+      minHeight: '100vh',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: '#0a0a0a',
+      padding: '1rem'
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: '400px',
+        background: 'rgba(255, 255, 255, 0.03)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        borderRadius: '12px',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+      }}>
+        <div style={{
+          padding: '2rem 2rem 1rem 2rem',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginBottom: '1.5rem'
+          }}>
+            <img 
+              src="/logo_dark_theme.png" 
+              alt="AGGRANDIZE" 
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px'
+              }}
+            />
           </div>
-          <h1 className={styles.title}>Sign In</h1>
-          <p className={styles.subtitle}>
+          <h1 style={{
+            fontSize: '1.5rem',
+            fontWeight: 600,
+            color: '#ffffff',
+            margin: '0 0 0.5rem 0'
+          }}>
+            Sign In
+          </h1>
+          <p style={{
+            color: 'rgba(255, 255, 255, 0.6)',
+            fontSize: '0.9rem',
+            margin: '0',
+            fontWeight: 400
+          }}>
             Access your workspace
           </p>
         </div>
 
         {/* Google OAuth Login */}
-        <div className={styles.form}>
+        <div style={{ padding: '0 2rem 2rem 2rem' }}>
           <GoogleLoginButton />
-          
-          {/* Divider */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            margin: '1.5rem 0',
-            gap: '1rem'
-          }}>
-            <div style={{ 
-              flex: 1, 
-              height: '1px', 
-              backgroundColor: 'rgba(255, 255, 255, 0.2)' 
-            }} />
-            <span style={{ 
-              color: 'rgba(255, 255, 255, 0.6)', 
-              fontSize: '0.85rem',
-              whiteSpace: 'nowrap'
-            }}>
-              or
-            </span>
-            <div style={{ 
-              flex: 1, 
-              height: '1px', 
-              backgroundColor: 'rgba(255, 255, 255, 0.2)' 
-            }} />
-          </div>
-
-          {/* Legacy Login Toggle */}
-          {!showLegacyLogin ? (
-            <button
-              type="button"
-              onClick={() => setShowLegacyLogin(true)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'rgba(255, 255, 255, 0.7)',
-                fontSize: '0.9rem',
-                textDecoration: 'underline',
-                cursor: 'pointer',
-                padding: '0.5rem',
-                transition: 'color 0.2s ease'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
-              onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)'}
-            >
-              Use email and password instead
-            </button>
-          ) : (
-            /* Legacy Email/Password Form */
-            <form onSubmit={handleSubmit}>
-              <div className={styles.formGroup}>
-                <label htmlFor="email" className={styles.label}>Email</label>
-                <input
-                  id="email"
-                  type="email"
-                  className={styles.input}
-                  placeholder="your-email@aggrandizedigital.com"
-                  value={credentials.email}
-                  onChange={handleInputChange('email')}
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label htmlFor="password" className={styles.label}>Password</label>
-                <input
-                  id="password"
-                  type="password"
-                  className={styles.input}
-                  placeholder="Enter your password"
-                  value={credentials.password}
-                  onChange={handleInputChange('password')}
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-              {error && (
-                <div className={styles.error}>
-                  {error}
-                </div>
-              )}
-              <div className={styles.footer} style={{ gap: '0.75rem' }}>
-                <button 
-                  type="submit" 
-                  className={styles.submitButton}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Signing in...' : 'Sign In'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowLegacyLogin(false)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'rgba(255, 255, 255, 0.6)',
-                    fontSize: '0.85rem',
-                    textDecoration: 'underline',
-                    cursor: 'pointer',
-                    padding: '0.5rem'
-                  }}
-                >
-                  Back to Google login
-                </button>
-              </div>
-            </form>
-          )}
         </div>
       </div>
     </div>

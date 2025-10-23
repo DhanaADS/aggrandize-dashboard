@@ -1,0 +1,1034 @@
+/* Layout Container - Matching HTML structure exactly */
+.layoutContainer {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  padding: 0 160px 20px 160px; /* Remove top padding, keep sides and bottom */
+  background-color: var(--dashboard-bg);
+  color: var(--dashboard-text-primary);
+  font-family: Inter, "Noto Sans", sans-serif;
+}
+
+.contentContainer {
+  display: flex;
+  flex-direction: column;
+  max-width: 960px;
+  flex: 1;
+}
+
+/* Header Section */
+.headerWrapper {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+}
+
+.titleGroup {
+  display: flex;
+  min-width: 288px; /* min-w-72 */
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mainTitle {
+  color: var(--dashboard-text-primary);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--dashboard-text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Tab Section */
+.tabSection {
+  padding-bottom: 12px;
+}
+
+.tabBorder {
+  display: flex;
+  border-bottom: 1px solid var(--dashboard-border);
+  padding-left: 16px;
+  gap: 32px;
+}
+
+.tabLink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 13px;
+  padding-top: 16px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.tabInactiveLink {
+  border-bottom: 3px solid transparent;
+}
+
+.tabActiveLink {
+  border-bottom: 3px solid #24a894;
+}
+
+.tabInactiveText {
+  color: var(--dashboard-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.015em;
+  margin: 0;
+}
+
+.tabActiveText {
+  color: var(--dashboard-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.015em;
+  margin: 0;
+}
+
+/* Search Section */
+.searchWrapper {
+  display: flex;
+  max-width: 480px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 16px;
+  padding-top: 12px;
+}
+
+.searchLabel {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px; /* min-w-40 */
+  flex: 1;
+}
+
+.searchInput {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  resize: none;
+  overflow: hidden;
+  border-radius: 8px;
+  color: var(--dashboard-text-primary);
+  outline: none;
+  border: 1px solid var(--dashboard-border);
+  background-color: var(--dashboard-surface);
+  height: 56px; /* h-14 */
+  padding: 15px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.searchInput::placeholder {
+  color: var(--dashboard-text-secondary);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #d2e5e2;
+}
+
+/* Filter Section */
+.filterWrapper {
+  display: flex;
+  max-width: 480px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 16px;
+  padding-top: 12px;
+}
+
+.filterLabel {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px; /* min-w-40 */
+  flex: 1;
+}
+
+.filterTitle {
+  color: var(--dashboard-text-primary);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding-bottom: 8px;
+  margin: 0;
+}
+
+.filterInput {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  resize: none;
+  overflow: hidden;
+  border-radius: 8px;
+  color: var(--dashboard-text-primary);
+  outline: none;
+  border: 1px solid var(--dashboard-border);
+  background-color: var(--dashboard-surface);
+  height: 56px; /* h-14 */
+  padding: 15px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.filterInput::placeholder {
+  color: var(--dashboard-text-secondary);
+}
+
+.filterInput:focus {
+  outline: none;
+  border-color: #d2e5e2;
+}
+
+/* Button Section */
+.buttonWrapper {
+  display: flex;
+  padding: 16px;
+  padding-top: 12px;
+  justify-content: flex-end;
+}
+
+.addSubscriptionButton {
+  display: flex;
+  min-width: 84px;
+  max-width: 480px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+  height: 40px; /* h-10 */
+  padding: 0 16px;
+  background-color: #24a894;
+  color: #f9fbfb;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.015em;
+  border: none;
+}
+
+.buttonText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Table Section */
+.tableSection {
+  padding: 16px;
+  padding-top: 12px;
+  container-type: inline-size;
+}
+
+.tableContainer {
+  display: flex;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid var(--dashboard-border);
+  background-color: var(--dashboard-surface);
+}
+
+.dataTable {
+  flex: 1;
+  border-collapse: collapse;
+}
+
+/* Table Header */
+.headerRow {
+  background-color: var(--dashboard-header-bg);
+}
+
+.headerCell {
+  padding: 12px 16px;
+  text-align: left;
+  color: var(--dashboard-text-secondary);
+  width: 400px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Special width for renewal cycle column */
+.headerCell:nth-child(7) {
+  width: 240px; /* w-60 */
+}
+
+.headerCell:nth-child(8) {
+  width: 120px; /* w-[120px] */
+}
+
+/* Table Body */
+.dataRow {
+  border-top: 1px solid var(--dashboard-border);
+}
+
+.dataCell {
+  height: 72px;
+  padding: 8px 16px;
+  width: 400px;
+  color: var(--dashboard-text-primary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.dataCellSecondary {
+  height: 72px;
+  padding: 8px 16px;
+  width: 400px;
+  color: var(--dashboard-text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.dataCellCenter {
+  height: 72px;
+  padding: 8px 16px;
+  width: 120px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+/* Renewal Cycle Button */
+.cycleButton {
+  display: flex;
+  min-width: 84px;
+  max-width: 480px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+  height: 32px; /* h-8 */
+  padding: 0 16px;
+  background-color: var(--dashboard-hover-bg);
+  color: var(--dashboard-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  width: 100%;
+  border: none;
+}
+
+.cycleButtonText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Checkbox */
+.renewalCheckbox {
+  height: 20px;
+  width: 20px;
+  border-radius: 4px;
+  border: 2px solid var(--dashboard-border);
+  background-color: transparent;
+  accent-color: #24a894;
+  cursor: pointer;
+}
+
+.renewalCheckbox:checked {
+  background-color: #24a894;
+  border-color: #24a894;
+}
+
+.renewalCheckbox:focus {
+  outline: none;
+  border-color: #d2e5e2;
+}
+
+/* Loading and Empty States */
+.loadingCell, .emptyCell {
+  height: 100px;
+  padding: 20px 16px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.loadingText, .emptyText {
+  color: var(--dashboard-text-secondary);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .layoutContainer {
+    padding: 0 80px 20px 80px; /* Remove top padding, keep sides and bottom */
+  }
+}
+
+@media (max-width: 768px) {
+  .layoutContainer {
+    padding: 0 20px 20px 20px; /* Remove top padding, keep sides and bottom */
+  }
+  
+  .filterWrapper {
+    flex-direction: column;
+  }
+  
+  .filterLabel {
+    min-width: auto;
+  }
+}
+
+/* Container Queries for Table Responsiveness */
+@container (max-width: 120px) {
+  .headerCell:nth-child(1) {
+    display: none;
+  }
+  .dataCell:nth-child(1),
+  .dataCellSecondary:nth-child(1),
+  .dataCellCenter:nth-child(1) {
+    display: none;
+  }
+}
+
+@container (max-width: 240px) {
+  .headerCell:nth-child(2) {
+    display: none;
+  }
+  .dataCell:nth-child(2),
+  .dataCellSecondary:nth-child(2),
+  .dataCellCenter:nth-child(2) {
+    display: none;
+  }
+}
+
+@container (max-width: 360px) {
+  .headerCell:nth-child(3) {
+    display: none;
+  }
+  .dataCell:nth-child(3),
+  .dataCellSecondary:nth-child(3),
+  .dataCellCenter:nth-child(3) {
+    display: none;
+  }
+}
+
+@container (max-width: 480px) {
+  .headerCell:nth-child(4) {
+    display: none;
+  }
+  .dataCell:nth-child(4),
+  .dataCellSecondary:nth-child(4),
+  .dataCellCenter:nth-child(4) {
+    display: none;
+  }
+}
+
+@container (max-width: 600px) {
+  .headerCell:nth-child(5) {
+    display: none;
+  }
+  .dataCell:nth-child(5),
+  .dataCellSecondary:nth-child(5),
+  .dataCellCenter:nth-child(5) {
+    display: none;
+  }
+}
+
+@container (max-width: 720px) {
+  .headerCell:nth-child(6) {
+    display: none;
+  }
+  .dataCell:nth-child(6),
+  .dataCellSecondary:nth-child(6),
+  .dataCellCenter:nth-child(6) {
+    display: none;
+  }
+}
+
+@container (max-width: 840px) {
+  .headerCell:nth-child(7) {
+    display: none;
+  }
+  .dataCell:nth-child(7),
+  .dataCellSecondary:nth-child(7),
+  .dataCellCenter:nth-child(7) {
+    display: none;
+  }
+}
+
+@container (max-width: 960px) {
+  .headerCell:nth-child(8) {
+    display: none;
+  }
+  .dataCell:nth-child(8),
+  .dataCellSecondary:nth-child(8),
+  .dataCellCenter:nth-child(8) {
+    display: none;
+  }
+}
+
+@container (max-width: 1016px) {
+  .headerCell:nth-child(9) {
+    display: none;
+  }
+  .dataCell:nth-child(9),
+  .dataCellSecondary:nth-child(9),
+  .dataCellCenter:nth-child(9) {
+    display: none;
+  }
+}
+
+@container (max-width: 1136px) {
+  .headerCell:nth-child(10) {
+    display: none;
+  }
+  .dataCell:nth-child(10),
+  .dataCellSecondary:nth-child(10),
+  .dataCellCenter:nth-child(10) {
+    display: none;
+  }
+}
+
+@container (max-width: 1256px) {
+  .headerCell:nth-child(11) {
+    display: none;
+  }
+  .dataCell:nth-child(11),
+  .dataCellSecondary:nth-child(11),
+  .dataCellCenter:nth-child(11) {
+    display: none;
+  }
+}
+
+.contentContainer {
+  display: flex;
+  flex-direction: column;
+  max-width: 960px;
+  flex: 1;
+}
+
+/* Header Section */
+.headerWrapper {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+}
+
+.titleGroup {
+  display: flex;
+  min-width: 288px; /* min-w-72 */
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mainTitle {
+  color: #0f1a18;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.subtitle {
+  color: #559188;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Tab Section */
+.tabSection {
+  padding-bottom: 12px;
+}
+
+.tabBorder {
+  display: flex;
+  border-bottom: 1px solid #d2e5e2;
+  padding-left: 16px;
+  gap: 32px;
+}
+
+.tabLink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 13px;
+  padding-top: 16px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.tabInactiveLink {
+  border-bottom: 3px solid transparent;
+}
+
+.tabActiveLink {
+  border-bottom: 3px solid #24a894;
+}
+
+.tabInactiveText {
+  color: #559188;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.015em;
+  margin: 0;
+}
+
+.tabActiveText {
+  color: #0f1a18;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.015em;
+  margin: 0;
+}
+
+/* Search Section */
+.searchWrapper {
+  display: flex;
+  max-width: 480px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 16px;
+  padding-top: 12px;
+}
+
+.searchLabel {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px; /* min-w-40 */
+  flex: 1;
+}
+
+.searchInput {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  resize: none;
+  overflow: hidden;
+  border-radius: 8px;
+  color: #0f1a18;
+  outline: none;
+  border: 1px solid #d2e5e2;
+  background-color: #f9fbfb;
+  height: 56px; /* h-14 */
+  padding: 15px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.searchInput::placeholder {
+  color: #559188;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #d2e5e2;
+}
+
+/* Filter Section */
+.filterWrapper {
+  display: flex;
+  max-width: 480px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 16px;
+  padding-top: 12px;
+}
+
+.filterLabel {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px; /* min-w-40 */
+  flex: 1;
+}
+
+.filterTitle {
+  color: #0f1a18;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding-bottom: 8px;
+  margin: 0;
+}
+
+.filterInput {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  resize: none;
+  overflow: hidden;
+  border-radius: 8px;
+  color: #0f1a18;
+  outline: none;
+  border: 1px solid #d2e5e2;
+  background-color: #f9fbfb;
+  height: 56px; /* h-14 */
+  padding: 15px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.filterInput::placeholder {
+  color: #559188;
+}
+
+.filterInput:focus {
+  outline: none;
+  border-color: #d2e5e2;
+}
+
+/* Button Section */
+.buttonWrapper {
+  display: flex;
+  padding: 16px;
+  padding-top: 12px;
+  justify-content: flex-end;
+}
+
+.addSubscriptionButton {
+  display: flex;
+  min-width: 84px;
+  max-width: 480px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+  height: 40px; /* h-10 */
+  padding: 0 16px;
+  background-color: #24a894;
+  color: #f9fbfb;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.015em;
+  border: none;
+}
+
+.buttonText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Table Section */
+.tableSection {
+  padding: 16px;
+  padding-top: 12px;
+  container-type: inline-size;
+}
+
+.tableContainer {
+  display: flex;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid #d2e5e2;
+  background-color: #f9fbfb;
+}
+
+.dataTable {
+  flex: 1;
+  border-collapse: collapse;
+}
+
+/* Table Header */
+.headerRow {
+  background-color: #f9fbfb;
+}
+
+.headerCell {
+  padding: 12px 16px;
+  text-align: left;
+  color: #0f1a18;
+  width: 400px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Special width for renewal cycle column */
+.headerCell:nth-child(7) {
+  width: 240px; /* w-60 */
+}
+
+.headerCell:nth-child(8) {
+  width: 120px; /* w-[120px] */
+}
+
+/* Table Body */
+.dataRow {
+  border-top: 1px solid #d2e5e2;
+}
+
+.dataCell {
+  height: 72px;
+  padding: 8px 16px;
+  width: 400px;
+  color: #0f1a18;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.dataCellSecondary {
+  height: 72px;
+  padding: 8px 16px;
+  width: 400px;
+  color: #559188;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.dataCellCenter {
+  height: 72px;
+  padding: 8px 16px;
+  width: 120px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+/* Renewal Cycle Button */
+.cycleButton {
+  display: flex;
+  min-width: 84px;
+  max-width: 480px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+  height: 32px; /* h-8 */
+  padding: 0 16px;
+  background-color: #e9f2f0;
+  color: #0f1a18;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  width: 100%;
+  border: none;
+}
+
+.cycleButtonText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Checkbox */
+.renewalCheckbox {
+  height: 20px;
+  width: 20px;
+  border-radius: 4px;
+  border: 2px solid #d2e5e2;
+  background-color: transparent;
+  accent-color: #24a894;
+  cursor: pointer;
+}
+
+.renewalCheckbox:checked {
+  background-color: #24a894;
+  border-color: #24a894;
+}
+
+.renewalCheckbox:focus {
+  outline: none;
+  border-color: #d2e5e2;
+}
+
+/* Loading and Empty States */
+.loadingCell, .emptyCell {
+  height: 100px;
+  padding: 20px 16px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.loadingText, .emptyText {
+  color: #559188;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .layoutContainer {
+    padding: 0 80px 20px 80px; /* Remove top padding, keep sides and bottom */
+  }
+}
+
+@media (max-width: 768px) {
+  .layoutContainer {
+    padding: 0 20px 20px 20px; /* Remove top padding, keep sides and bottom */
+  }
+  
+  .filterWrapper {
+    flex-direction: column;
+  }
+  
+  .filterLabel {
+    min-width: auto;
+  }
+}
+
+/* Container Queries for Table Responsiveness */
+@container (max-width: 120px) {
+  .headerCell:nth-child(1) {
+    display: none;
+  }
+  .dataCell:nth-child(1),
+  .dataCellSecondary:nth-child(1),
+  .dataCellCenter:nth-child(1) {
+    display: none;
+  }
+}
+
+@container (max-width: 240px) {
+  .headerCell:nth-child(2) {
+    display: none;
+  }
+  .dataCell:nth-child(2),
+  .dataCellSecondary:nth-child(2),
+  .dataCellCenter:nth-child(2) {
+    display: none;
+  }
+}
+
+@container (max-width: 360px) {
+  .headerCell:nth-child(3) {
+    display: none;
+  }
+  .dataCell:nth-child(3),
+  .dataCellSecondary:nth-child(3),
+  .dataCellCenter:nth-child(3) {
+    display: none;
+  }
+}
+
+@container (max-width: 480px) {
+  .headerCell:nth-child(4) {
+    display: none;
+  }
+  .dataCell:nth-child(4),
+  .dataCellSecondary:nth-child(4),
+  .dataCellCenter:nth-child(4) {
+    display: none;
+  }
+}
+
+@container (max-width: 600px) {
+  .headerCell:nth-child(5) {
+    display: none;
+  }
+  .dataCell:nth-child(5),
+  .dataCellSecondary:nth-child(5),
+  .dataCellCenter:nth-child(5) {
+    display: none;
+  }
+}
+
+@container (max-width: 720px) {
+  .headerCell:nth-child(6) {
+    display: none;
+  }
+  .dataCell:nth-child(6),
+  .dataCellSecondary:nth-child(6),
+  .dataCellCenter:nth-child(6) {
+    display: none;
+  }
+}
+
+@container (max-width: 840px) {
+  .headerCell:nth-child(7) {
+    display: none;
+  }
+  .dataCell:nth-child(7),
+  .dataCellSecondary:nth-child(7),
+  .dataCellCenter:nth-child(7) {
+    display: none;
+  }
+}
+
+@container (max-width: 960px) {
+  .headerCell:nth-child(8) {
+    display: none;
+  }
+  .dataCell:nth-child(8),
+  .dataCellSecondary:nth-child(8),
+  .dataCellCenter:nth-child(8) {
+    display: none;
+  }
+}
+
+@container (max-width: 1016px) {
+  .headerCell:nth-child(9) {
+    display: none;
+  }
+  .dataCell:nth-child(9),
+  .dataCellSecondary:nth-child(9),
+  .dataCellCenter:nth-child(9) {
+    display: none;
+  }
+}
+
+@container (max-width: 1136px) {
+  .headerCell:nth-child(10) {
+    display: none;
+  }
+  .dataCell:nth-child(10),
+  .dataCellSecondary:nth-child(10),
+  .dataCellCenter:nth-child(10) {
+    display: none;
+  }
+}
+
+@container (max-width: 1256px) {
+  .headerCell:nth-child(11) {
+    display: none;
+  }
+  .dataCell:nth-child(11),
+  .dataCellSecondary:nth-child(11),
+  .dataCellCenter:nth-child(11) {
+    display: none;
+  }
+}

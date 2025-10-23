@@ -1,9 +1,9 @@
-import { NextAuthDashboardLayout } from '@/components/dashboard/nextauth-dashboard-layout';
+import GlobalMUILayout from '@/components/dashboard/global-mui-layout';
 
 export default function DashboardLayoutWrapper({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <NextAuthDashboardLayout>{children}</NextAuthDashboardLayout>;
+  return <GlobalMUILayout>{children}</GlobalMUILayout>;
 }

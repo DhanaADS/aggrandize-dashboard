@@ -36,11 +36,92 @@ export async function POST(request: Request) {
         .single();
         
       if (authUserProfile) {
-        return NextResponse.json({
-          success: false,
-          step: 'duplicate_check',
-          error: 'User already exists with complete profile. They just need to log in.'
-        });
+        // Check if the profile was deleted (deleted_at is not null)
+        const isProfileDeleted = authUserProfile.deleted_at !== null;
+        
+        if (isProfileDeleted) {
+          // Profile was deleted, allow recreation by updating the existing profile
+          console.log(`User profile was deleted. Recreating profile for ${email}`);
+          const { data: updatedProfile, error: updateError } = await supabase
+            .from('user_profiles')
+            .update({
+              full_name: fullName,
+              role: role,
+              profile_image_source: 'emoji',
+              profile_icon: 'smiley',
+              deleted_at: null // Clear the deleted flag
+            })
+            .eq('id', existingAuthUser.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error('Failed to recreate profile for existing auth user:', updateError);
+            return NextResponse.json({
+              success: false,
+              step: 'profile_recreation_for_existing_auth',
+              error: 'Failed to recreate profile for existing user',
+              details: updateError.message
+            });
+          }
+
+          return NextResponse.json({
+            success: true,
+            message: 'Profile recreated for existing auth user',
+            user: {
+              id: existingAuthUser.id,
+              email: email,
+              name: fullName,
+              role: role
+            }
+          });
+        } else {
+          // Check if the profile details match what we're trying to create
+          const profileMatches = authUserProfile.full_name === fullName && authUserProfile.role === role;
+          
+          if (profileMatches) {
+            return NextResponse.json({
+              success: false,
+              step: 'duplicate_check',
+              error: 'User already exists with the same details. They just need to log in.'
+            });
+          } else {
+            // Profile exists but with different details - update it
+            console.log(`User profile exists but with different details. Updating profile for ${email}`);
+            const { data: updatedProfile, error: updateError } = await supabase
+              .from('user_profiles')
+              .update({
+                full_name: fullName,
+                role: role,
+                profile_image_source: 'emoji',
+                profile_icon: 'smiley'
+              })
+              .eq('id', existingAuthUser.id)
+              .select()
+              .single();
+
+            if (updateError) {
+              console.error('Failed to update existing profile:', updateError);
+              return NextResponse.json({
+                success: false,
+                step: 'profile_update_for_existing_auth',
+                error: 'Failed to update existing user profile',
+                details: updateError.message
+              });
+            }
+
+            return NextResponse.json({
+              success: true,
+              message: 'Profile updated for existing auth user',
+              user: {
+                id: existingAuthUser.id,
+                email: email,
+                name: fullName,
+                role: role
+              }
+            });
+          }
+        }
       } else {
         // Auth user exists but no profile - create the profile
         console.log(`Auth user exists but no profile found. Creating profile for ${email}`);

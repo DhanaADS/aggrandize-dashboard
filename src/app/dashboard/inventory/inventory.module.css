@@ -1,69 +1,96 @@
-/* Inventory Page Styles */
+/* Coming Soon Page Styles */
 
-.container {
-  padding: 2rem;
-  max-width: 1600px;
-  margin: 0 auto;
+.comingSoonContainer {
   min-height: 100vh;
+  background: radial-gradient(ellipse at center top, rgba(0, 255, 136, 0.08) 0%, transparent 50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  position: relative;
+  background-color: var(--dashboard-bg);
 }
 
-.header {
+.dark .comingSoonContainer {
+  background: radial-gradient(ellipse at center top, rgba(0, 255, 136, 0.12) 0%, rgba(0, 0, 0, 0.4) 50%);
+}
+
+.comingSoonContent {
+  text-align: center;
+  max-width: 600px;
+  width: 100%;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
+  flex-direction: column;
+  align-items: center;
   gap: 2rem;
 }
 
-.title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #ffffff;
-  margin: 0 0 0.5rem 0;
-  text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
-}
-
-.subtitle {
-  font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.6);
-  margin: 0;
-  line-height: 1.5;
-  max-width: 500px;
-}
-
-.headerActions {
+.iconContainer {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(0, 255, 136, 0.1);
+  border: 2px solid rgba(0, 255, 136, 0.2);
   display: flex;
-  gap: 1rem;
-  flex-shrink: 0;
   align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  position: relative;
+  backdrop-filter: blur(20px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.filterButton,
-.addButton {
-  padding: 0.875rem 1.5rem;
-  border-radius: 12px;
+.iconContainer:hover {
+  transform: scale(1.05);
+  border-color: rgba(0, 255, 136, 0.4);
+  background: rgba(0, 255, 136, 0.15);
+  box-shadow: 0 10px 40px rgba(0, 255, 136, 0.2);
+}
+
+.comingSoonIcon {
+  color: #00ff88;
+  stroke: #00ff88;
+  transition: all 0.4s ease;
+}
+
+.comingSoonTitle {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--dashboard-text-primary);
+  margin: 0;
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  transition: color 0.3s ease;
+}
+
+.comingSoonSubtitle {
+  font-size: 1.25rem;
+  color: var(--dashboard-text-secondary);
+  margin: 0;
+  line-height: 1.6;
+  font-weight: 400;
+  transition: color 0.3s ease;
+}
+
+.comingSoonBadge {
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.2) 0%, rgba(0, 212, 255, 0.2) 100%);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  color: #00ff88;
   font-size: 0.875rem;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid transparent;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  letter-spacing: 0.1em;
+  padding: 0.75rem 1.5rem;
+  border-radius: 50px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 4px 15px rgba(0, 255, 136, 0.1);
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(20px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.filterButton {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.filterButton::before {
+.comingSoonBadge::before {
   content: '';
   position: absolute;
   top: 0;
@@ -71,267 +98,105 @@
   width: 100%;
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transition: left 0.5s ease;
+  transition: left 2s ease;
 }
 
-.filterButton:hover::before {
+.comingSoonBadge:hover::before {
   left: 100%;
 }
 
-.filterButton:hover,
-.filterButton.active {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #ffffff;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(255, 255, 255, 0.1);
-}
-
-.filterButton.active {
-  background: rgba(0, 255, 136, 0.15);
-  border-color: rgba(0, 255, 136, 0.4);
-  color: #00ff88;
-  box-shadow: 0 8px 25px rgba(0, 255, 136, 0.2);
-}
-
-.addButton {
-  background: rgba(0, 255, 136, 0.15);
-  border-color: rgba(0, 255, 136, 0.3);
-  color: #00ff88;
-  position: relative;
-  overflow: hidden;
-}
-
-.addButton::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.2), transparent);
-  transition: left 0.5s ease;
-}
-
-.addButton:hover::before {
-  left: 100%;
-}
-
-.addButton:hover {
-  background: #00ff88;
-  border-color: #00ff88;
-  color: #000000;
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(0, 255, 136, 0.4);
-}
-
-.tableContainer {
-  margin-bottom: 2rem;
-  position: relative;
-}
-
-.errorContainer {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 20px;
-  padding: 4rem 2rem;
-  text-align: center;
-  margin: 4rem 0;
-  backdrop-filter: blur(20px);
-}
-
-.errorIcon {
-  font-size: 5rem;
-  margin-bottom: 1.5rem;
-  opacity: 0.8;
-}
-
-.errorContainer h3 {
-  color: #ef4444;
-  font-size: 1.75rem;
-  font-weight: 700;
-  margin: 0 0 1rem 0;
-  text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
-}
-
-.errorContainer p {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 1.1rem;
-  margin: 0 0 2rem 0;
-  line-height: 1.6;
+.comingSoonDescription {
+  font-size: 1rem;
+  color: var(--dashboard-text-secondary);
+  margin: 0;
+  line-height: 1.8;
+  font-weight: 400;
   max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
+  transition: color 0.3s ease;
 }
 
-.retryButton {
-  background: rgba(0, 255, 136, 0.15);
-  border: 1px solid rgba(0, 255, 136, 0.3);
-  color: #00ff88;
-  padding: 0.875rem 2rem;
-  border-radius: 12px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  backdrop-filter: blur(20px);
-}
-
-.retryButton:hover {
-  background: #00ff88;
-  border-color: #00ff88;
-  color: #000000;
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(0, 255, 136, 0.4);
-}
-
-/* Loading States */
-.loadingOverlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-  border-radius: 20px;
-}
-
-.loadingSpinner {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 0.6;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.1);
-  }
-}
-
-.loadingText {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-/* Responsive Design */
+/* Responsive Design for Coming Soon Page */
 @media (max-width: 1200px) {
-  .container {
+  .comingSoonContainer {
     padding: 1.5rem;
   }
   
-  .title {
-    font-size: 2rem;
+  .comingSoonTitle {
+    font-size: 2.5rem;
   }
   
-  .subtitle {
-    font-size: 1rem;
+  .comingSoonSubtitle {
+    font-size: 1.125rem;
+  }
+  
+  .iconContainer {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .comingSoonIcon {
+    width: 70px;
+    height: 70px;
   }
 }
 
 @media (max-width: 768px) {
-  .container {
+  .comingSoonContainer {
     padding: 1rem;
   }
   
-  .header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1.5rem;
+  .comingSoonTitle {
+    font-size: 2rem;
   }
   
-  .title {
-    font-size: 1.75rem;
-  }
-  
-  .subtitle {
-    font-size: 0.95rem;
-    max-width: none;
-  }
-  
-  .headerActions {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .filterButton,
-  .addButton {
-    justify-content: center;
-    width: 100%;
-    padding: 1rem 1.5rem;
-  }
-  
-  .errorContainer {
-    padding: 3rem 1.5rem;
-    margin: 2rem 0;
-  }
-  
-  .errorIcon {
-    font-size: 4rem;
-  }
-  
-  .errorContainer h3 {
-    font-size: 1.5rem;
-  }
-  
-  .errorContainer p {
+  .comingSoonSubtitle {
     font-size: 1rem;
+  }
+  
+  .comingSoonDescription {
+    font-size: 0.9rem;
+  }
+  
+  .iconContainer {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .comingSoonIcon {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .comingSoonBadge {
+    font-size: 0.75rem;
+    padding: 0.625rem 1.25rem;
   }
 }
 
 @media (max-width: 480px) {
-  .container {
+  .comingSoonContainer {
     padding: 0.75rem;
   }
   
-  .title {
-    font-size: 1.5rem;
+  .comingSoonTitle {
+    font-size: 1.75rem;
   }
   
-  .subtitle {
+  .comingSoonSubtitle {
     font-size: 0.9rem;
   }
   
-  .filterButton,
-  .addButton {
-    padding: 0.875rem 1.25rem;
+  .comingSoonDescription {
     font-size: 0.8rem;
   }
-}
-
-/* Dark theme optimizations */
-@media (prefers-color-scheme: dark) {
-  .container {
-    background: radial-gradient(ellipse at top, rgba(0, 255, 136, 0.1) 0%, transparent 50%);
-  }
-}
-
-/* High contrast mode */
-@media (prefers-contrast: high) {
-  .title {
-    color: #ffffff;
-    text-shadow: none;
+  
+  .iconContainer {
+    width: 70px;
+    height: 70px;
   }
   
-  .filterButton,
-  .addButton {
-    border-width: 2px;
-  }
-  
-  .errorContainer {
-    border-width: 2px;
+  .comingSoonIcon {
+    width: 50px;
+    height: 50px;
   }
 }

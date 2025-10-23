@@ -2,7 +2,7 @@
 
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
-import styles from './login-form.module.css';
+import styles from './google-login-button.module.css';
 
 interface GoogleLoginButtonProps {
   disabled?: boolean;
@@ -30,7 +30,6 @@ export function GoogleLoginButton({ disabled = false, callbackUrl = '/dashboard'
       type="button"
       onClick={handleGoogleLogin}
       disabled={disabled || isLoading}
-      className={`${styles.googleButton} ${isLoading ? styles.loading : ''}`}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -48,13 +47,6 @@ export function GoogleLoginButton({ disabled = false, callbackUrl = '/dashboard'
         opacity: disabled || isLoading ? 0.6 : 1,
         transition: 'all 0.2s ease',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-        ...((!disabled && !isLoading) && {
-          ':hover': {
-            backgroundColor: '#f9fafb',
-            borderColor: '#9ca3af',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-          }
-        })
       }}
       onMouseEnter={(e) => {
         if (!disabled && !isLoading) {
@@ -73,13 +65,13 @@ export function GoogleLoginButton({ disabled = false, callbackUrl = '/dashboard'
     >
       {isLoading ? (
         <div
+          className={styles.spinner}
           style={{
             width: '18px',
             height: '18px',
             border: '2px solid #f3f4f6',
             borderTop: '2px solid #3b82f6',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite'
+            borderRadius: '50%'
           }}
         />
       ) : (

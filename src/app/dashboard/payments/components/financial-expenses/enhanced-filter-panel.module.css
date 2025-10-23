@@ -1,0 +1,258 @@
+.filterPanel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.horizontalFilterBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 16px;
+}
+
+.filterContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  overflow-x: auto;
+  min-width: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.filterContainer::-webkit-scrollbar {
+  height: 6px;
+}
+
+.filterContainer::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.filterContainer::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.filterContainer::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.actionButtons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.searchBox {
+  position: relative;
+  min-width: 250px;
+  flex-shrink: 0;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 8px 12px 8px 36px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #374151;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.searchInput::placeholder {
+  color: #9ca3af;
+}
+
+.simpleSelect {
+  min-width: 140px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.simpleSelect:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.simpleSelect:hover {
+  border-color: #9ca3af;
+}
+
+.advancedToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.advancedToggle:hover {
+  background: #f1f5f9;
+  border-color: #9ca3af;
+}
+
+.advancedToggle.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.dropdownArrow {
+  font-size: 12px;
+  transition: transform 0.2s ease;
+}
+
+.simpleButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.simpleButton:hover {
+  background: #f1f5f9;
+  border-color: #9ca3af;
+}
+
+.simpleButton.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.advancedFilters {
+  border-top: 1px solid #e5e7eb;
+  padding: 12px 16px;
+  background: #f8fafc;
+}
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dateInput {
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dateInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.clearButton {
+  padding: 8px 16px;
+  background: #ef4444;
+  border: 1px solid #dc2626;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clearButton:hover {
+  background: #dc2626;
+  border-color: #b91c1c;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .horizontalFilterBar {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .filterContainer {
+    justify-content: flex-start;
+  }
+  
+  .searchBox {
+    min-width: 100%;
+  }
+  
+  .simpleSelect {
+    min-width: 120px;
+  }
+  
+  .advancedFilters .filterRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .advancedFilters .simpleSelect {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .filterContainer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .simpleSelect {
+    width: 100%;
+  }
+  
+  .actionButtons {
+    justify-content: center;
+  }
+}

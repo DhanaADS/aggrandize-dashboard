@@ -59,7 +59,7 @@ export function ExpensesTab() {
       }}>
         <div>
           <h2 style={{ 
-            color: '#ffffff', 
+            color: '#1f2937', 
             fontSize: '1.5rem', 
             fontWeight: '700',
             margin: '0 0 0.5rem 0'
@@ -67,7 +67,7 @@ export function ExpensesTab() {
             Expense Management
           </h2>
           <p style={{ 
-            color: 'rgba(255, 255, 255, 0.6)',
+            color: 'rgba(31, 41, 55, 0.6)',
             margin: '0',
             fontSize: '0.95rem'
           }}>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>White Theme Test</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 2rem;
+            background-color: #F3F4F6;
+            color: #1F2937;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #00A99D 0%, #00D4AA 100%);
+            color: white;
+            padding: 3rem;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .button-primary {
+            background: #00A99D;
+            color: white;
+            border: none;
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .button-primary:hover {
+            background: #008B82;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .button-secondary {
+            background: #FFFFFF;
+            color: #1F2937;
+            border: 1px solid #E5E7EB;
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .button-secondary:hover {
+            background: #F9FAFB;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-available {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10B981;
+        }
+
+        .status-coming-soon {
+            background: rgba(107, 114, 128, 0.1);
+            color: #6B7280;
+        }
+
+        .icon-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.75rem;
+            flex-shrink: 0;
+            margin-right: 1rem;
+        }
+
+        .icon-blue {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3B82F6;
+        }
+
+        .icon-purple {
+            background: rgba(139, 92, 246, 0.1);
+            color: #8B5CF6;
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .list-item:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        h2 {
+            font-size: 1.875rem;
+            font-weight: 600;
+            color: #1F2937;
+            margin-bottom: 1rem;
+        }
+
+        p {
+            color: #6B7280;
+            line-height: 1.6;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AGGRANDIZE Dashboard</h1>
+            <p style="color: rgba(255,255,255,0.9); margin-top: 0.5rem;">White Theme Implementation</p>
+        </div>
+
+        <h2>Components Showcase</h2>
+
+        <div class="card">
+            <div class="list-item">
+                <div style="display: flex; align-items: center;">
+                    <div class="icon-container icon-blue">
+                        <span class="material-icons">public</span>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.125rem;">Web Scraping</h3>
+                        <p style="margin: 0.25rem 0 0 0;">Extract data from any website with AI-powered scraping</p>
+                    </div>
+                </div>
+                <span class="status-badge status-available">Available</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="list-item">
+                <div style="display: flex; align-items: center;">
+                    <div class="icon-container icon-purple">
+                        <span class="material-icons">email</span>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.125rem;">MailForge</h3>
+                        <p style="margin: 0.25rem 0 0 0;">Email marketing, campaign management and automation</p>
+                    </div>
+                </div>
+                <span class="status-badge status-coming-soon">Coming Soon</span>
+            </div>
+        </div>
+
+        <h2 style="margin-top: 2rem;">Button Variants</h2>
+        <div class="card">
+            <button class="button-primary" style="margin-right: 1rem;">
+                <span class="material-icons" style="font-size: 1.25rem; margin-right: 0.5rem;">add</span>
+                Primary Action
+            </button>
+            <button class="button-secondary">
+                <span class="material-icons" style="font-size: 1.25rem; margin-right: 0.5rem;">settings</span>
+                Secondary Action
+            </button>
+        </div>
+
+        <h2>Color Palette</h2>
+        <div class="grid">
+            <div class="card">
+                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="width: 3rem; height: 3rem; background: #00A99D; border-radius: 0.5rem; margin-right: 1rem;"></div>
+                    <div>
+                        <strong>Primary</strong>
+                        <p style="margin: 0; font-size: 0.875rem;">#00A99D</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="width: 3rem; height: 3rem; background: #F3F4F6; border: 1px solid #E5E7EB; border-radius: 0.5rem; margin-right: 1rem;"></div>
+                    <div>
+                        <strong>Background</strong>
+                        <p style="margin: 0; font-size: 0.875rem;">#F3F4F6</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="width: 3rem; height: 3rem; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 0.5rem; margin-right: 1rem;"></div>
+                    <div>
+                        <strong>Card</strong>
+                        <p style="margin: 0; font-size: 0.875rem;">#FFFFFF</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="width: 3rem; height: 3rem; background: #1F2937; border-radius: 0.5rem; margin-right: 1rem;"></div>
+                    <div>
+                        <strong>Text Primary</strong>
+                        <p style="margin: 0; font-size: 0.875rem;">#1F2937</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="width: 3rem; height: 3rem; background: #6B7280; border-radius: 0.5rem; margin-right: 1rem;"></div>
+                    <div>
+                        <strong>Text Secondary</strong>
+                        <p style="margin: 0; font-size: 0.875rem;">#6B7280</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="width: 3rem; height: 3rem; background: #E5E7EB; border-radius: 0.5rem; margin-right: 1rem;"></div>
+                    <div>
+                        <strong>Border</strong>
+                        <p style="margin: 0; font-size: 0.875rem;">#E5E7EB</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

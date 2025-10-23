@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>White Theme Test Results</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+    <link href="/src/styles/global-white-theme.css" rel="stylesheet">
+    <link href="/src/styles/modern-design-system.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 2rem;
+            background-color: #F3F4F6;
+            color: #1F2937;
+        }
+
+        .test-section {
+            margin-bottom: 3rem;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+        }
+
+        .test-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #1F2937;
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-toggle">
+        <button onclick="document.documentElement.toggleAttribute('data-theme')" class="btn btn-secondary">
+            <span class="material-icons">dark_mode</span>
+            Toggle Dark Mode
+        </button>
+    </div>
+
+    <div class="test-section">
+        <h1 class="test-title">White Theme Implementation Test</h1>
+        <p>This page tests the white theme implementation against the provided templates.</p>
+    </div>
+
+    <div class="test-section">
+        <div class="header">
+            <h1>AGGRANDIZE Dashboard</h1>
+            <p>White theme implementation test</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Icon Containers</h2>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <div class="icon-container icon-container-blue">
+                <span class="material-icons">public</span>
+            </div>
+            <div class="icon-container icon-container-purple">
+                <span class="material-icons">email</span>
+            </div>
+            <div class="icon-container icon-container-indigo">
+                <span class="material-icons">analytics</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Status Badges</h2>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <span class="status-badge status-available">Available</span>
+            <span class="status-badge status-coming-soon">Coming Soon</span>
+            <span class="status-badge status-pending">Pending</span>
+            <span class="status-badge status-completed">Completed</span>
+            <span class="status-badge status-active">Active</span>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Buttons</h2>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <button class="btn btn-primary">
+                <span class="material-icons">add</span>
+                Primary Button
+            </button>
+            <button class="btn btn-secondary">
+                <span class="material-icons">settings</span>
+                Secondary Button
+            </button>
+            <button class="btn btn-sm">Small</button>
+            <button class="btn btn-lg">Large</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Cards</h2>
+        <div class="card">
+            <div class="card-content">
+                <h3>Card Title</h3>
+                <p>This is a card with the white theme styling.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>List Items</h2>
+        <div class="list-item">
+            <div style="display: flex; align-items: center;">
+                <div class="icon-container icon-container-blue">
+                    <span class="material-icons">public</span>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.125rem;">Web Scraping</h3>
+                    <p style="margin: 0.25rem 0 0 0;">Extract data from any website with AI-powered scraping</p>
+                </div>
+            </div>
+            <span class="status-badge status-available">Available</span>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Navigation Items</h2>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <div class="nav-item">Dashboard</div>
+            <div class="nav-item active">Active Item</div>
+            <div class="nav-item">Settings</div>
+        </div>
+    </div>
+</body>
+</html>
