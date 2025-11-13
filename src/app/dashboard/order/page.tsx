@@ -1,76 +1,43 @@
-import styles from './order.module.css';
+'use client';
+
+import React from 'react';
+import { Box, Typography, Paper, Chip } from '@mui/material';
+import { ShoppingCart as OrderIcon } from '@mui/icons-material';
 
 export default function OrderPage() {
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Order Management</h1>
-          <p className={styles.subtitle}>
-            Manage and track customer orders across your business
-          </p>
-        </div>
-      </div>
-      
-      <div className={styles.metricsGrid}>
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>Total Orders</h3>
-            <div className={styles.cardIcon}>📊</div>
-          </div>
-          <div className={styles.cardValue}>234</div>
-          <p className={`${styles.cardChange} ${styles.positive}`}>
-            +12% from last month
-          </p>
-        </div>
-        
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>Pending Orders</h3>
-            <div className={styles.cardIcon}>⏳</div>
-          </div>
-          <div className={styles.cardValue}>45</div>
-          <p className={`${styles.cardChange} ${styles.negative}`}>
-            -8% from yesterday
-          </p>
-        </div>
-        
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>Completed Orders</h3>
-            <div className={styles.cardIcon}>✅</div>
-          </div>
-          <div className={styles.cardValue}>189</div>
-          <p className={`${styles.cardChange} ${styles.positive}`}>
-            +15% from last week
-          </p>
-        </div>
-        
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>Revenue</h3>
-            <div className={styles.cardIcon}>💰</div>
-          </div>
-          <div className={styles.cardValue}>$12,345</div>
-          <p className={`${styles.cardChange} ${styles.positive}`}>
-            +25% from last month
-          </p>
-        </div>
-      </div>
-      
-      <div className={styles.largeCard}>
-        <h2 className={styles.largeCardTitle}>Recent Orders</h2>
-        <p className={styles.largeCardSubtitle}>
-          Latest orders from customers requiring attention
-        </p>
-        <div className={styles.comingSoon}>
-          <div className={styles.comingSoonIcon}>📦</div>
-          <h3 className={styles.comingSoonTitle}>Order Management Coming Soon</h3>
-          <p className={styles.comingSoonText}>
-            Advanced order tracking, management, and analytics features will be available here.
-          </p>
-        </div>
-      </div>
-    </div>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '70vh', // Take up viewport height within the dashboard layout
+        textAlign: 'center',
+      }}
+    >
+      <Paper
+        elevation={3}
+        sx={{
+          p: { xs: 3, sm: 6 },
+          borderRadius: 2,
+          maxWidth: '600px',
+          mx: 'auto',
+        }}
+      >
+        <Box sx={{ mb: 3 }}>
+          <OrderIcon sx={{ fontSize: '4rem', color: 'text.secondary' }} />
+        </Box>
+
+        <Chip label="Coming Soon" color="primary" sx={{ mb: 2 }} />
+
+        <Typography variant="h4" component="h1" fontWeight="600" sx={{ mb: 1 }}>
+          Order Management
+        </Typography>
+
+        <Typography variant="body1" color="text.secondary">
+          We're building a comprehensive order management system with customer tracking, order analytics, payment processing, and real-time status updates.
+        </Typography>
+      </Paper>
+    </Box>
   );
 }
