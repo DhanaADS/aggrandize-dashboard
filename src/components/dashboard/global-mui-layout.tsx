@@ -16,9 +16,18 @@ export default function GlobalMUILayout({ children }: GlobalMUILayoutProps) {
   const { mounted, theme } = useTheme();
   const { user } = useAuth();
   const [isClient, setIsClient] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
+
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   if (!mounted || !isClient || !user) {
@@ -48,7 +57,7 @@ export default function GlobalMUILayout({ children }: GlobalMUILayoutProps) {
         <NewProfessionalSidebar />
         <main style={{
           flex: 1,
-          padding: '32px',
+          padding: isMobile ? '80px 16px 16px 16px' : '32px',
           overflowY: 'auto'
         }}>
           <EnhancedPageTransition>
