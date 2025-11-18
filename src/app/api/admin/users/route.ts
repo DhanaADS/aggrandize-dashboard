@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const adminClient = createAdminClient();
 
+    console.log('Fetching user profiles...');
     const { data: profiles, error: profilesError } = await adminClient
       .from('user_profiles')
       .select('*')
@@ -13,19 +14,36 @@ export async function GET(request: NextRequest) {
 
     if (profilesError) {
       console.error('Error fetching user profiles:', profilesError);
-      return NextResponse.json({ error: 'Failed to fetch user profiles' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to fetch user profiles: ' + profilesError.message }, { status: 500 });
     }
 
-    const { data: permissions, error: permissionsError } = await adminClient
-      .from('user_permissions')
-      .select('*');
-
-    if (permissionsError) {
-      console.error('Error fetching user permissions:', permissionsError);
-      return NextResponse.json({ error: 'Failed to fetch user permissions' }, { status: 500 });
+    if (!profiles || profiles.length === 0) {
+      console.log('No user profiles found');
+      return NextResponse.json([]);
     }
 
-    const permissionsMap = new Map(permissions.map(p => [p.user_id, p]));
+    console.log(`Found ${profiles.length} user profiles`);
+
+    // Try to fetch permissions, but don't fail if it doesn't work
+    let permissionsMap = new Map();
+    try {
+      const { data: permissions, error: permissionsError } = await adminClient
+        .from('user_permissions')
+        .select('*');
+
+      if (permissionsError) {
+        console.warn('Could not fetch user_permissions (table may not exist):', permissionsError.message);
+        // Continue without permissions data - users will have default false values
+      } else if (permissions && permissions.length > 0) {
+        console.log(`Found ${permissions.length} permission entries`);
+        permissionsMap = new Map(permissions.map(p => [p.user_id, p]));
+      } else {
+        console.log('No permission entries found in user_permissions table');
+      }
+    } catch (permError) {
+      console.warn('Error querying user_permissions:', permError);
+      // Continue without permissions
+    }
 
     const users: UserPermissions[] = profiles.map(profile => {
       const userPermissions = permissionsMap.get(profile.id);
@@ -33,7 +51,7 @@ export async function GET(request: NextRequest) {
         userId: profile.id,
         email: profile.email,
         name: profile.full_name || profile.email,
-        role: profile.role,
+        role: profile.role || 'marketing',
         permissions: {
           canAccessOrder: userPermissions?.can_access_order ?? false,
           canAccessProcessing: userPermissions?.can_access_processing ?? false,
@@ -44,9 +62,10 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    console.log(`Returning ${users.length} users`);
     return NextResponse.json(users);
   } catch (error) {
-    console.error('Unexpected error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Unexpected error in /api/admin/users:', error);
+    return NextResponse.json({ error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error') }, { status: 500 });
   }
 }
