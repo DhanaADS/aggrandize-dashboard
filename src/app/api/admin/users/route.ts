@@ -4,6 +4,18 @@ import { UserPermissions } from '@/types/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    // Check environment variables first
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
+      return NextResponse.json({ error: 'Server configuration error: Missing Supabase URL' }, { status: 500 });
+    }
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable');
+      return NextResponse.json({ error: 'Server configuration error: Missing Supabase service key' }, { status: 500 });
+    }
+
+    console.log('Creating admin client with URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
     const adminClient = createAdminClient();
 
     console.log('Fetching user profiles...');
