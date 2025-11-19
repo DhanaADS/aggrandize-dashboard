@@ -10,17 +10,20 @@ interface MenuItem {
   label: string;
   href?: string;
   icon?: string;
+  permissionKey?: string; // Permission key to check access
+  adminOnly?: boolean; // Only visible to admins
+  alwaysVisible?: boolean; // Always visible regardless of permissions
 }
 
 const DASHBOARD_MENU: MenuItem[] = [
-  { id: 'dashboard', label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
-  { id: 'payments', label: 'Payments', href: '/dashboard/payments', icon: 'payment' },
-  { id: 'teamhub', label: 'TeamHub', href: '/dashboard/teamhub', icon: 'groups' },
-  { id: 'inventory', label: 'Inventory', href: '/dashboard/inventory', icon: 'inventory' },
-  { id: 'tools', label: 'Tools', href: '/dashboard/tools', icon: 'build' },
-  { id: 'orders', label: 'Orders', href: '/dashboard/order', icon: 'shopping_cart' },
-  { id: 'processing', label: 'Processing', href: '/dashboard/processing', icon: 'sync' },
-  { id: 'admin', label: 'Admin', href: '/dashboard/admin', icon: 'admin_panel_settings' },
+  { id: 'dashboard', label: 'Dashboard', href: '/dashboard', icon: 'dashboard', alwaysVisible: true },
+  { id: 'payments', label: 'Payments', href: '/dashboard/payments', icon: 'payment', permissionKey: 'canAccessPayments' },
+  { id: 'teamhub', label: 'TeamHub', href: '/dashboard/teamhub', icon: 'groups', alwaysVisible: true },
+  { id: 'inventory', label: 'Inventory', href: '/dashboard/inventory', icon: 'inventory', permissionKey: 'canAccessInventory' },
+  { id: 'tools', label: 'Tools', href: '/dashboard/tools', icon: 'build', permissionKey: 'canAccessTools' },
+  { id: 'orders', label: 'Orders', href: '/dashboard/order', icon: 'shopping_cart', permissionKey: 'canAccessOrder' },
+  { id: 'processing', label: 'Processing', href: '/dashboard/processing', icon: 'sync', permissionKey: 'canAccessProcessing' },
+  { id: 'admin', label: 'Admin', href: '/dashboard/admin', icon: 'admin_panel_settings', adminOnly: true },
 ];
 
 export function NewProfessionalSidebar() {
@@ -47,6 +50,25 @@ export function NewProfessionalSidebar() {
   }, []);
 
   if (!user) return null;
+
+  // Filter menu items based on user permissions
+  const filteredMenu = DASHBOARD_MENU.filter(item => {
+    // Always show items marked as alwaysVisible
+    if (item.alwaysVisible) return true;
+
+    // Admin-only items
+    if (item.adminOnly) {
+      return user.role === 'admin';
+    }
+
+    // Check permission-based access
+    if (item.permissionKey && user.permissions) {
+      return user.permissions[item.permissionKey as keyof typeof user.permissions] === true;
+    }
+
+    // Default: show if no permission requirement
+    return true;
+  });
 
   const handleMenuClick = (href?: string) => {
     if (href) {
@@ -184,7 +206,7 @@ export function NewProfessionalSidebar() {
         padding: '16px'
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {DASHBOARD_MENU.map(item => (
+          {filteredMenu.map(item => (
             <a
               key={item.id}
               style={{

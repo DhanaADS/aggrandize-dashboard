@@ -26,31 +26,41 @@ export default withAuth(
       return NextResponse.redirect(new URL('/unauthorized', req.url));
     }
 
-    // Role-based route protection
+    // Permission-based route protection
     if (token && path.startsWith('/dashboard/')) {
       const userRole = token.role as string;
-      
-      // Admin access
+      const permissions = token.permissions as {
+        canAccessOrder?: boolean;
+        canAccessProcessing?: boolean;
+        canAccessInventory?: boolean;
+        canAccessTools?: boolean;
+        canAccessPayments?: boolean;
+        canAccessTodos?: boolean;
+      } | undefined;
+
+      // Admin access - role-based only
       if (path.startsWith('/dashboard/admin') && userRole !== 'admin') {
         return NextResponse.redirect(new URL('/dashboard', req.url));
       }
-      
-      // Payment access (admin only for now)
-      if (path.startsWith('/dashboard/payments') && userRole !== 'admin') {
+
+      // Permission-based access for other routes
+      if (path.startsWith('/dashboard/payments') && !permissions?.canAccessPayments) {
         return NextResponse.redirect(new URL('/dashboard', req.url));
       }
-      
-      // Processing team access
-      if (path.startsWith('/dashboard/processing') && !['admin', 'processing'].includes(userRole)) {
+
+      if (path.startsWith('/dashboard/processing') && !permissions?.canAccessProcessing) {
         return NextResponse.redirect(new URL('/dashboard', req.url));
       }
-      
-      // Marketing team access to orders and inventory
-      if (path.startsWith('/dashboard/order') && !['admin', 'marketing'].includes(userRole)) {
+
+      if (path.startsWith('/dashboard/order') && !permissions?.canAccessOrder) {
         return NextResponse.redirect(new URL('/dashboard', req.url));
       }
-      
-      if (path.startsWith('/dashboard/inventory') && !['admin', 'marketing'].includes(userRole)) {
+
+      if (path.startsWith('/dashboard/inventory') && !permissions?.canAccessInventory) {
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
+
+      if (path.startsWith('/dashboard/tools') && !permissions?.canAccessTools) {
         return NextResponse.redirect(new URL('/dashboard', req.url));
       }
     }

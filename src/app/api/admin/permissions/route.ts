@@ -16,27 +16,21 @@ export async function POST(req: NextRequest) {
       { auth: { persistSession: false } }
     );
 
-    const { data: userProfile, error: profileError } = await supabaseAdmin
-      .from('user_profiles')
-      .select('id')
-      .eq('email', email)
-      .single();
-
-    if (profileError || !userProfile) {
-      return NextResponse.json({ error: `User ${email} not found.` }, { status: 404 });
-    }
-
+    // Update permissions in user_profiles.individual_permissions (single source of truth)
     const { error: permissionsError } = await supabaseAdmin
-      .from('user_permissions')
-      .upsert({
-        user_id: userProfile.id,
-        user_email: email,
-        can_access_order: permissions.canAccessOrder,
-        can_access_processing: permissions.canAccessProcessing,
-        can_access_inventory: permissions.canAccessInventory,
-        can_access_tools: permissions.canAccessTools,
-        can_access_payments: permissions.canAccessPayments
-      }, { onConflict: 'user_email' });
+      .from('user_profiles')
+      .update({
+        individual_permissions: {
+          canAccessOrder: permissions.canAccessOrder ?? false,
+          canAccessProcessing: permissions.canAccessProcessing ?? false,
+          canAccessInventory: permissions.canAccessInventory ?? false,
+          canAccessTools: permissions.canAccessTools ?? false,
+          canAccessPayments: permissions.canAccessPayments ?? false,
+          canAccessTodos: permissions.canAccessTodos ?? true
+        },
+        updated_at: new Date().toISOString()
+      })
+      .eq('email', email);
 
     if (permissionsError) {
       throw new Error(permissionsError.message);

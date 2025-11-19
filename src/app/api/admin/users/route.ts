@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     console.log('Fetching user profiles...');
     const { data: profiles, error: profilesError } = await adminClient
       .from('user_profiles')
-      .select('*')
+      .select('id, email, full_name, role, individual_permissions, created_at')
       .order('created_at', { ascending: false });
 
     if (profilesError) {
@@ -36,40 +36,20 @@ export async function GET(request: NextRequest) {
 
     console.log(`Found ${profiles.length} user profiles`);
 
-    // Try to fetch permissions, but don't fail if it doesn't work
-    let permissionsMap = new Map();
-    try {
-      const { data: permissions, error: permissionsError } = await adminClient
-        .from('user_permissions')
-        .select('*');
-
-      if (permissionsError) {
-        console.warn('Could not fetch user_permissions (table may not exist):', permissionsError.message);
-        // Continue without permissions data - users will have default false values
-      } else if (permissions && permissions.length > 0) {
-        console.log(`Found ${permissions.length} permission entries`);
-        permissionsMap = new Map(permissions.map(p => [p.user_id, p]));
-      } else {
-        console.log('No permission entries found in user_permissions table');
-      }
-    } catch (permError) {
-      console.warn('Error querying user_permissions:', permError);
-      // Continue without permissions
-    }
-
+    // Read permissions from user_profiles.individual_permissions (single source of truth)
     const users: UserPermissions[] = profiles.map(profile => {
-      const userPermissions = permissionsMap.get(profile.id);
+      const individualPerms = profile.individual_permissions;
       return {
         userId: profile.id,
         email: profile.email,
         name: profile.full_name || profile.email,
         role: profile.role || 'marketing',
         permissions: {
-          canAccessOrder: userPermissions?.can_access_order ?? false,
-          canAccessProcessing: userPermissions?.can_access_processing ?? false,
-          canAccessInventory: userPermissions?.can_access_inventory ?? false,
-          canAccessTools: userPermissions?.can_access_tools ?? false,
-          canAccessPayments: userPermissions?.can_access_payments ?? false,
+          canAccessOrder: individualPerms?.canAccessOrder ?? false,
+          canAccessProcessing: individualPerms?.canAccessProcessing ?? false,
+          canAccessInventory: individualPerms?.canAccessInventory ?? false,
+          canAccessTools: individualPerms?.canAccessTools ?? false,
+          canAccessPayments: individualPerms?.canAccessPayments ?? false,
         }
       };
     });

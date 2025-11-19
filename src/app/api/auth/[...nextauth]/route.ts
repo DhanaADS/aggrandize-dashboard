@@ -122,7 +122,7 @@ export const authOptions = {
       // Add role to JWT token
       if (user?.email) {
         const role = getTeamMemberRole(user.email);
-        
+
         // For external users, get their actual role from database
         if (role === 'external') {
           const { exists, role: dbRole } = await checkExternalUserExists(user.email);
@@ -136,32 +136,18 @@ export const authOptions = {
           token.teamMember = true;
           token.isExternal = false;
         }
-      }
-      
-      return token;
-    },
-    async session({ session, token }) {
-      // Add custom fields to session
-      if (session.user?.email) {
-        // Use role from token (which includes database role for external users)
-        session.user.role = token.role as string;
-        session.user.teamMember = token.teamMember as boolean;
-        session.user.isExternal = token.isExternal as boolean;
-        
-        // Try to get individual user permissions from database
+
+        // Fetch and add permissions to token for middleware access
         try {
           const { data: userProfile } = await supabase
             .from('user_profiles')
             .select('individual_permissions')
-            .eq('email', session.user.email)
+            .eq('email', user.email)
             .single();
-          
-          console.log(`🔍 Session callback for ${session.user.email}:`, userProfile);
-          
-          // Admin users always get full permissions regardless of individual settings
-          if (session.user.role === 'admin') {
-            console.log(`👑 Admin user detected: ${session.user.email} - granting full permissions`);
-            session.user.permissions = {
+
+          // Admin users always get full permissions
+          if (token.role === 'admin') {
+            token.permissions = {
               canAccessOrder: true,
               canAccessProcessing: true,
               canAccessInventory: true,
@@ -170,9 +156,7 @@ export const authOptions = {
               canAccessTodos: true
             };
           } else if (userProfile?.individual_permissions) {
-            // Use individual permissions for non-admin users
-            console.log(`✅ Using custom permissions for ${session.user.email}:`, userProfile.individual_permissions);
-            session.user.permissions = {
+            token.permissions = {
               canAccessOrder: userProfile.individual_permissions.canAccessOrder ?? false,
               canAccessProcessing: userProfile.individual_permissions.canAccessProcessing ?? false,
               canAccessInventory: userProfile.individual_permissions.canAccessInventory ?? false,
@@ -216,52 +200,105 @@ export const authOptions = {
                 canAccessTodos: true
               }
             };
-            
-            session.user.permissions = rolePermissions[session.user.role as keyof typeof rolePermissions] || rolePermissions.member;
+            token.permissions = rolePermissions[token.role as keyof typeof rolePermissions] || rolePermissions.member;
           }
         } catch (error) {
-          console.error('Error fetching user permissions:', error);
-          
-          // Fallback to role-based permissions on error
-          const rolePermissions = {
-            admin: {
+          console.error('Error fetching permissions for JWT:', error);
+          // Fallback permissions
+          token.permissions = {
+            canAccessOrder: false,
+            canAccessProcessing: false,
+            canAccessInventory: false,
+            canAccessTools: false,
+            canAccessPayments: false,
+            canAccessTodos: true
+          };
+        }
+      }
+
+      return token;
+    },
+    async session({ session, token }) {
+      // Add custom fields to session from JWT token
+      if (session.user?.email) {
+        session.user.role = token.role as string;
+        session.user.teamMember = token.teamMember as boolean;
+        session.user.isExternal = token.isExternal as boolean;
+
+        // Fetch fresh permissions from database (for real-time updates without logout)
+        try {
+          const { data: userProfile } = await supabase
+            .from('user_profiles')
+            .select('individual_permissions')
+            .eq('email', session.user.email)
+            .single();
+
+          // Admin users always get full permissions
+          if (session.user.role === 'admin') {
+            session.user.permissions = {
               canAccessOrder: true,
               canAccessProcessing: true,
               canAccessInventory: true,
               canAccessTools: true,
               canAccessPayments: true,
               canAccessTodos: true
-            },
-            marketing: {
-              canAccessOrder: true,
-              canAccessProcessing: false,
-              canAccessInventory: true,
-              canAccessTools: true,
-              canAccessPayments: false,
-              canAccessTodos: true
-            },
-            processing: {
-              canAccessOrder: false,
-              canAccessProcessing: true,
-              canAccessInventory: false,
-              canAccessTools: true,
-              canAccessPayments: false,
-              canAccessTodos: true
-            },
-            member: {
-              canAccessOrder: false,
-              canAccessProcessing: false,
-              canAccessInventory: false,
-              canAccessTools: false,
-              canAccessPayments: false,
-              canAccessTodos: true
-            }
+            };
+          } else if (userProfile?.individual_permissions) {
+            // Use fresh database permissions
+            session.user.permissions = {
+              canAccessOrder: userProfile.individual_permissions.canAccessOrder ?? false,
+              canAccessProcessing: userProfile.individual_permissions.canAccessProcessing ?? false,
+              canAccessInventory: userProfile.individual_permissions.canAccessInventory ?? false,
+              canAccessTools: userProfile.individual_permissions.canAccessTools ?? false,
+              canAccessPayments: userProfile.individual_permissions.canAccessPayments ?? false,
+              canAccessTodos: userProfile.individual_permissions.canAccessTodos ?? true
+            };
+          } else {
+            // Fallback to role-based defaults
+            const rolePermissions = {
+              marketing: {
+                canAccessOrder: true,
+                canAccessProcessing: false,
+                canAccessInventory: true,
+                canAccessTools: true,
+                canAccessPayments: false,
+                canAccessTodos: true
+              },
+              processing: {
+                canAccessOrder: false,
+                canAccessProcessing: true,
+                canAccessInventory: false,
+                canAccessTools: true,
+                canAccessPayments: false,
+                canAccessTodos: true
+              },
+              member: {
+                canAccessOrder: false,
+                canAccessProcessing: false,
+                canAccessInventory: false,
+                canAccessTools: false,
+                canAccessPayments: false,
+                canAccessTodos: true
+              }
+            };
+            session.user.permissions = rolePermissions[session.user.role as keyof typeof rolePermissions] || rolePermissions.member;
+          }
+        } catch (error) {
+          console.error('Error fetching permissions:', error);
+          // Fallback to token permissions if database fails
+          session.user.permissions = token.permissions as {
+            canAccessOrder: boolean;
+            canAccessProcessing: boolean;
+            canAccessInventory: boolean;
+            canAccessTools: boolean;
+            canAccessPayments: boolean;
+            canAccessTodos: boolean;
           };
-          
-          session.user.permissions = rolePermissions[session.user.role as keyof typeof rolePermissions] || rolePermissions.member;
         }
+
+        console.log(`📋 Session for ${session.user.email}: role=${session.user.role}, permissions=`, session.user.permissions);
       }
-      
+
       return session;
     },
     async redirect({ url, baseUrl }) {

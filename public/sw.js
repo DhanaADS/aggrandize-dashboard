@@ -8,8 +8,11 @@ const STATIC_FILES = [
   '/dashboard',
   '/dashboard/teamhub',
   '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png'
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
+  '/icons/icon-72x72.png',
+  '/icons/icon-96x96.png',
+  '/icons/icon-128x128.png'
 ];
 
 // Install event - cache static files
@@ -96,8 +99,8 @@ self.addEventListener('push', (event) => {
   let notificationData = {
     title: 'Team Hub Notification',
     body: 'You have a new update!',
-    icon: '/icon-192x192.png',
-    badge: '/icon-72x72.png',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-72x72.png',
     tag: 'default',
     data: {
       url: '/dashboard/teamhub',
@@ -118,47 +121,47 @@ self.addEventListener('push', (event) => {
   // Social media-style notification configurations for each type
   const notificationConfigs = {
     'task_assigned': {
-      icon: '/icon-192x192.png',
-      badge: '/icon-72x72.png',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-72x72.png',
       requireInteraction: true,
       silent: false,
       vibrate: [200, 100, 200], // WhatsApp-style vibration
       actions: [
-        { action: 'view-task', title: '👀 View Task', icon: '/icon-72x72.png' },
-        { action: 'complete-task', title: '✅ Mark Complete', icon: '/icon-72x72.png' }
+        { action: 'view-task', title: '👀 View Task', icon: '/icons/icon-72x72.png' },
+        { action: 'complete-task', title: '✅ Mark Complete', icon: '/icons/icon-72x72.png' }
       ]
     },
     'new_comment': {
-      icon: '/icon-192x192.png', 
-      badge: '/icon-72x72.png',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-72x72.png',
       requireInteraction: false,
       silent: false,
       vibrate: [100, 50, 100], // Twitter-style vibration
       actions: [
-        { action: 'view-comment', title: '💬 View Comment', icon: '/icon-72x72.png' },
-        { action: 'reply', title: '↩️ Reply', icon: '/icon-72x72.png' }
+        { action: 'view-comment', title: '💬 View Comment', icon: '/icons/icon-72x72.png' },
+        { action: 'reply', title: '↩️ Reply', icon: '/icons/icon-72x72.png' }
       ]
     },
     'task_status_change': {
-      icon: '/icon-192x192.png',
-      badge: '/icon-72x72.png', 
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-72x72.png',
       requireInteraction: false,
       silent: false,
       vibrate: [150, 75, 150], // Instagram-style vibration
       actions: [
-        { action: 'view-task', title: '📊 View Task', icon: '/icon-72x72.png' },
-        { action: 'dismiss', title: '👍 Got it', icon: '/icon-72x72.png' }
+        { action: 'view-task', title: '📊 View Task', icon: '/icons/icon-72x72.png' },
+        { action: 'dismiss', title: '👍 Got it', icon: '/icons/icon-72x72.png' }
       ]
     },
     'mention': {
-      icon: '/icon-192x192.png',
-      badge: '/icon-72x72.png',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-72x72.png',
       requireInteraction: true,
       silent: false,
       vibrate: [300, 100, 300, 100, 300], // Mention alert vibration
       actions: [
-        { action: 'view-mention', title: '🏷️ View Mention', icon: '/icon-72x72.png' },
-        { action: 'reply', title: '💬 Reply', icon: '/icon-72x72.png' }
+        { action: 'view-mention', title: '🏷️ View Mention', icon: '/icons/icon-72x72.png' },
+        { action: 'reply', title: '💬 Reply', icon: '/icons/icon-72x72.png' }
       ]
     }
   };
@@ -380,8 +383,8 @@ async function checkForUpdates() {
       // Show notification if there are updates
       self.registration.showNotification('Team Hub Updates', {
         body: `You have ${updates.count} new updates`,
-        icon: '/icon-192x192.png',
-        badge: '/icon-72x72.png',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-72x72.png',
         tag: 'periodic-update',
         actions: [
           { action: 'open-teamhub', title: 'View Updates' },
