@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Todo, TodoStatus } from '@/types/todos';
+import styles from './mobile.module.css';
 
 interface MobileTaskCardProps {
   task: Todo;
@@ -12,11 +13,11 @@ interface MobileTaskCardProps {
   onClick?: (task: Todo) => void;
 }
 
-const PRIORITY_COLORS = {
-  low: { bg: '#10B981', text: '#FFFFFF' },
-  medium: { bg: '#F59E0B', text: '#FFFFFF' },
-  high: { bg: '#EF4444', text: '#FFFFFF' },
-  urgent: { bg: '#DC2626', text: '#FFFFFF' }
+const PRIORITY_CONFIG = {
+  low: { bg: 'rgba(16, 185, 129, 0.15)', text: '#10B981', icon: 'arrow_downward' },
+  medium: { bg: 'rgba(245, 158, 11, 0.15)', text: '#F59E0B', icon: 'remove' },
+  high: { bg: 'rgba(239, 68, 68, 0.15)', text: '#EF4444', icon: 'arrow_upward' },
+  urgent: { bg: 'rgba(220, 38, 38, 0.15)', text: '#DC2626', icon: 'priority_high' }
 };
 
 const STATUS_LABELS = {
@@ -40,7 +41,18 @@ export function MobileTaskCard({
   const cardRef = useRef<HTMLDivElement>(null);
 
   const isDark = theme === 'dark';
-  const priorityStyle = PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.medium;
+  const priorityConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
+
+  // Calculate progress based on status
+  const getProgress = () => {
+    switch (task.status) {
+      case 'todo': return 0;
+      case 'in_progress': return 40;
+      case 'in_review': return 75;
+      case 'done': return 100;
+      default: return 0;
+    }
+  };
 
   // Touch handlers for swipe gestures
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -91,57 +103,32 @@ export function MobileTaskCard({
 
   const dueInfo = formatDueDate(task.due_date);
 
+  const progress = getProgress();
+
   return (
     <div
       ref={cardRef}
+      className={styles.taskCard}
       style={{
-        position: 'relative',
-        overflow: 'hidden',
-        borderRadius: '12px',
-        marginBottom: '12px'
+        backgroundColor: isDark ? '#161B22' : '#FFFFFF',
+        border: `1px solid ${isDark ? '#21262D' : '#E5E7EB'}`
       }}
     >
       {/* Swipe action backgrounds */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '0 16px'
-      }}>
-        {/* Complete action (swipe right) */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          color: '#10B981',
-          opacity: swipeOffset > 30 ? 1 : 0,
-          transition: 'opacity 0.2s'
-        }}>
-          <span className="material-icons">check_circle</span>
-          <span style={{ fontWeight: '600', fontSize: '14px' }}>Complete</span>
-        </div>
-
-        {/* Delete action (swipe left) */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          color: '#EF4444',
-          opacity: swipeOffset < -30 ? 1 : 0,
-          transition: 'opacity 0.2s'
-        }}>
-          <span style={{ fontWeight: '600', fontSize: '14px' }}>Delete</span>
-          <span className="material-icons">delete</span>
-        </div>
+      <div className={`${styles.swipeActions} ${styles.swipeActionLeft}`}
+        style={{ opacity: swipeOffset > 30 ? 1 : 0 }}
+      >
+        <span className={`material-icons ${styles.swipeActionIcon}`}>check_circle</span>
+      </div>
+      <div className={`${styles.swipeActions} ${styles.swipeActionRight}`}
+        style={{ opacity: swipeOffset < -30 ? 1 : 0 }}
+      >
+        <span className={`material-icons ${styles.swipeActionIcon}`}>delete</span>
       </div>
 
       {/* Card content */}
       <div
+        className={styles.taskCardContent}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -149,101 +136,102 @@ export function MobileTaskCard({
         style={{
           transform: `translateX(${swipeOffset}px)`,
           transition: isSwiping ? 'none' : 'transform 0.3s ease',
-          backgroundColor: isDark ? '#161B22' : '#FFFFFF',
-          borderRadius: '12px',
-          padding: '16px',
-          border: `1px solid ${isDark ? '#21262D' : '#E5E7EB'}`,
-          cursor: 'pointer',
-          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
+          backgroundColor: isDark ? '#161B22' : '#FFFFFF'
         }}
       >
-        {/* Top row: Title and chat icon */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: '12px'
-        }}>
-          <h3 style={{
-            fontSize: '15px',
-            fontWeight: '600',
-            color: isDark ? '#E5E7EB' : '#1F2937',
-            margin: 0,
-            lineHeight: '1.4',
-            flex: 1,
-            paddingRight: '8px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical'
-          }}>
-            {task.title}
-          </h3>
-          {task.comment_count && task.comment_count > 0 && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              color: isDark ? '#8D96A0' : '#6B7280',
-              fontSize: '12px'
-            }}>
-              <span className="material-icons" style={{ fontSize: '16px' }}>chat_bubble</span>
-              {task.comment_count}
-            </div>
-          )}
-        </div>
+        {/* Title */}
+        <h3
+          className={styles.taskTitle}
+          style={{ color: isDark ? '#E5E7EB' : '#1F2937' }}
+        >
+          {task.title}
+        </h3>
 
-        {/* Bottom row: Priority, Assignee, Due date */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          flexWrap: 'wrap'
-        }}>
+        {/* Meta row */}
+        <div className={styles.taskMeta}>
           {/* Priority badge */}
-          <span style={{
-            padding: '4px 8px',
-            borderRadius: '6px',
-            fontSize: '11px',
-            fontWeight: '600',
-            backgroundColor: priorityStyle.bg,
-            color: priorityStyle.text,
-            textTransform: 'capitalize'
-          }}>
+          <span
+            className={styles.priorityBadge}
+            style={{
+              backgroundColor: priorityConfig.bg,
+              color: priorityConfig.text
+            }}
+          >
+            <span className="material-icons" style={{ fontSize: '12px' }}>
+              {priorityConfig.icon}
+            </span>
             {task.priority}
           </span>
 
-          {/* Assignee */}
+          {/* Assignees */}
           {task.assigned_to_array && task.assigned_to_array.length > 0 && (
-            <span style={{
-              fontSize: '12px',
-              color: isDark ? '#8D96A0' : '#6B7280',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}>
-              <span className="material-icons" style={{ fontSize: '14px' }}>person</span>
-              {task.assigned_to_array[0].name}
-              {task.assigned_to_array.length > 1 && ` +${task.assigned_to_array.length - 1}`}
-            </span>
+            <div className={styles.assigneeStack}>
+              {task.assigned_to_array.slice(0, 3).map((assignee, index) => (
+                <div
+                  key={assignee.email || index}
+                  className={styles.assigneeAvatar}
+                  style={{
+                    backgroundColor: isDark ? '#00C5B8' : '#00A78E',
+                    color: '#FFFFFF',
+                    borderColor: isDark ? '#161B22' : '#FFFFFF',
+                    zIndex: 3 - index
+                  }}
+                >
+                  {assignee.name?.[0]?.toUpperCase() || '?'}
+                </div>
+              ))}
+              {task.assigned_to_array.length > 3 && (
+                <div
+                  className={styles.assigneeAvatar}
+                  style={{
+                    backgroundColor: isDark ? '#21262D' : '#E5E7EB',
+                    color: isDark ? '#8D96A0' : '#6B7280',
+                    borderColor: isDark ? '#161B22' : '#FFFFFF'
+                  }}
+                >
+                  +{task.assigned_to_array.length - 3}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Comment count */}
+          {task.comment_count && task.comment_count > 0 && (
+            <div
+              className={styles.commentCount}
+              style={{ color: isDark ? '#8D96A0' : '#6B7280' }}
+            >
+              <span className="material-icons" style={{ fontSize: '14px' }}>chat_bubble_outline</span>
+              {task.comment_count}
+            </div>
           )}
 
           {/* Due date */}
           {dueInfo && (
-            <span style={{
-              fontSize: '12px',
-              color: dueInfo.color,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              marginLeft: 'auto'
-            }}>
+            <div className={styles.dueDate} style={{ color: dueInfo.color }}>
               <span className="material-icons" style={{ fontSize: '14px' }}>schedule</span>
               {dueInfo.text}
-            </span>
+            </div>
           )}
         </div>
+
+        {/* Progress bar */}
+        {progress > 0 && (
+          <div
+            className={styles.progressBar}
+            style={{ backgroundColor: isDark ? '#21262D' : '#E5E7EB' }}
+          >
+            <div
+              className={styles.progressFill}
+              style={{
+                width: `${progress}%`,
+                backgroundColor: progress === 100
+                  ? '#10B981'
+                  : (isDark ? '#00C5B8' : '#00A78E')
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
