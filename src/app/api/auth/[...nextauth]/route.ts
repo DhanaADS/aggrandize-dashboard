@@ -204,15 +204,47 @@ export const authOptions = {
           }
         } catch (error) {
           console.error('Error fetching permissions for JWT:', error);
-          // Fallback permissions
-          token.permissions = {
-            canAccessOrder: false,
-            canAccessProcessing: false,
-            canAccessInventory: false,
-            canAccessTools: false,
-            canAccessPayments: false,
-            canAccessTodos: true
-          };
+          // Fallback permissions based on role
+          if (token.role === 'admin') {
+            // Admin always gets full permissions even if database fails
+            token.permissions = {
+              canAccessOrder: true,
+              canAccessProcessing: true,
+              canAccessInventory: true,
+              canAccessTools: true,
+              canAccessPayments: true,
+              canAccessTodos: true
+            };
+          } else {
+            // Role-based fallback for non-admin users
+            const rolePermissions = {
+              marketing: {
+                canAccessOrder: true,
+                canAccessProcessing: false,
+                canAccessInventory: true,
+                canAccessTools: true,
+                canAccessPayments: false,
+                canAccessTodos: true
+              },
+              processing: {
+                canAccessOrder: false,
+                canAccessProcessing: true,
+                canAccessInventory: false,
+                canAccessTools: true,
+                canAccessPayments: false,
+                canAccessTodos: true
+              },
+              member: {
+                canAccessOrder: false,
+                canAccessProcessing: false,
+                canAccessInventory: false,
+                canAccessTools: false,
+                canAccessPayments: false,
+                canAccessTodos: true
+              }
+            };
+            token.permissions = rolePermissions[token.role as keyof typeof rolePermissions] || rolePermissions.member;
+          }
         }
       }
 
@@ -256,6 +288,14 @@ export const authOptions = {
           } else {
             // Fallback to role-based defaults
             const rolePermissions = {
+              admin: {
+                canAccessOrder: true,
+                canAccessProcessing: true,
+                canAccessInventory: true,
+                canAccessTools: true,
+                canAccessPayments: true,
+                canAccessTodos: true
+              },
               marketing: {
                 canAccessOrder: true,
                 canAccessProcessing: false,
@@ -285,15 +325,38 @@ export const authOptions = {
           }
         } catch (error) {
           console.error('Error fetching permissions:', error);
-          // Fallback to token permissions if database fails
-          session.user.permissions = token.permissions as {
-            canAccessOrder: boolean;
-            canAccessProcessing: boolean;
-            canAccessInventory: boolean;
-            canAccessTools: boolean;
-            canAccessPayments: boolean;
-            canAccessTodos: boolean;
-          };
+          // Fallback to token permissions if database fails, or use role-based fallback
+          if (token.permissions) {
+            session.user.permissions = token.permissions as {
+              canAccessOrder: boolean;
+              canAccessProcessing: boolean;
+              canAccessInventory: boolean;
+              canAccessTools: boolean;
+              canAccessPayments: boolean;
+              canAccessTodos: boolean;
+            };
+          } else {
+            // Ultimate fallback based on role
+            if (session.user.role === 'admin') {
+              session.user.permissions = {
+                canAccessOrder: true,
+                canAccessProcessing: true,
+                canAccessInventory: true,
+                canAccessTools: true,
+                canAccessPayments: true,
+                canAccessTodos: true
+              };
+            } else {
+              session.user.permissions = {
+                canAccessOrder: false,
+                canAccessProcessing: false,
+                canAccessInventory: false,
+                canAccessTools: false,
+                canAccessPayments: false,
+                canAccessTodos: true
+              };
+            }
+          }
         }
 
         console.log(`📋 Session for ${session.user.email}: role=${session.user.role}, permissions=`, session.user.permissions);
