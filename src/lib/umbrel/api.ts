@@ -778,3 +778,410 @@ export async function getDatabaseStats(): Promise<DatabaseStats> {
   `);
   return result!;
 }
+
+// ============================================
+// ORDERS
+// ============================================
+
+export interface Order {
+  id: string;
+  order_number: string;
+  client_name: string;
+  client_email: string | null;
+  client_company: string | null;
+  project_name: string | null;
+  order_date: string;
+  due_date: string | null;
+  subtotal: number;
+  discount: number;
+  total_amount: number;
+  amount_paid: number;
+  balance_due: number;
+  status: string;
+  payment_status: string;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  items_count?: number;
+  items_completed?: number;
+}
+
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  publication_id: string | null;
+  website: string;
+  keyword: string;
+  client_url: string;
+  price: number;
+  status: string;
+  live_url: string | null;
+  live_date: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderPayment {
+  id: string;
+  order_id: string;
+  amount: number;
+  payment_method: string | null;
+  reference_number: string | null;
+  payment_date: string;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface OrderStats {
+  total_orders: number;
+  draft_count: number;
+  confirmed_count: number;
+  in_progress_count: number;
+  completed_count: number;
+  cancelled_count: number;
+  total_revenue: number;
+  total_paid: number;
+  total_outstanding: number;
+}
+
+// Generate order number (AGG-YYYY-NNN)
+export async function generateOrderNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const result = await queryOne<{ nextval: string }>("SELECT nextval('order_number_seq')");
+  const seq = result?.nextval || '1';
+  return `AGG-${year}-${seq.padStart(3, '0')}`;
+}
+
+// Get all orders with optional filters
+export async function getOrders(filters?: {
+  status?: string;
+  payment_status?: string;
+  client_name?: string;
+  date_from?: string;
+  date_to?: string;
+  search?: string;
+}): Promise<Order[]> {
+  let sql = `
+    SELECT o.*,
+           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id)::int as items_count,
+           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id AND status = 'live')::int as items_completed
+    FROM orders o
+    WHERE 1=1
+  `;
+  const params: unknown[] = [];
+  let paramIndex = 1;
+
+  if (filters?.status) {
+    sql += ` AND o.status = $${paramIndex++}`;
+    params.push(filters.status);
+  }
+  if (filters?.payment_status) {
+    sql += ` AND o.payment_status = $${paramIndex++}`;
+    params.push(filters.payment_status);
+  }
+  if (filters?.client_name) {
+    sql += ` AND o.client_name ILIKE $${paramIndex++}`;
+    params.push(`%${filters.client_name}%`);
+  }
+  if (filters?.date_from) {
+    sql += ` AND o.order_date >= $${paramIndex++}`;
+    params.push(filters.date_from);
+  }
+  if (filters?.date_to) {
+    sql += ` AND o.order_date <= $${paramIndex++}`;
+    params.push(filters.date_to);
+  }
+  if (filters?.search) {
+    sql += ` AND (o.client_name ILIKE $${paramIndex} OR o.project_name ILIKE $${paramIndex} OR o.order_number ILIKE $${paramIndex})`;
+    params.push(`%${filters.search}%`);
+    paramIndex++;
+  }
+
+  sql += ' ORDER BY o.created_at DESC';
+
+  const result = await query<Order>(sql, params);
+  return result.rows;
+}
+
+// Get single order by ID
+export async function getOrderById(id: string): Promise<Order | null> {
+  const result = await queryOne<Order>(`
+    SELECT o.*,
+           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id)::int as items_count,
+           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id AND status = 'live')::int as items_completed
+    FROM orders o
+    WHERE o.id = $1
+  `, [id]);
+  return result;
+}
+
+// Create order
+export async function createOrder(data: {
+  client_name: string;
+  client_email?: string;
+  client_company?: string;
+  project_name?: string;
+  order_date?: string;
+  due_date?: string;
+  discount?: number;
+  notes?: string;
+  created_by?: string;
+}): Promise<Order> {
+  const orderNumber = await generateOrderNumber();
+
+  const result = await queryOne<Order>(
+    `INSERT INTO orders (
+      order_number, client_name, client_email, client_company,
+      project_name, order_date, due_date, discount, notes, created_by
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    RETURNING *`,
+    [
+      orderNumber,
+      data.client_name,
+      data.client_email || null,
+      data.client_company || null,
+      data.project_name || null,
+      data.order_date || new Date().toISOString().split('T')[0],
+      data.due_date || null,
+      data.discount || 0,
+      data.notes || null,
+      data.created_by || null,
+    ]
+  );
+  return result!;
+}
+
+// Update order
+export async function updateOrder(id: string, data: {
+  client_name?: string;
+  client_email?: string;
+  client_company?: string;
+  project_name?: string;
+  order_date?: string;
+  due_date?: string;
+  discount?: number;
+  status?: string;
+  notes?: string;
+}): Promise<Order | null> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined) {
+      fields.push(`${key} = $${paramIndex++}`);
+      values.push(value);
+    }
+  });
+
+  if (fields.length === 0) return null;
+
+  // Always update updated_at
+  fields.push(`updated_at = NOW()`);
+
+  values.push(id);
+  const result = await queryOne<Order>(
+    `UPDATE orders SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+    values
+  );
+  return result;
+}
+
+// Delete order
+export async function deleteOrder(id: string): Promise<boolean> {
+  const result = await query('DELETE FROM orders WHERE id = $1', [id]);
+  return (result.rowCount || 0) > 0;
+}
+
+// Recalculate order totals
+export async function recalculateOrderTotals(orderId: string): Promise<Order | null> {
+  const result = await queryOne<Order>(`
+    UPDATE orders SET
+      subtotal = COALESCE((SELECT SUM(price) FROM order_items WHERE order_id = $1), 0),
+      total_amount = COALESCE((SELECT SUM(price) FROM order_items WHERE order_id = $1), 0) - COALESCE(discount, 0),
+      amount_paid = COALESCE((SELECT SUM(amount) FROM order_payments WHERE order_id = $1), 0),
+      balance_due = COALESCE((SELECT SUM(price) FROM order_items WHERE order_id = $1), 0) - COALESCE(discount, 0) - COALESCE((SELECT SUM(amount) FROM order_payments WHERE order_id = $1), 0),
+      payment_status = CASE
+        WHEN COALESCE((SELECT SUM(amount) FROM order_payments WHERE order_id = $1), 0) >=
+             COALESCE((SELECT SUM(price) FROM order_items WHERE order_id = $1), 0) - COALESCE(discount, 0) THEN 'paid'
+        WHEN COALESCE((SELECT SUM(amount) FROM order_payments WHERE order_id = $1), 0) > 0 THEN 'partial'
+        ELSE 'unpaid'
+      END,
+      updated_at = NOW()
+    WHERE id = $1
+    RETURNING *
+  `, [orderId]);
+  return result;
+}
+
+// Get order stats
+export async function getOrderStats(): Promise<OrderStats> {
+  const result = await queryOne<OrderStats>(`
+    SELECT
+      (SELECT COUNT(*) FROM orders)::int as total_orders,
+      (SELECT COUNT(*) FROM orders WHERE status = 'draft')::int as draft_count,
+      (SELECT COUNT(*) FROM orders WHERE status = 'confirmed')::int as confirmed_count,
+      (SELECT COUNT(*) FROM orders WHERE status = 'in_progress')::int as in_progress_count,
+      (SELECT COUNT(*) FROM orders WHERE status = 'completed')::int as completed_count,
+      (SELECT COUNT(*) FROM orders WHERE status = 'cancelled')::int as cancelled_count,
+      COALESCE((SELECT SUM(total_amount) FROM orders WHERE status != 'cancelled'), 0)::decimal as total_revenue,
+      COALESCE((SELECT SUM(amount_paid) FROM orders WHERE status != 'cancelled'), 0)::decimal as total_paid,
+      COALESCE((SELECT SUM(balance_due) FROM orders WHERE status != 'cancelled'), 0)::decimal as total_outstanding
+  `);
+  return result!;
+}
+
+// ============================================
+// ORDER ITEMS
+// ============================================
+
+// Get items for an order
+export async function getOrderItems(orderId: string): Promise<OrderItem[]> {
+  const result = await query<OrderItem>(
+    'SELECT * FROM order_items WHERE order_id = $1 ORDER BY created_at ASC',
+    [orderId]
+  );
+  return result.rows;
+}
+
+// Add item to order
+export async function addOrderItem(orderId: string, data: {
+  publication_id?: string;
+  website: string;
+  keyword: string;
+  client_url: string;
+  price: number;
+  notes?: string;
+}): Promise<OrderItem> {
+  const result = await queryOne<OrderItem>(
+    `INSERT INTO order_items (order_id, publication_id, website, keyword, client_url, price, notes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING *`,
+    [
+      orderId,
+      data.publication_id || null,
+      data.website,
+      data.keyword,
+      data.client_url,
+      data.price,
+      data.notes || null,
+    ]
+  );
+
+  // Recalculate order totals
+  await recalculateOrderTotals(orderId);
+
+  return result!;
+}
+
+// Update order item
+export async function updateOrderItem(itemId: string, data: {
+  keyword?: string;
+  client_url?: string;
+  price?: number;
+  status?: string;
+  live_url?: string;
+  live_date?: string;
+  notes?: string;
+}): Promise<OrderItem | null> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined) {
+      fields.push(`${key} = $${paramIndex++}`);
+      values.push(value);
+    }
+  });
+
+  if (fields.length === 0) return null;
+
+  fields.push(`updated_at = NOW()`);
+
+  values.push(itemId);
+  const result = await queryOne<OrderItem>(
+    `UPDATE order_items SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+    values
+  );
+
+  // Recalculate order totals if price changed
+  if (result && data.price !== undefined) {
+    await recalculateOrderTotals(result.order_id);
+  }
+
+  return result;
+}
+
+// Delete order item
+export async function deleteOrderItem(itemId: string): Promise<boolean> {
+  // Get order_id before deleting
+  const item = await queryOne<{ order_id: string }>('SELECT order_id FROM order_items WHERE id = $1', [itemId]);
+
+  const result = await query('DELETE FROM order_items WHERE id = $1', [itemId]);
+
+  // Recalculate order totals
+  if (item) {
+    await recalculateOrderTotals(item.order_id);
+  }
+
+  return (result.rowCount || 0) > 0;
+}
+
+// ============================================
+// ORDER PAYMENTS
+// ============================================
+
+// Get payments for an order
+export async function getOrderPayments(orderId: string): Promise<OrderPayment[]> {
+  const result = await query<OrderPayment>(
+    'SELECT * FROM order_payments WHERE order_id = $1 ORDER BY payment_date DESC',
+    [orderId]
+  );
+  return result.rows;
+}
+
+// Add payment to order
+export async function addOrderPayment(orderId: string, data: {
+  amount: number;
+  payment_method?: string;
+  reference_number?: string;
+  payment_date?: string;
+  notes?: string;
+}): Promise<OrderPayment> {
+  const result = await queryOne<OrderPayment>(
+    `INSERT INTO order_payments (order_id, amount, payment_method, reference_number, payment_date, notes)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      orderId,
+      data.amount,
+      data.payment_method || null,
+      data.reference_number || null,
+      data.payment_date || new Date().toISOString().split('T')[0],
+      data.notes || null,
+    ]
+  );
+
+  // Recalculate order totals
+  await recalculateOrderTotals(orderId);
+
+  return result!;
+}
+
+// Delete payment
+export async function deleteOrderPayment(paymentId: string): Promise<boolean> {
+  // Get order_id before deleting
+  const payment = await queryOne<{ order_id: string }>('SELECT order_id FROM order_payments WHERE id = $1', [paymentId]);
+
+  const result = await query('DELETE FROM order_payments WHERE id = $1', [paymentId]);
+
+  // Recalculate order totals
+  if (payment) {
+    await recalculateOrderTotals(payment.order_id);
+  }
+
+  return (result.rowCount || 0) > 0;
+}
