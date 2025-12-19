@@ -1,12 +1,17 @@
+'use server';
+
 // AGGRANDIZE Team Todos - API Layer
+// Database: Umbrel PostgreSQL (direct connection)
+// Storage & Real-time: Supabase (for file uploads and live updates)
+import { query, queryOne } from '@/lib/umbrel/client';
 import { createClient } from '@/lib/supabase/client';
-import { 
-  Todo, 
-  TodoComment, 
+import {
+  Todo,
+  TodoComment,
   TodoAttachment,
   TaskFeedback,
-  CreateTodoRequest, 
-  UpdateTodoRequest, 
+  CreateTodoRequest,
+  UpdateTodoRequest,
   TodoFilters,
   TodoStats,
   TodoStatus,
@@ -15,69 +20,92 @@ import {
 } from '@/types/todos';
 import { NotificationHelpers } from './push-service';
 
+// Supabase client for storage and real-time only
 const supabase = createClient();
 
 // Helper function to check if user can edit a todo (creator-only)
 export async function canUserEditTodo(todoId: string, userEmail: string): Promise<boolean> {
   try {
-    const { data, error } = await supabase
-      .from('todos')
-      .select('created_by')
-      .eq('id', todoId)
-      .single();
+    const result = await queryOne<{ created_by: string }>(
+      'SELECT created_by FROM todos WHERE id = $1',
+      [todoId]
+    );
 
-    if (error || !data) {
+    if (!result) {
       return false;
     }
 
-    return data.created_by === userEmail;
+    return result.created_by === userEmail;
   } catch (error) {
     console.error('Error checking edit permissions:', error);
     return false;
   }
 }
 
-// Helper function to build filter query
-function buildFilterQuery(baseQuery: any, filters: TodoFilters) {
-  let query = baseQuery;
+// Helper function to build filter WHERE clause
+function buildFilterClause(filters: TodoFilters): { clause: string; params: unknown[] } {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  let paramIndex = 1;
 
   if (filters.status && filters.status.length > 0) {
-    query = query.in('status', filters.status);
+    conditions.push(`status = ANY($${paramIndex})`);
+    params.push(filters.status);
+    paramIndex++;
   }
 
   if (filters.priority && filters.priority.length > 0) {
-    query = query.in('priority', filters.priority);
+    conditions.push(`priority = ANY($${paramIndex})`);
+    params.push(filters.priority);
+    paramIndex++;
   }
 
   if (filters.category && filters.category.length > 0) {
-    query = query.in('category', filters.category);
+    conditions.push(`category = ANY($${paramIndex})`);
+    params.push(filters.category);
+    paramIndex++;
   }
 
   if (filters.assigned_to && filters.assigned_to.length > 0) {
-    query = query.in('assigned_to', filters.assigned_to);
+    conditions.push(`assigned_to = ANY($${paramIndex})`);
+    params.push(filters.assigned_to);
+    paramIndex++;
   }
 
   if (filters.created_by && filters.created_by.length > 0) {
-    query = query.in('created_by', filters.created_by);
+    conditions.push(`created_by = ANY($${paramIndex})`);
+    params.push(filters.created_by);
+    paramIndex++;
   }
 
   if (filters.is_team_todo !== undefined) {
-    query = query.eq('is_team_todo', filters.is_team_todo);
+    conditions.push(`is_team_todo = $${paramIndex}`);
+    params.push(filters.is_team_todo);
+    paramIndex++;
   }
 
   if (filters.due_date_from) {
-    query = query.gte('due_date', filters.due_date_from);
+    conditions.push(`due_date >= $${paramIndex}`);
+    params.push(filters.due_date_from);
+    paramIndex++;
   }
 
   if (filters.due_date_to) {
-    query = query.lte('due_date', filters.due_date_to);
+    conditions.push(`due_date <= $${paramIndex}`);
+    params.push(filters.due_date_to);
+    paramIndex++;
   }
 
   if (filters.search) {
-    query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+    conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
+    params.push(`%${filters.search}%`);
+    paramIndex++;
   }
 
-  return query;
+  return {
+    clause: conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '',
+    params
+  };
 }
 
 // Todo CRUD Operations
@@ -85,23 +113,15 @@ export const todosApi = {
   // Get all todos with optional filtering (ADMIN USE ONLY - no user filtering)
   async getTodos(filters: TodoFilters = {}): Promise<Todo[]> {
     try {
-      let query = supabase
-        .from('todos')
-        .select('*');
+      const { clause, params } = buildFilterClause(filters);
+      const sql = `SELECT * FROM todos ${clause} ORDER BY created_at DESC`;
 
-      query = buildFilterQuery(query, filters);
-      
-      const { data, error } = await query.order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching todos:', error);
-        throw new Error(`Failed to fetch todos: ${error.message}`);
-      }
+      const result = await query<Todo>(sql, params);
 
       // Migrate legacy 'todo' status to 'assigned' in the response
-      const todos = (data || []).map(todo => {
+      const todos = result.rows.map(todo => {
         if (todo.status === 'todo') {
-          return { ...todo, status: 'assigned' };
+          return { ...todo, status: 'assigned' as TodoStatus };
         }
         return todo;
       });
@@ -117,65 +137,22 @@ export const todosApi = {
   async getTodosForUser(userEmail: string, filters: TodoFilters = {}): Promise<Todo[]> {
     try {
       console.log('🔒 Getting todos for user with security filtering:', userEmail);
-      
-      // APPROACH 1: Try with multiple separate queries and merge results
-      const [createdTodos, assignedToTodos, assignedArrayTodos] = await Promise.all([
-        // Get todos created by user
-        supabase
-          .from('todos')
-          .select('*')
-          .eq('created_by', userEmail)
-          .order('created_at', { ascending: false }),
-          
-        // Get todos assigned to user (single assignment)
-        supabase
-          .from('todos')
-          .select('*')
-          .eq('assigned_to', userEmail)
-          .order('created_at', { ascending: false }),
-          
-        // Get todos where user is in assigned array
-        supabase
-          .from('todos')
-          .select('*')
-          .contains('assigned_to_array', [userEmail])
-          .order('created_at', { ascending: false })
-      ]);
 
-      // Check for errors
-      if (createdTodos.error) {
-        console.error('❌ Error fetching created todos:', createdTodos.error);
-        throw new Error(`Failed to fetch created todos: ${createdTodos.error.message}`);
-      }
-      
-      if (assignedToTodos.error) {
-        console.error('❌ Error fetching assigned todos:', assignedToTodos.error);
-        throw new Error(`Failed to fetch assigned todos: ${assignedToTodos.error.message}`);
-      }
-      
-      if (assignedArrayTodos.error) {
-        console.error('❌ Error fetching array assigned todos:', assignedArrayTodos.error);
-        throw new Error(`Failed to fetch array assigned todos: ${assignedArrayTodos.error.message}`);
-      }
+      // Use a single query with OR conditions for better performance
+      const sql = `
+        SELECT * FROM todos
+        WHERE created_by = $1
+           OR assigned_to = $1
+           OR $1 = ANY(assigned_to_array)
+        ORDER BY created_at DESC
+      `;
 
-      // Merge and deduplicate results
-      const allTodos = [
-        ...(createdTodos.data || []),
-        ...(assignedToTodos.data || []),
-        ...(assignedArrayTodos.data || [])
-      ];
-
-      // Remove duplicates by ID
-      const uniqueTodos = allTodos.filter((todo, index, self) => 
-        index === self.findIndex(t => t.id === todo.id)
-      );
+      const result = await query<Todo>(sql, [userEmail]);
+      let uniqueTodos = result.rows;
 
       console.log('📊 Security query results:', {
         userEmail,
-        createdCount: createdTodos.data?.length || 0,
-        assignedCount: assignedToTodos.data?.length || 0,
-        arrayAssignedCount: assignedArrayTodos.data?.length || 0,
-        totalUnique: uniqueTodos.length
+        totalTodos: uniqueTodos.length
       });
 
       // Debug: Log each todo's relevance to current user
@@ -189,20 +166,19 @@ export const todosApi = {
       // Apply additional filters if provided
       let filteredTodos = uniqueTodos;
       if (Object.keys(filters).length > 0) {
-        // Apply filters manually since we can't use buildFilterQuery with merged results
         filteredTodos = uniqueTodos.filter(todo => {
-          if (filters.status && filters.status.length > 0 && !filters.status.includes(todo.status)) {
+          if (filters.status && filters.status.length > 0 && !filters.status.includes(todo.status as TodoStatus)) {
             return false;
           }
-          if (filters.priority && filters.priority.length > 0 && !filters.priority.includes(todo.priority)) {
+          if (filters.priority && filters.priority.length > 0 && !filters.priority.includes(todo.priority as TodoPriority)) {
             return false;
           }
-          if (filters.category && filters.category.length > 0 && !filters.category.includes(todo.category)) {
+          if (filters.category && filters.category.length > 0 && !filters.category.includes(todo.category as TodoCategory)) {
             return false;
           }
           if (filters.search) {
             const searchLower = filters.search.toLowerCase();
-            if (!todo.title.toLowerCase().includes(searchLower) && 
+            if (!todo.title.toLowerCase().includes(searchLower) &&
                 !(todo.description || '').toLowerCase().includes(searchLower)) {
               return false;
             }
@@ -217,7 +193,7 @@ export const todosApi = {
       // Migrate legacy 'todo' status to 'assigned' in the response
       const todos = filteredTodos.map(todo => {
         if (todo.status === 'todo') {
-          return { ...todo, status: 'assigned' };
+          return { ...todo, status: 'assigned' as TodoStatus };
         }
         return todo;
       });
@@ -233,22 +209,18 @@ export const todosApi = {
   // Get a specific todo by ID
   async getTodo(id: string): Promise<Todo | null> {
     try {
-      const { data, error } = await supabase
-        .from('todos')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const data = await queryOne<Todo>(
+        'SELECT * FROM todos WHERE id = $1',
+        [id]
+      );
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          return null; // Not found
-        }
-        throw new Error(`Failed to fetch todo: ${error.message}`);
+      if (!data) {
+        return null;
       }
 
       // Migrate legacy 'todo' status to 'assigned'
-      if (data && data.status === 'todo') {
-        return { ...data, status: 'assigned' };
+      if (data.status === 'todo') {
+        return { ...data, status: 'assigned' as TodoStatus };
       }
 
       return data;
@@ -261,72 +233,50 @@ export const todosApi = {
   // Create a new todo with optional file attachments
   async createTodo(todoData: CreateTodoRequest, userEmail: string): Promise<Todo> {
     try {
-      // Use secure function to bypass RLS issues
-      const { data, error } = await supabase.rpc('create_todo_for_user', {
-        p_title: todoData.title,
-        p_user_email: userEmail,
-        p_description: todoData.description || null,
-        p_priority: todoData.priority || 'medium',
-        p_category: todoData.category || 'general',
-        p_assigned_to: todoData.assigned_to || null,
-        p_assigned_to_array: todoData.assigned_to_array || null,
-        p_is_team_todo: todoData.is_team_todo || false
-      });
+      // Direct insert to Umbrel PostgreSQL
+      const sql = `
+        INSERT INTO todos (
+          title, description, created_by, assigned_to, assigned_to_array,
+          status, progress, priority, category, is_team_todo, is_recurring,
+          start_date, due_date, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5,
+          $6, $7, $8, $9, $10, $11,
+          $12, $13, NOW(), NOW()
+        ) RETURNING *
+      `;
 
-      if (error) {
-        console.error('RPC Error - create_todo_for_user:', error);
-        
-        // Fallback to direct insert if RPC function doesn't exist
-        const newTodo = {
-          ...todoData,
-          created_by: userEmail,
-          status: 'assigned' as TodoStatus,
-          progress: 0,
-          start_date: new Date().toISOString(),
-          category: todoData.category || 'general' as TodoCategory,
-          priority: todoData.priority || 'medium' as TodoPriority,
-          is_team_todo: todoData.is_team_todo || false,
-          is_recurring: false
-        };
+      const result = await query<Todo>(sql, [
+        todoData.title,
+        todoData.description || null,
+        userEmail,
+        todoData.assigned_to || null,
+        todoData.assigned_to_array || null,
+        'assigned',
+        0,
+        todoData.priority || 'medium',
+        todoData.category || 'general',
+        todoData.is_team_todo || false,
+        false,
+        new Date().toISOString(),
+        todoData.due_date || null
+      ]);
 
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('todos')
-          .insert(newTodo)
-          .select()
-          .single();
-
-        if (fallbackError) {
-          throw new Error(`Failed to create todo: ${fallbackError.message}`);
-        }
-
-        const createdTodo = fallbackData;
-        
-        // Handle file attachments if provided
-        if (todoData.attachments && todoData.attachments.length > 0) {
-          try {
-            await this.uploadTaskAttachments(createdTodo.id, todoData.attachments, userEmail);
-          } catch (attachmentError) {
-            console.error('Warning: Task created but attachment upload failed:', attachmentError);
-            // Don't fail the entire operation if attachments fail
-          }
-        }
-        
-        return createdTodo;
+      const createdTodo = result.rows[0];
+      if (!createdTodo) {
+        throw new Error('Failed to create todo');
       }
 
-      const createdTodo = data;
-      
-      // Handle file attachments if provided
+      // Handle file attachments if provided (uses Supabase storage)
       if (todoData.attachments && todoData.attachments.length > 0) {
         try {
           await this.uploadTaskAttachments(createdTodo.id, todoData.attachments, userEmail);
         } catch (attachmentError) {
           console.error('Warning: Task created but attachment upload failed:', attachmentError);
-          // Don't fail the entire operation if attachments fail
         }
       }
 
-      // 📋 Send push notification for task assignment
+      // Send push notification for task assignment
       try {
         if (createdTodo.assigned_to && createdTodo.assigned_to !== userEmail) {
           await NotificationHelpers.taskAssigned(
@@ -340,8 +290,8 @@ export const todosApi = {
         // Send notifications to multiple assignees if using assigned_to_array
         if (createdTodo.assigned_to_array && createdTodo.assigned_to_array.length > 0) {
           const notificationPromises = createdTodo.assigned_to_array
-            .filter(assignee => assignee !== userEmail) // Skip self-notification
-            .map(assignee => 
+            .filter((assignee: string) => assignee !== userEmail)
+            .map((assignee: string) =>
               NotificationHelpers.taskAssigned(
                 assignee,
                 createdTodo.title,
@@ -349,14 +299,13 @@ export const todosApi = {
                 createdTodo.id
               )
             );
-          
+
           await Promise.all(notificationPromises);
         }
       } catch (notificationError) {
         console.error('Warning: Task created but notification failed:', notificationError);
-        // Don't fail task creation if notifications fail
       }
-      
+
       return createdTodo;
     } catch (error) {
       console.error('API Error - createTodo:', error);
@@ -413,22 +362,25 @@ export const todosApi = {
         thumbnailPath = filePath; // Use same image as thumbnail for now
       }
 
-      // Save attachment metadata to database
-      const { data, error } = await supabase
-        .from('todo_attachments')
-        .insert({
-          todo_id: todoId,
-          file_name: file.name,
-          file_url: urlData.publicUrl,
-          file_size: file.size,
-          file_type: file.type,
-          thumbnail_url: thumbnailPath ? urlData.publicUrl : null,
-          uploaded_by: userEmail
-        })
-        .select()
-        .single();
+      // Save attachment metadata to Umbrel PostgreSQL
+      const insertResult = await query<TodoAttachment>(
+        `INSERT INTO todo_attachments (
+          todo_id, file_name, file_url, file_size, file_type, thumbnail_url, uploaded_by, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        RETURNING *`,
+        [
+          todoId,
+          file.name,
+          urlData.publicUrl,
+          file.size,
+          file.type,
+          thumbnailPath ? urlData.publicUrl : null,
+          userEmail
+        ]
+      );
 
-      if (error) {
+      const data = insertResult.rows[0];
+      if (!data) {
         // If database save fails, try to clean up the uploaded file
         try {
           await supabase.storage
@@ -437,7 +389,7 @@ export const todosApi = {
         } catch (cleanupError) {
           console.warn('Failed to cleanup uploaded file after database error:', cleanupError);
         }
-        throw new Error(`Database save failed: ${error.message}`);
+        throw new Error('Database save failed');
       }
 
       return {
@@ -461,100 +413,60 @@ export const todosApi = {
   // Update an existing todo
   async updateTodo(id: string, updates: UpdateTodoRequest, userEmail?: string): Promise<Todo> {
     try {
-      // If we have user email and status/progress updates, try using secure function
-      if (userEmail && (updates.status || updates.progress !== undefined)) {
-        const { data, error } = await supabase.rpc('update_todo_for_user', {
-          p_todo_id: id,
-          p_user_email: userEmail,
-          p_status: updates.status || null,
-          p_progress: updates.progress !== undefined ? updates.progress : null,
-          p_completed_at: updates.completed_at || null
-        });
-
-        if (!error && data) {
-          return data;
-        }
-        
-        console.warn('RPC update failed, falling back to direct update:', error?.message);
-      }
-
-      // Fallback to direct update for other changes or if RPC fails
+      // Handle completion status
       if (updates.status === 'done' && updates.progress === undefined) {
         updates.progress = 100;
       }
-      
+
       if (updates.status === 'done') {
         updates = { ...updates, completed_at: new Date().toISOString() };
       } else if (updates.status && updates.status !== 'done') {
         updates = { ...updates, completed_at: null };
       }
 
-      // Filter out fields that might not exist in database schema yet
-      const safeUpdates = {
-        ...updates
-      };
-      
-      // Remove workflow fields that might not exist yet
-      const workflowFields = ['approval_requested_at', 'approved_at', 'approved_by', 'last_edited_at', 'last_edited_by'];
-      const existingFields = { ...safeUpdates };
-      
-      // Try with all fields first, then fallback to safe fields if it fails
-      let finalUpdates = existingFields;
-      
-      console.log('🔄 Attempting to update todo with fields:', Object.keys(finalUpdates));
+      // Build dynamic UPDATE query
+      const allowedFields = [
+        'title', 'description', 'status', 'progress', 'priority', 'category',
+        'due_date', 'assigned_to', 'assigned_to_array', 'is_team_todo', 'completed_at'
+      ];
 
-      const { data, error } = await supabase
-        .from('todos')
-        .update(finalUpdates)
-        .eq('id', id)
-        .select()
-        .single();
+      const entries = Object.entries(updates).filter(
+        ([key, value]) => allowedFields.includes(key) && value !== undefined
+      );
 
-      if (error) {
-        // If update failed due to missing columns, try with basic fields only
-        if (error.message.includes('column') && error.message.includes('schema cache')) {
-          console.warn('⚠️ Some columns missing, trying with basic fields only:', error.message);
-          
-          const basicUpdates: any = {};
-          const basicFields = ['title', 'description', 'status', 'progress', 'priority', 'category', 'due_date'];
-          
-          basicFields.forEach(field => {
-            if (finalUpdates.hasOwnProperty(field)) {
-              basicUpdates[field] = finalUpdates[field];
-            }
-          });
-          
-          console.log('🔄 Retrying with basic fields:', Object.keys(basicUpdates));
-          
-          const { data: retryData, error: retryError } = await supabase
-            .from('todos')
-            .update(basicUpdates)
-            .eq('id', id)
-            .select()
-            .single();
-            
-          if (retryError) {
-            throw new Error(`Failed to update todo (retry): ${retryError.message}`);
-          }
-          
-          return retryData;
-        }
-        
-        throw new Error(`Failed to update todo: ${error.message}`);
+      if (entries.length === 0) {
+        // No updates to make, just return the current todo
+        const current = await queryOne<Todo>('SELECT * FROM todos WHERE id = $1', [id]);
+        if (!current) throw new Error('Todo not found');
+        return current;
       }
 
-      // 🔄 Send push notification for task status change
-      try {
-        if (data && userEmail && updates.status) {
-          // Get task details and assignees for notifications
-          const { data: todoData, error: todoError } = await supabase
-            .from('todos')
-            .select('title, assigned_to, assigned_to_array, created_by')
-            .eq('id', id)
-            .single();
+      const setClause = entries.map(([key], i) => `${key} = $${i + 1}`).join(', ');
+      const values = entries.map(([_, v]) => v);
+      values.push(id);
 
-          if (!todoError && todoData) {
-            const notificationPromises: Promise<any>[] = [];
+      console.log('🔄 Attempting to update todo with fields:', entries.map(([k]) => k));
+
+      const result = await query<Todo>(
+        `UPDATE todos SET ${setClause}, updated_at = NOW() WHERE id = $${values.length} RETURNING *`,
+        values
+      );
+
+      const data = result.rows[0];
+      if (!data) {
+        throw new Error('Failed to update todo');
+      }
+
+      // Send push notification for task status change
+      try {
+        if (userEmail && updates.status) {
+          const todoData = await queryOne<{ title: string; assigned_to: string; assigned_to_array: string[]; created_by: string }>(
+            'SELECT title, assigned_to, assigned_to_array, created_by FROM todos WHERE id = $1',
+            [id]
+          );
+
+          if (todoData) {
+            const notificationPromises: Promise<unknown>[] = [];
 
             // Send notification to assignee (if different from updater)
             if (todoData.assigned_to && todoData.assigned_to !== userEmail) {
@@ -572,8 +484,8 @@ export const todosApi = {
             // Send notifications to multiple assignees (if using array)
             if (todoData.assigned_to_array && todoData.assigned_to_array.length > 0) {
               const arrayNotifications = todoData.assigned_to_array
-                .filter(assignee => assignee !== userEmail)
-                .map(assignee =>
+                .filter((assignee: string) => assignee !== userEmail)
+                .map((assignee: string) =>
                   NotificationHelpers.taskStatusChange(
                     assignee,
                     todoData.title,
@@ -586,8 +498,8 @@ export const todosApi = {
             }
 
             // Send notification to task creator (if different from updater and assignee)
-            if (todoData.created_by && 
-                todoData.created_by !== userEmail && 
+            if (todoData.created_by &&
+                todoData.created_by !== userEmail &&
                 todoData.created_by !== todoData.assigned_to &&
                 (!todoData.assigned_to_array || !todoData.assigned_to_array.includes(todoData.created_by))) {
               notificationPromises.push(
@@ -606,7 +518,6 @@ export const todosApi = {
         }
       } catch (notificationError) {
         console.error('Warning: Task updated but notification failed:', notificationError);
-        // Don't fail task update if notifications fail
       }
 
       return data;
@@ -620,73 +531,64 @@ export const todosApi = {
   async editTodo(id: string, updates: UpdateTodoRequest, editorEmail: string): Promise<Todo> {
     try {
       // First check if the user is the creator
-      const { data: todo, error: fetchError } = await supabase
-        .from('todos')
-        .select('created_by')
-        .eq('id', id)
-        .single();
+      const todo = await queryOne<{ created_by: string }>(
+        'SELECT created_by FROM todos WHERE id = $1',
+        [id]
+      );
 
-      if (fetchError) {
-        throw new Error(`Failed to fetch todo: ${fetchError.message}`);
+      if (!todo) {
+        throw new Error('Todo not found');
       }
 
       if (todo.created_by !== editorEmail) {
         throw new Error('Only the creator can edit this task');
       }
 
-      // Try to add edit tracking, but handle gracefully if columns don't exist
-      const editUpdates: any = { ...updates };
-
       // Handle completion status
+      const editUpdates: Record<string, unknown> = { ...updates };
+
       if (editUpdates.status === 'done' && editUpdates.progress === undefined) {
         editUpdates.progress = 100;
       }
-      
+
       if (editUpdates.status === 'done') {
         editUpdates.completed_at = new Date().toISOString();
       } else if (editUpdates.status && editUpdates.status !== 'done') {
         editUpdates.completed_at = null;
       }
 
-      // First try with edit tracking columns
-      try {
-        editUpdates.last_edited_at = new Date().toISOString();
-        editUpdates.last_edited_by = editorEmail;
-        
-        const { data, error } = await supabase
-          .from('todos')
-          .update(editUpdates)
-          .eq('id', id)
-          .select()
-          .single();
+      // Build dynamic UPDATE query
+      const allowedFields = [
+        'title', 'description', 'status', 'progress', 'priority', 'category',
+        'due_date', 'assigned_to', 'assigned_to_array', 'is_team_todo', 'completed_at'
+      ];
 
-        if (error) {
-          throw error;
-        }
+      const entries = Object.entries(editUpdates).filter(
+        ([key, value]) => allowedFields.includes(key) && value !== undefined
+      );
 
-        console.log('✅ Todo edited successfully with edit tracking by:', editorEmail);
-        return data;
-      } catch (trackingError: any) {
-        console.warn('⚠️ Edit tracking columns not available, updating without tracking:', trackingError.message);
-        
-        // Remove tracking fields and try again
-        delete editUpdates.last_edited_at;
-        delete editUpdates.last_edited_by;
-        
-        const { data, error } = await supabase
-          .from('todos')
-          .update(editUpdates)
-          .eq('id', id)
-          .select()
-          .single();
-
-        if (error) {
-          throw new Error(`Failed to edit todo: ${error.message}`);
-        }
-
-        console.log('✅ Todo edited successfully (without tracking) by:', editorEmail);
-        return data;
+      if (entries.length === 0) {
+        const current = await queryOne<Todo>('SELECT * FROM todos WHERE id = $1', [id]);
+        if (!current) throw new Error('Todo not found');
+        return current;
       }
+
+      const setClause = entries.map(([key], i) => `${key} = $${i + 1}`).join(', ');
+      const values = entries.map(([_, v]) => v);
+      values.push(id);
+
+      const result = await query<Todo>(
+        `UPDATE todos SET ${setClause}, updated_at = NOW() WHERE id = $${values.length} RETURNING *`,
+        values
+      );
+
+      const data = result.rows[0];
+      if (!data) {
+        throw new Error('Failed to edit todo');
+      }
+
+      console.log('✅ Todo edited successfully by:', editorEmail);
+      return data;
     } catch (error) {
       console.error('API Error - editTodo:', error);
       throw error;
@@ -696,42 +598,19 @@ export const todosApi = {
   // Delete a todo
   async deleteTodo(id: string, userEmail?: string): Promise<void> {
     try {
-      // Try using secure function if user email is provided
-      if (userEmail) {
-        const { data, error } = await supabase.rpc('delete_todo_for_user', {
-          p_todo_id: id,
-          p_user_email: userEmail
+      // Direct delete from Umbrel PostgreSQL
+      await query('DELETE FROM todos WHERE id = $1', [id]);
+
+      // Broadcast delete event (still uses Supabase for real-time)
+      try {
+        await supabase.channel('teamhub-todos-broadcast').send({
+          type: 'broadcast',
+          event: 'delete',
+          payload: { id },
         });
-
-        if (!error) {
-          // Broadcast delete event
-          await supabase.channel('teamhub-todos-broadcast').send({
-            type: 'broadcast',
-            event: 'delete',
-            payload: { id },
-          });
-          return;
-        }
-        
-        console.warn('RPC delete failed, falling back to direct delete:', error.message);
+      } catch (broadcastError) {
+        console.warn('Broadcast delete event failed:', broadcastError);
       }
-
-      // Fallback to direct delete
-      const { error } = await supabase
-        .from('todos')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        throw new Error(`Failed to delete todo: ${error.message}`);
-      }
-
-      // Broadcast delete event
-      await supabase.channel('teamhub-todos-broadcast').send({
-        type: 'broadcast',
-        event: 'delete',
-        payload: { id },
-      });
     } catch (error) {
       console.error('API Error - deleteTodo:', error);
       throw error;
@@ -741,23 +620,21 @@ export const todosApi = {
   // Get todo statistics
   async getTodoStats(userEmail: string): Promise<TodoStats> {
     try {
-      const { data: todos, error } = await supabase
-        .from('todos')
-        .select('*')
-        .or(`created_by.eq.${userEmail},assigned_to.eq.${userEmail},is_team_todo.eq.true`);
+      const result = await query<Todo>(
+        `SELECT * FROM todos
+         WHERE created_by = $1 OR assigned_to = $1 OR is_team_todo = true`,
+        [userEmail]
+      );
 
-      if (error) {
-        throw new Error(`Failed to fetch todo stats: ${error.message}`);
-      }
-
+      const todos = result.rows;
       const now = new Date();
       const stats: TodoStats = {
         total: todos.length,
         completed: todos.filter(t => t.status === 'done').length,
         pending: todos.filter(t => t.status !== 'done' && t.status !== 'cancelled').length,
-        overdue: todos.filter(t => 
-          t.due_date && 
-          new Date(t.due_date) < now && 
+        overdue: todos.filter(t =>
+          t.due_date &&
+          new Date(t.due_date) < now &&
           t.status !== 'done'
         ).length,
         by_priority: {
@@ -767,7 +644,7 @@ export const todosApi = {
           urgent: todos.filter(t => t.priority === 'urgent').length
         },
         by_status: {
-          assigned: todos.filter(t => t.status === 'assigned' || t.status === 'todo').length, // Handle legacy 'todo' status
+          assigned: todos.filter(t => t.status === 'assigned' || t.status === 'todo').length,
           in_progress: todos.filter(t => t.status === 'in_progress').length,
           pending_approval: todos.filter(t => t.status === 'pending_approval').length,
           done: todos.filter(t => t.status === 'done').length,
@@ -797,17 +674,12 @@ export const todoCommentsApi = {
   // Get comments for a todo
   async getComments(todoId: string): Promise<TodoComment[]> {
     try {
-      const { data, error } = await supabase
-        .from('todo_comments')
-        .select('*')
-        .eq('todo_id', todoId)
-        .order('created_at', { ascending: true });
+      const result = await query<TodoComment>(
+        'SELECT * FROM todo_comments WHERE todo_id = $1 ORDER BY created_at ASC',
+        [todoId]
+      );
 
-      if (error) {
-        throw new Error(`Failed to fetch comments: ${error.message}`);
-      }
-
-      return data || [];
+      return result.rows;
     } catch (error) {
       console.error('API Error - getComments:', error);
       throw error;
@@ -817,31 +689,27 @@ export const todoCommentsApi = {
   // Add a comment to a todo
   async addComment(todoId: string, comment: string, userEmail: string): Promise<TodoComment> {
     try {
-      const { data, error } = await supabase
-        .from('todo_comments')
-        .insert({
-          todo_id: todoId,
-          comment,
-          comment_by: userEmail
-        })
-        .select()
-        .single();
+      const result = await query<TodoComment>(
+        `INSERT INTO todo_comments (todo_id, comment, comment_by, created_at)
+         VALUES ($1, $2, $3, NOW())
+         RETURNING *`,
+        [todoId, comment, userEmail]
+      );
 
-      if (error) {
-        throw new Error(`Failed to add comment: ${error.message}`);
+      const data = result.rows[0];
+      if (!data) {
+        throw new Error('Failed to add comment');
       }
 
-      // 💬 Send push notification for new comment
+      // Send push notification for new comment
       try {
-        // Get task details and participants for notifications
-        const { data: todoData, error: todoError } = await supabase
-          .from('todos')
-          .select('title, assigned_to, assigned_to_array, created_by')
-          .eq('id', todoId)
-          .single();
+        const todoData = await queryOne<{ title: string; assigned_to: string; assigned_to_array: string[]; created_by: string }>(
+          'SELECT title, assigned_to, assigned_to_array, created_by FROM todos WHERE id = $1',
+          [todoId]
+        );
 
-        if (!todoError && todoData) {
-          const notificationPromises: Promise<any>[] = [];
+        if (todoData) {
+          const notificationPromises: Promise<unknown>[] = [];
           const notifiedUsers = new Set<string>();
 
           // Send notification to assignee (if different from commenter)
@@ -860,8 +728,8 @@ export const todoCommentsApi = {
           // Send notifications to multiple assignees (if using array)
           if (todoData.assigned_to_array && todoData.assigned_to_array.length > 0) {
             const arrayNotifications = todoData.assigned_to_array
-              .filter(assignee => assignee !== userEmail && !notifiedUsers.has(assignee))
-              .map(assignee => {
+              .filter((assignee: string) => assignee !== userEmail && !notifiedUsers.has(assignee))
+              .map((assignee: string) => {
                 notifiedUsers.add(assignee);
                 return NotificationHelpers.newComment(
                   assignee,
@@ -874,8 +742,8 @@ export const todoCommentsApi = {
           }
 
           // Send notification to task creator (if different from commenter and not already notified)
-          if (todoData.created_by && 
-              todoData.created_by !== userEmail && 
+          if (todoData.created_by &&
+              todoData.created_by !== userEmail &&
               !notifiedUsers.has(todoData.created_by)) {
             notificationPromises.push(
               NotificationHelpers.newComment(
@@ -904,14 +772,7 @@ export const todoCommentsApi = {
   // Delete a comment
   async deleteComment(commentId: string): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('todo_comments')
-        .delete()
-        .eq('id', commentId);
-
-      if (error) {
-        throw new Error(`Failed to delete comment: ${error.message}`);
-      }
+      await query('DELETE FROM todo_comments WHERE id = $1', [commentId]);
     } catch (error) {
       console.error('API Error - deleteComment:', error);
       throw error;
@@ -924,14 +785,10 @@ export const enhancedTodosApi = {
   // Multi-assignee support
   async updateTodoAssignees(todoId: string, assigneeEmails: string[]): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('todos')
-        .update({ assigned_to_array: assigneeEmails })
-        .eq('id', todoId);
-
-      if (error) {
-        throw new Error(`Failed to update assignees: ${error.message}`);
-      }
+      await query(
+        'UPDATE todos SET assigned_to_array = $1, updated_at = NOW() WHERE id = $2',
+        [assigneeEmails, todoId]
+      );
 
       // Send notifications to new assignees
       await this.createAssignmentNotifications(todoId, assigneeEmails);
@@ -944,36 +801,29 @@ export const enhancedTodosApi = {
   // Enhanced comments with mentions
   async addCommentWithMentions(todoId: string, comment: string, commentBy: string, mentions: string[] = []): Promise<TodoComment> {
     try {
-      const { data, error } = await supabase
-        .from('todo_comments')
-        .insert({
-          todo_id: todoId,
-          comment,
-          comment_by: commentBy,
-          mentions,
-          comment_type: 'message'
-        })
-        .select()
-        .single();
+      const result = await query<TodoComment>(
+        `INSERT INTO todo_comments (todo_id, comment, comment_by, mentions, comment_type, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
+         RETURNING *`,
+        [todoId, comment, commentBy, mentions, 'message']
+      );
 
-      if (error) {
-        throw new Error(`Failed to add comment: ${error.message}`);
+      const data = result.rows[0];
+      if (!data) {
+        throw new Error('Failed to add comment');
       }
 
-      // 🏷️ Send push notifications for mentions
+      // Send push notifications for mentions
       try {
         if (mentions.length > 0) {
-          // Get task title for notifications
-          const { data: todoData, error: todoError } = await supabase
-            .from('todos')
-            .select('title')
-            .eq('id', todoId)
-            .single();
+          const todoData = await queryOne<{ title: string }>(
+            'SELECT title FROM todos WHERE id = $1',
+            [todoId]
+          );
 
-          if (!todoError && todoData) {
-            // Send push notifications to mentioned users
+          if (todoData) {
             const mentionNotifications = mentions
-              .filter(mentionEmail => mentionEmail !== commentBy) // Skip self-mentions
+              .filter(mentionEmail => mentionEmail !== commentBy)
               .map(mentionEmail =>
                 NotificationHelpers.mention(
                   mentionEmail,
@@ -982,16 +832,14 @@ export const enhancedTodosApi = {
                   todoId
                 )
               );
-            
+
             await Promise.all(mentionNotifications);
           }
 
-          // Also create database notifications (existing functionality)
           await this.createMentionNotifications(todoId, mentions, commentBy, comment);
         }
       } catch (notificationError) {
         console.error('Warning: Comment with mentions added but notification failed:', notificationError);
-        // Don't fail comment creation if notifications fail
       }
 
       return data;
@@ -1004,37 +852,29 @@ export const enhancedTodosApi = {
   // Assignee status management
   async updateAssigneeStatus(todoId: string, assigneeEmail: string, status: TodoStatus, progress: number = 0): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('todo_assignee_status')
-        .upsert({
-          todo_id: todoId,
-          assignee_email: assigneeEmail,
-          status,
-          progress,
-          updated_at: new Date().toISOString()
-        });
-
-      if (error) {
-        throw new Error(`Failed to update assignee status: ${error.message}`);
-      }
+      await query(
+        `INSERT INTO todo_assignee_status (todo_id, assignee_email, status, progress, updated_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (todo_id, assignee_email) DO UPDATE SET
+           status = EXCLUDED.status,
+           progress = EXCLUDED.progress,
+           updated_at = NOW()`,
+        [todoId, assigneeEmail, status, progress]
+      );
     } catch (error) {
       console.error('API Error - updateAssigneeStatus:', error);
       throw error;
     }
   },
 
-  async getAssigneeStatuses(todoId: string): Promise<any[]> {
+  async getAssigneeStatuses(todoId: string): Promise<unknown[]> {
     try {
-      const { data, error } = await supabase
-        .from('todo_assignee_status')
-        .select('*')
-        .eq('todo_id', todoId);
+      const result = await query(
+        'SELECT * FROM todo_assignee_status WHERE todo_id = $1',
+        [todoId]
+      );
 
-      if (error) {
-        throw new Error(`Failed to fetch assignee statuses: ${error.message}`);
-      }
-
-      return data || [];
+      return result.rows;
     } catch (error) {
       console.error('API Error - getAssigneeStatuses:', error);
       throw error;
@@ -1042,20 +882,24 @@ export const enhancedTodosApi = {
   },
 
   // Attachments Management
-  async getAttachments(todoId?: string, commentId?: string): Promise<any[]> {
+  async getAttachments(todoId?: string, commentId?: string): Promise<unknown[]> {
     try {
-      let query = supabase.from('todo_attachments').select('*');
-      
-      if (todoId) query = query.eq('todo_id', todoId);
-      if (commentId) query = query.eq('comment_id', commentId);
-      
-      const { data, error } = await query.order('created_at', { ascending: false });
+      let sql = 'SELECT * FROM todo_attachments WHERE 1=1';
+      const params: unknown[] = [];
 
-      if (error) {
-        throw new Error(`Failed to fetch attachments: ${error.message}`);
+      if (todoId) {
+        params.push(todoId);
+        sql += ` AND todo_id = $${params.length}`;
+      }
+      if (commentId) {
+        params.push(commentId);
+        sql += ` AND comment_id = $${params.length}`;
       }
 
-      return data || [];
+      sql += ' ORDER BY created_at DESC';
+
+      const result = await query(sql, params);
+      return result.rows;
     } catch (error) {
       console.error('API Error - getAttachments:', error);
       throw error;
@@ -1094,20 +938,18 @@ export const enhancedTodosApi = {
   // Helper functions for notifications
   async createMentionNotifications(todoId: string, mentionedEmails: string[], mentionedBy: string, comment: string): Promise<void> {
     try {
-      const notifications = mentionedEmails.map(email => ({
-        user_email: email,
-        todo_id: todoId,
-        type: 'mention',
-        title: `${mentionedBy} mentioned you in a task`,
-        message: comment.substring(0, 100) + (comment.length > 100 ? '...' : '')
-      }));
-
-      const { error } = await supabase
-        .from('todo_notifications')
-        .insert(notifications);
-
-      if (error) {
-        console.error('Failed to create mention notifications:', error);
+      for (const email of mentionedEmails) {
+        await query(
+          `INSERT INTO todo_notifications (user_email, todo_id, type, title, message, created_at)
+           VALUES ($1, $2, $3, $4, $5, NOW())`,
+          [
+            email,
+            todoId,
+            'mention',
+            `${mentionedBy} mentioned you in a task`,
+            comment.substring(0, 100) + (comment.length > 100 ? '...' : '')
+          ]
+        );
       }
     } catch (error) {
       console.error('Error creating mention notifications:', error);
@@ -1116,29 +958,19 @@ export const enhancedTodosApi = {
 
   async createAssignmentNotifications(todoId: string, assigneeEmails: string[]): Promise<void> {
     try {
-      // Get task title
-      const { data: todo } = await supabase
-        .from('todos')
-        .select('title')
-        .eq('id', todoId)
-        .single();
+      const todo = await queryOne<{ title: string }>(
+        'SELECT title FROM todos WHERE id = $1',
+        [todoId]
+      );
 
       if (!todo) return;
 
-      const notifications = assigneeEmails.map(email => ({
-        user_email: email,
-        todo_id: todoId,
-        type: 'assignment',
-        title: 'New task assigned to you',
-        message: todo.title
-      }));
-
-      const { error } = await supabase
-        .from('todo_notifications')
-        .insert(notifications);
-
-      if (error) {
-        console.error('Failed to create assignment notifications:', error);
+      for (const email of assigneeEmails) {
+        await query(
+          `INSERT INTO todo_notifications (user_email, todo_id, type, title, message, created_at)
+           VALUES ($1, $2, $3, $4, $5, NOW())`,
+          [email, todoId, 'assignment', 'New task assigned to you', todo.title]
+        );
       }
     } catch (error) {
       console.error('Error creating assignment notifications:', error);
@@ -1152,20 +984,13 @@ export const todoMigration = {
   async migrateTodoStatusToAssigned(): Promise<void> {
     try {
       console.log('🔄 Migrating legacy todo status to assigned...');
-      
-      const { data, error } = await supabase
-        .from('todos')
-        .update({ status: 'assigned' })
-        .eq('status', 'todo')
-        .select('id');
 
-      if (error) {
-        console.error('Migration error:', error);
-        return;
-      }
+      const result = await query<{ id: string }>(
+        `UPDATE todos SET status = 'assigned' WHERE status = 'todo' RETURNING id`
+      );
 
-      if (data && data.length > 0) {
-        console.log(`✅ Migrated ${data.length} tasks from 'todo' to 'assigned' status`);
+      if (result.rows.length > 0) {
+        console.log(`✅ Migrated ${result.rows.length} tasks from 'todo' to 'assigned' status`);
       } else {
         console.log('✅ No migration needed - all tasks already use new status values');
       }
@@ -1220,24 +1045,28 @@ export const unreadMessagesApi = {
   async getUnreadCount(todoId: string, userEmail: string): Promise<number> {
     try {
       console.log('🔍 Getting unread count for:', { todoId: todoId.substring(0, 8), userEmail });
-      
-      // Try using secure function first
-      const { data, error } = await supabase.rpc('get_unread_count', {
-        p_todo_id: todoId,
-        p_user_email: userEmail
-      });
-      
-      if (!error && typeof data === 'number') {
-        console.log(`✅ RPC unread count for ${todoId.substring(0, 8)}:`, data);
-        return data;
+
+      // Get last read time
+      const readStatus = await queryOne<{ last_read_at: string }>(
+        'SELECT last_read_at FROM todo_read_status WHERE todo_id = $1 AND user_email = $2',
+        [todoId, userEmail]
+      );
+
+      let sql = 'SELECT COUNT(*) as count FROM todo_comments WHERE todo_id = $1';
+      const params: unknown[] = [todoId];
+
+      if (readStatus?.last_read_at) {
+        sql += ' AND created_at > $2';
+        params.push(readStatus.last_read_at);
+        console.log('Counting comments after:', readStatus.last_read_at);
+      } else {
+        console.log('Counting all comments (never read)');
       }
-      
-      console.warn(`RPC get_unread_count failed for ${todoId.substring(0, 8)}, using fallback:`, error?.message);
-      
-      // Fallback to manual calculation only if RPC fails
-      const fallbackResult = await this.getUnreadCountFallback(todoId, userEmail);
-      console.log(`📊 Fallback result for ${todoId.substring(0, 8)}:`, fallbackResult);
-      return fallbackResult;
+
+      const result = await queryOne<{ count: string }>(sql, params);
+      const unreadCount = parseInt(result?.count || '0', 10);
+      console.log(`📊 Unread count for ${todoId.substring(0, 8)}:`, unreadCount);
+      return unreadCount;
     } catch (error) {
       console.warn('Unread count calculation failed, returning 0:', {
         error: error instanceof Error ? error.message : String(error),
@@ -1248,72 +1077,18 @@ export const unreadMessagesApi = {
     }
   },
 
-  // Manual calculation fallback when database functions don't exist
-  async getUnreadCountFallback(todoId: string, userEmail: string): Promise<number> {
-    try {
-      console.log('📊 Using fallback unread count calculation for:', { todoId, userEmail });
-      
-      // Get read status directly from table
-      let lastReadAt = null;
-      try {
-        const { data: readData, error: readError } = await supabase
-          .from('todo_read_status')
-          .select('last_read_at')
-          .eq('todo_id', todoId)
-          .eq('user_email', userEmail)
-          .single();
-          
-        if (!readError && readData) {
-          lastReadAt = readData.last_read_at;
-        }
-      } catch (readError: any) {
-        // If table doesn't exist or no record found, treat as never read
-        console.log('No read status found, counting all comments');
-      }
-
-      // Count comments
-      let query = supabase
-        .from('todo_comments')
-        .select('id', { count: 'exact' })
-        .eq('todo_id', todoId);
-
-      // If we have a last read time, only count comments after that
-      if (lastReadAt) {
-        query = query.gt('created_at', lastReadAt);
-        console.log('Counting comments after:', lastReadAt);
-      } else {
-        console.log('Counting all comments (never read)');
-      }
-
-      const { count, error: countError } = await query;
-
-      if (countError) {
-        console.error('Error counting comments:', countError);
-        return 0;
-      }
-
-      const unreadCount = count || 0;
-      console.log('📊 Fallback unread count result:', unreadCount);
-      return unreadCount;
-    } catch (error) {
-      console.warn('Unread count calculation failed, returning 0:', error);
-      return 0;
-    }
-  },
-
   // Get unread counts for multiple tasks
   async getUnreadCounts(todoIds: string[], userEmail: string): Promise<Record<string, number>> {
     try {
       const counts: Record<string, number> = {};
-      
-      // Get unread counts for all tasks
+
       const promises = todoIds.map(async (todoId) => {
         const count = await this.getUnreadCount(todoId, userEmail);
         return { todoId, count };
       });
 
       const results = await Promise.all(promises);
-      
+
       results.forEach(({ todoId, count }) => {
         counts[todoId] = count;
       });
@@ -1329,86 +1104,33 @@ export const unreadMessagesApi = {
   async markTaskAsRead(todoId: string, userEmail: string): Promise<void> {
     try {
       console.log('📖 Marking task as read:', { todoId: todoId.substring(0, 8), userEmail });
-      
-      // Try using secure function first
-      // Use current time - the database comparison should use >= not just >
+
       const readTime = new Date().toISOString();
       console.log('🕐 Marking as read at:', readTime);
-      const { error } = await supabase.rpc('upsert_read_status', {
-        p_todo_id: todoId,
-        p_user_email: userEmail,
-        p_last_read_at: readTime
-      });
 
-      if (!error) {
-        console.log('✅ Task marked as read via RPC successfully');
-        return;
-      }
+      await query(
+        `INSERT INTO todo_read_status (todo_id, user_email, last_read_at, updated_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (todo_id, user_email) DO UPDATE SET
+           last_read_at = EXCLUDED.last_read_at,
+           updated_at = NOW()`,
+        [todoId, userEmail, readTime]
+      );
 
-      console.warn('❌ RPC upsert_read_status failed, trying fallback:', error.message);
-      
-      // Fallback to direct table access
-      const fallbackSuccess = await this.markTaskAsReadFallback(todoId, userEmail);
-      if (!fallbackSuccess) {
-        console.error('❌ Both RPC and fallback failed for markTaskAsRead');
-        throw new Error('Failed to mark task as read in database');
-      }
+      console.log('✅ Task marked as read successfully');
     } catch (error) {
-      console.error('❌ Mark as read completely failed:', error);
-      throw error; // Re-throw to let caller handle
-    }
-  },
-
-  // Fallback mark as read when RPC functions don't exist
-  async markTaskAsReadFallback(todoId: string, userEmail: string): Promise<boolean> {
-    try {
-      console.log('📊 Using fallback mark as read for:', { todoId: todoId.substring(0, 8), userEmail });
-      
-      // Direct table upsert
-      const readTime = new Date().toISOString();
-      console.log('🕐 Fallback marking as read at:', readTime);
-      const { error } = await supabase
-        .from('todo_read_status')
-        .upsert({
-          todo_id: todoId,
-          user_email: userEmail,
-          last_read_at: readTime,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'todo_id,user_email'
-        });
-
-      if (error) {
-        console.error('❌ Direct table upsert failed:', error.message, error.code);
-        // Check if table doesn't exist
-        if (error.code === '42P01') {
-          console.error('❌ todo_read_status table does not exist. Please run the database setup SQL.');
-        }
-        return false;
-      }
-
-      console.log('✅ Task marked as read via direct table access');
-      return true;
-    } catch (error: any) {
-      console.error('❌ Fallback mark as read failed:', error.message);
-      return false;
+      console.error('❌ Mark as read failed:', error);
+      throw error;
     }
   },
 
   // Get last read timestamp for a task
   async getLastReadTime(todoId: string, userEmail: string): Promise<Date | null> {
     try {
-      const { data, error } = await supabase
-        .from('todo_read_status')
-        .select('last_read_at')
-        .eq('todo_id', todoId)
-        .eq('user_email', userEmail)
-        .single();
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-        console.error('Error getting last read time:', error);
-        return null;
-      }
+      const data = await queryOne<{ last_read_at: string }>(
+        'SELECT last_read_at FROM todo_read_status WHERE todo_id = $1 AND user_email = $2',
+        [todoId, userEmail]
+      );
 
       return data?.last_read_at ? new Date(data.last_read_at) : null;
     } catch (error) {
@@ -1424,30 +1146,15 @@ export const todoAttachmentsApi = {
   async getTaskAttachments(todoId: string): Promise<TodoAttachment[]> {
     try {
       console.log('🔄 Fetching attachments for todo:', todoId);
-      
-      // Always use direct table access for better debugging
-      const { data, error } = await supabase
-        .from('todo_attachments')
-        .select('*')
-        .eq('todo_id', todoId)
-        .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('❌ Error fetching attachments:', error);
-        console.error('❌ Error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        
-        // Return empty array instead of throwing to prevent UI breaks
-        return [];
-      }
+      const result = await query<TodoAttachment>(
+        'SELECT * FROM todo_attachments WHERE todo_id = $1 ORDER BY created_at DESC',
+        [todoId]
+      );
 
-      console.log('✅ Loaded attachments successfully:', data?.length || 0);
-      if (data && data.length > 0) {
-        console.log('📎 Attachment details:', data.map(att => ({
+      console.log('✅ Loaded attachments successfully:', result.rows.length);
+      if (result.rows.length > 0) {
+        console.log('📎 Attachment details:', result.rows.map(att => ({
           id: att.id,
           file_name: att.file_name,
           file_size: att.file_size,
@@ -1455,23 +1162,21 @@ export const todoAttachmentsApi = {
           file_url: att.file_url
         })));
       }
-      
+
       // Ensure file URLs are properly accessible
-      const processedAttachments = (data || []).map(attachment => ({
+      const processedAttachments = result.rows.map(attachment => ({
         ...attachment,
-        // Generate fresh public URL to ensure accessibility
         file_url: attachment.file_url || this.getPublicFileUrl(attachment.file_name, todoId)
       }));
-      
+
       return processedAttachments;
     } catch (error) {
       console.error('API Error - getTaskAttachments:', error);
-      // Return empty array instead of throwing to prevent UI breaks
       return [];
     }
   },
 
-  // Helper function to generate public file URLs
+  // Helper function to generate public file URLs (uses Supabase storage)
   getPublicFileUrl(fileName: string, todoId: string): string {
     try {
       const filePath = `tasks/${todoId}/${fileName}`;
@@ -1488,18 +1193,12 @@ export const todoAttachmentsApi = {
   // Get attachments for a specific comment
   async getCommentAttachments(commentId: string): Promise<TodoAttachment[]> {
     try {
-      const { data, error } = await supabase
-        .from('todo_attachments')
-        .select('*')
-        .eq('comment_id', commentId)
-        .order('created_at', { ascending: false });
+      const result = await query<TodoAttachment>(
+        'SELECT * FROM todo_attachments WHERE comment_id = $1 ORDER BY created_at DESC',
+        [commentId]
+      );
 
-      if (error) {
-        console.error('Error fetching comment attachments:', error);
-        throw new Error(`Failed to fetch comment attachments: ${error.message}`);
-      }
-
-      return data || [];
+      return result.rows;
     } catch (error) {
       console.error('API Error - getCommentAttachments:', error);
       throw error;
@@ -1509,30 +1208,9 @@ export const todoAttachmentsApi = {
   // Delete an attachment
   async deleteAttachment(attachmentId: string): Promise<boolean> {
     try {
-      // Try using the secure function first
-      const { data, error } = await supabase
-        .rpc('delete_attachment', { p_attachment_id: attachmentId });
-
-      if (error) {
-        console.warn('RPC delete failed, trying direct table access:', error);
-        
-        // Fallback to direct table access
-        const { error: fallbackError } = await supabase
-          .from('todo_attachments')
-          .delete()
-          .eq('id', attachmentId);
-
-        if (fallbackError) {
-          console.error('Error deleting attachment:', fallbackError);
-          throw new Error(`Failed to delete attachment: ${fallbackError.message}`);
-        }
-
-        console.log('✅ Attachment deleted (fallback):', attachmentId);
-        return true;
-      }
-
-      console.log('✅ Attachment deleted (RPC):', attachmentId);
-      return data || true;
+      await query('DELETE FROM todo_attachments WHERE id = $1', [attachmentId]);
+      console.log('✅ Attachment deleted:', attachmentId);
+      return true;
     } catch (error) {
       console.error('API Error - deleteAttachment:', error);
       throw error;
@@ -1543,7 +1221,7 @@ export const todoAttachmentsApi = {
   async uploadFile(file: File, commentId: string, userEmail: string): Promise<TodoAttachment> {
     try {
       // Check file size (50MB limit)
-      const maxSizeInBytes = 50 * 1024 * 1024; // 50MB
+      const maxSizeInBytes = 50 * 1024 * 1024;
       if (file.size > maxSizeInBytes) {
         throw new Error(`File too large. Maximum size is 50MB. Your file is ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
       }
@@ -1551,8 +1229,8 @@ export const todoAttachmentsApi = {
       const fileName = `${Date.now()}-${file.name}`;
       const filePath = `comments/${commentId}/${fileName}`;
 
-      // Upload to Supabase storage with upsert option for large files
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // Upload to Supabase storage
+      const { error: uploadError } = await supabase.storage
         .from('todo-attachments')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -1568,33 +1246,32 @@ export const todoAttachmentsApi = {
         .from('todo-attachments')
         .getPublicUrl(filePath);
 
-      // Create thumbnail for images
       let thumbnailPath = null;
       if (file.type.startsWith('image/')) {
-        // For now, use the same image as thumbnail
         thumbnailPath = filePath;
       }
 
-      // Save attachment metadata to database
-      const { data, error } = await supabase
-        .from('todo_comment_attachments')
-        .insert({
-          comment_id: commentId,
-          file_name: file.name,
-          file_path: filePath,
-          file_size: file.size,
-          file_type: file.type,
-          file_extension: file.name.split('.').pop() || '',
-          thumbnail_path: thumbnailPath,
-          uploaded_by: userEmail,
-          width: file.type.startsWith('image/') ? null : null,
-          height: file.type.startsWith('image/') ? null : null
-        })
-        .select()
-        .single();
+      // Save attachment metadata to Umbrel PostgreSQL
+      const result = await query<{ id: string; file_name: string; file_type: string; file_size: number; uploaded_by: string; created_at: string }>(
+        `INSERT INTO todo_comment_attachments (
+          comment_id, file_name, file_path, file_size, file_type, file_extension, thumbnail_path, uploaded_by, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        RETURNING *`,
+        [
+          commentId,
+          file.name,
+          filePath,
+          file.size,
+          file.type,
+          file.name.split('.').pop() || '',
+          thumbnailPath,
+          userEmail
+        ]
+      );
 
-      if (error) {
-        throw new Error(`Database save failed: ${error.message}`);
+      const data = result.rows[0];
+      if (!data) {
+        throw new Error('Database save failed');
       }
 
       return {
@@ -1618,18 +1295,13 @@ export const todoAttachmentsApi = {
   // Get attachments for a comment (updated to use new table)
   async getCommentAttachmentsNew(commentId: string): Promise<TodoAttachment[]> {
     try {
-      const { data, error } = await supabase
-        .from('todo_comment_attachments')
-        .select('*')
-        .eq('comment_id', commentId)
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        throw new Error(`Failed to fetch attachments: ${error.message}`);
-      }
+      const result = await query<{ id: string; comment_id: string; file_name: string; file_path: string; file_type: string; file_size: number; thumbnail_path: string | null; uploaded_by: string; created_at: string }>(
+        'SELECT * FROM todo_comment_attachments WHERE comment_id = $1 ORDER BY created_at ASC',
+        [commentId]
+      );
 
       // Convert to TodoAttachment format
-      return (data || []).map(attachment => ({
+      return result.rows.map(attachment => ({
         id: attachment.id,
         todo_id: '',
         comment_id: attachment.comment_id,
@@ -1637,7 +1309,7 @@ export const todoAttachmentsApi = {
         file_url: supabase.storage.from('todo-attachments').getPublicUrl(attachment.file_path).data.publicUrl,
         file_type: attachment.file_type,
         file_size: attachment.file_size,
-        thumbnail_url: attachment.thumbnail_path ? 
+        thumbnail_url: attachment.thumbnail_path ?
           supabase.storage.from('todo-attachments').getPublicUrl(attachment.thumbnail_path).data.publicUrl : undefined,
         uploaded_by: attachment.uploaded_by,
         created_at: attachment.created_at
@@ -1652,13 +1324,12 @@ export const todoAttachmentsApi = {
   async deleteCommentAttachment(attachmentId: string, userEmail: string): Promise<void> {
     try {
       // Get attachment details first
-      const { data: attachment, error: fetchError } = await supabase
-        .from('todo_comment_attachments')
-        .select('file_path, uploaded_by')
-        .eq('id', attachmentId)
-        .single();
+      const attachment = await queryOne<{ file_path: string; uploaded_by: string }>(
+        'SELECT file_path, uploaded_by FROM todo_comment_attachments WHERE id = $1',
+        [attachmentId]
+      );
 
-      if (fetchError || !attachment) {
+      if (!attachment) {
         throw new Error('Attachment not found');
       }
 
@@ -1667,7 +1338,7 @@ export const todoAttachmentsApi = {
         throw new Error('Not authorized to delete this attachment');
       }
 
-      // Delete from storage
+      // Delete from Supabase storage
       const { error: storageError } = await supabase.storage
         .from('todo-attachments')
         .remove([attachment.file_path]);
@@ -1676,15 +1347,8 @@ export const todoAttachmentsApi = {
         console.warn('Failed to delete file from storage:', storageError);
       }
 
-      // Delete from database
-      const { error } = await supabase
-        .from('todo_comment_attachments')
-        .delete()
-        .eq('id', attachmentId);
-
-      if (error) {
-        throw new Error(`Failed to delete attachment: ${error.message}`);
-      }
+      // Delete from Umbrel PostgreSQL
+      await query('DELETE FROM todo_comment_attachments WHERE id = $1', [attachmentId]);
     } catch (error) {
       console.error('API Error - deleteCommentAttachment:', error);
       throw error;
@@ -1720,22 +1384,12 @@ export const todoReactionsApi = {
   // Add a reaction to a comment
   async addReaction(commentId: string, emoji: string, userEmail: string): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('todo_comment_reactions')
-        .insert({
-          comment_id: commentId,
-          emoji,
-          user_email: userEmail
-        });
-
-      if (error) {
-        // If it's a unique constraint violation, it means user already reacted with this emoji
-        if (error.code === '23505') {
-          console.log('User already reacted with this emoji');
-          return;
-        }
-        throw new Error(`Failed to add reaction: ${error.message}`);
-      }
+      await query(
+        `INSERT INTO todo_comment_reactions (comment_id, emoji, user_email, created_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (comment_id, emoji, user_email) DO NOTHING`,
+        [commentId, emoji, userEmail]
+      );
     } catch (error) {
       console.error('API Error - addReaction:', error);
       throw error;
@@ -1745,16 +1399,10 @@ export const todoReactionsApi = {
   // Remove a reaction from a comment
   async removeReaction(commentId: string, emoji: string, userEmail: string): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('todo_comment_reactions')
-        .delete()
-        .eq('comment_id', commentId)
-        .eq('emoji', emoji)
-        .eq('user_email', userEmail);
-
-      if (error) {
-        throw new Error(`Failed to remove reaction: ${error.message}`);
-      }
+      await query(
+        'DELETE FROM todo_comment_reactions WHERE comment_id = $1 AND emoji = $2 AND user_email = $3',
+        [commentId, emoji, userEmail]
+      );
     } catch (error) {
       console.error('API Error - removeReaction:', error);
       throw error;
@@ -1766,23 +1414,19 @@ export const todoReactionsApi = {
     try {
       if (commentIds.length === 0) return {};
 
-      const { data, error } = await supabase
-        .from('todo_comment_reactions')
-        .select('comment_id, emoji, user_email')
-        .in('comment_id', commentIds);
-
-      if (error) {
-        throw new Error(`Failed to fetch reactions: ${error.message}`);
-      }
+      const result = await query<{ comment_id: string; emoji: string; user_email: string }>(
+        'SELECT comment_id, emoji, user_email FROM todo_comment_reactions WHERE comment_id = ANY($1)',
+        [commentIds]
+      );
 
       // Group reactions by comment and emoji
       const reactions: Record<string, Array<{emoji: string, count: number, users: string[]}>> = {};
-      
-      (data || []).forEach(reaction => {
+
+      result.rows.forEach(reaction => {
         if (!reactions[reaction.comment_id]) {
           reactions[reaction.comment_id] = [];
         }
-        
+
         const existingReaction = reactions[reaction.comment_id].find(r => r.emoji === reaction.emoji);
         if (existingReaction) {
           existingReaction.count++;
@@ -1808,62 +1452,29 @@ export const todoReactionsApi = {
 export const taskFeedbackApi = {
   // Create feedback from creator to assignee
   async createTaskFeedback(
-    todoId: string, 
-    feedbackBy: string, 
-    feedbackTo: string, 
-    message: string, 
+    todoId: string,
+    feedbackBy: string,
+    feedbackTo: string,
+    message: string,
     type: 'revision' | 'approval' | 'rejection' = 'revision'
   ): Promise<TaskFeedback> {
     try {
       console.log('📝 Creating task feedback:', { todoId, feedbackBy, feedbackTo, type });
-      
-      // Use the secure function
-      const { data, error } = await supabase
-        .rpc('create_task_feedback', {
-          p_todo_id: todoId,
-          p_feedback_by: feedbackBy,
-          p_feedback_to: feedbackTo,
-          p_feedback_message: message,
-          p_feedback_type: type
-        });
 
-      if (error) {
-        console.warn('RPC function failed, trying direct insert:', error);
-        
-        // Fallback to direct insert
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('task_feedback')
-          .insert({
-            todo_id: todoId,
-            feedback_by: feedbackBy,
-            feedback_to: feedbackTo,
-            feedback_message: message,
-            feedback_type: type
-          })
-          .select()
-          .single();
+      const result = await query<TaskFeedback>(
+        `INSERT INTO task_feedback (todo_id, feedback_by, feedback_to, feedback_message, feedback_type, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
+         RETURNING *`,
+        [todoId, feedbackBy, feedbackTo, message, type]
+      );
 
-        if (fallbackError) {
-          throw new Error(`Failed to create feedback: ${fallbackError.message}`);
-        }
-
-        console.log('✅ Feedback created (fallback):', fallbackData.id);
-        return fallbackData;
+      const data = result.rows[0];
+      if (!data) {
+        throw new Error('Failed to create feedback');
       }
 
-      // Get the created feedback
-      const { data: feedbackData, error: fetchError } = await supabase
-        .from('task_feedback')
-        .select('*')
-        .eq('id', data)
-        .single();
-
-      if (fetchError) {
-        throw new Error(`Failed to fetch created feedback: ${fetchError.message}`);
-      }
-
-      console.log('✅ Feedback created (RPC):', feedbackData.id);
-      return feedbackData;
+      console.log('✅ Feedback created:', data.id);
+      return data;
     } catch (error) {
       console.error('API Error - createTaskFeedback:', error);
       throw error;
@@ -1874,32 +1485,14 @@ export const taskFeedbackApi = {
   async getTaskFeedback(todoId: string): Promise<TaskFeedback[]> {
     try {
       console.log('🔄 Fetching feedback for todo:', todoId);
-      
-      // Try using the secure function first
-      const { data, error } = await supabase
-        .rpc('get_task_feedback', { p_todo_id: todoId });
 
-      if (error) {
-        console.warn('RPC function failed, trying direct query:', error);
-        
-        // Fallback to direct query
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('task_feedback')
-          .select('*')
-          .eq('todo_id', todoId)
-          .order('created_at', { ascending: false });
+      const result = await query<TaskFeedback>(
+        'SELECT * FROM task_feedback WHERE todo_id = $1 ORDER BY created_at DESC',
+        [todoId]
+      );
 
-        if (fallbackError) {
-          console.error('Error fetching feedback:', fallbackError);
-          return [];
-        }
-
-        console.log('✅ Loaded feedback (fallback):', fallbackData?.length || 0);
-        return fallbackData || [];
-      }
-
-      console.log('✅ Loaded feedback (RPC):', data?.length || 0);
-      return data || [];
+      console.log('✅ Loaded feedback:', result.rows.length);
+      return result.rows;
     } catch (error) {
       console.error('API Error - getTaskFeedback:', error);
       return [];
@@ -1910,32 +1503,15 @@ export const taskFeedbackApi = {
   async markFeedbackAsRead(feedbackId: string): Promise<boolean> {
     try {
       console.log('👁️ Marking feedback as read:', feedbackId);
-      
-      // Try using the secure function first
-      const { data, error } = await supabase
-        .rpc('mark_feedback_read', { p_feedback_id: feedbackId });
 
-      if (error) {
-        console.warn('RPC function failed, trying direct update:', error);
-        
-        // Fallback to direct update
-        const { error: fallbackError } = await supabase
-          .from('task_feedback')
-          .update({ read_at: new Date().toISOString() })
-          .eq('id', feedbackId)
-          .is('read_at', null);
+      const result = await query(
+        `UPDATE task_feedback SET read_at = NOW() WHERE id = $1 AND read_at IS NULL RETURNING id`,
+        [feedbackId]
+      );
 
-        if (fallbackError) {
-          console.error('Error marking feedback as read:', fallbackError);
-          return false;
-        }
-
-        console.log('✅ Feedback marked as read (fallback)');
-        return true;
-      }
-
-      console.log('✅ Feedback marked as read (RPC):', data);
-      return data === true;
+      const success = result.rowCount && result.rowCount > 0;
+      console.log('✅ Feedback marked as read:', success);
+      return success || false;
     } catch (error) {
       console.error('API Error - markFeedbackAsRead:', error);
       return false;
@@ -1945,18 +1521,12 @@ export const taskFeedbackApi = {
   // Get unread feedback count for a user
   async getUnreadFeedbackCount(userEmail: string): Promise<number> {
     try {
-      const { data, error } = await supabase
-        .from('task_feedback')
-        .select('id', { count: 'exact' })
-        .eq('feedback_to', userEmail)
-        .is('read_at', null);
+      const result = await queryOne<{ count: string }>(
+        'SELECT COUNT(*) as count FROM task_feedback WHERE feedback_to = $1 AND read_at IS NULL',
+        [userEmail]
+      );
 
-      if (error) {
-        console.error('Error getting unread feedback count:', error);
-        return 0;
-      }
-
-      return data?.length || 0;
+      return parseInt(result?.count || '0', 10);
     } catch (error) {
       console.error('API Error - getUnreadFeedbackCount:', error);
       return 0;

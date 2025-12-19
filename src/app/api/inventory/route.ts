@@ -1,8 +1,298 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]/route';
-import { createClient } from '@supabase/supabase-js';
+import { query, queryOne } from '@/lib/umbrel/client';
 import { WebsiteInventory, InventoryFilters, InventoryResponse, InventoryMetrics } from '@/types/inventory';
+
+// Helper to build WHERE clause from filters
+function buildWhereClause(searchParams: URLSearchParams): { clause: string; params: unknown[] } {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  let paramIndex = 1;
+
+  // Search filter
+  const search = searchParams.get('search');
+  if (search) {
+    conditions.push(`(website ILIKE $${paramIndex} OR contact ILIKE $${paramIndex} OR category ILIKE $${paramIndex} OR notes ILIKE $${paramIndex})`);
+    params.push(`%${search}%`);
+    paramIndex++;
+  }
+
+  const website = searchParams.get('website');
+  if (website) {
+    conditions.push(`website ILIKE $${paramIndex}`);
+    params.push(`%${website}%`);
+    paramIndex++;
+  }
+
+  const contact = searchParams.get('contact');
+  if (contact) {
+    conditions.push(`contact ILIKE $${paramIndex}`);
+    params.push(`%${contact}%`);
+    paramIndex++;
+  }
+
+  const category = searchParams.get('category');
+  if (category) {
+    conditions.push(`category = $${paramIndex}`);
+    params.push(category);
+    paramIndex++;
+  }
+
+  const status = searchParams.get('status');
+  if (status) {
+    conditions.push(`status = $${paramIndex}`);
+    params.push(status);
+    paramIndex++;
+  }
+
+  // Authority metrics filters
+  const drMin = searchParams.get('domain_rating_min');
+  if (drMin) {
+    conditions.push(`domain_rating >= $${paramIndex}`);
+    params.push(parseInt(drMin));
+    paramIndex++;
+  }
+  const drMax = searchParams.get('domain_rating_max');
+  if (drMax) {
+    conditions.push(`domain_rating <= $${paramIndex}`);
+    params.push(parseInt(drMax));
+    paramIndex++;
+  }
+
+  const daMin = searchParams.get('da_min');
+  if (daMin) {
+    conditions.push(`da >= $${paramIndex}`);
+    params.push(parseInt(daMin));
+    paramIndex++;
+  }
+  const daMax = searchParams.get('da_max');
+  if (daMax) {
+    conditions.push(`da <= $${paramIndex}`);
+    params.push(parseInt(daMax));
+    paramIndex++;
+  }
+
+  const backlinksMin = searchParams.get('backlinks_min');
+  if (backlinksMin) {
+    conditions.push(`backlinks >= $${paramIndex}`);
+    params.push(parseInt(backlinksMin));
+    paramIndex++;
+  }
+  const backlinksMax = searchParams.get('backlinks_max');
+  if (backlinksMax) {
+    conditions.push(`backlinks <= $${paramIndex}`);
+    params.push(parseInt(backlinksMax));
+    paramIndex++;
+  }
+
+  // Traffic filters
+  const orgMin = searchParams.get('organic_traffic_min');
+  if (orgMin) {
+    conditions.push(`organic_traffic >= $${paramIndex}`);
+    params.push(parseInt(orgMin));
+    paramIndex++;
+  }
+  const orgMax = searchParams.get('organic_traffic_max');
+  if (orgMax) {
+    conditions.push(`organic_traffic <= $${paramIndex}`);
+    params.push(parseInt(orgMax));
+    paramIndex++;
+  }
+
+  const usMin = searchParams.get('us_traffic_min');
+  if (usMin) {
+    conditions.push(`us_traffic >= $${paramIndex}`);
+    params.push(parseInt(usMin));
+    paramIndex++;
+  }
+  const usMax = searchParams.get('us_traffic_max');
+  if (usMax) {
+    conditions.push(`us_traffic <= $${paramIndex}`);
+    params.push(parseInt(usMax));
+    paramIndex++;
+  }
+
+  const ukMin = searchParams.get('uk_traffic_min');
+  if (ukMin) {
+    conditions.push(`uk_traffic >= $${paramIndex}`);
+    params.push(parseInt(ukMin));
+    paramIndex++;
+  }
+  const ukMax = searchParams.get('uk_traffic_max');
+  if (ukMax) {
+    conditions.push(`uk_traffic <= $${paramIndex}`);
+    params.push(parseInt(ukMax));
+    paramIndex++;
+  }
+
+  const caMin = searchParams.get('canada_traffic_min');
+  if (caMin) {
+    conditions.push(`canada_traffic >= $${paramIndex}`);
+    params.push(parseInt(caMin));
+    paramIndex++;
+  }
+  const caMax = searchParams.get('canada_traffic_max');
+  if (caMax) {
+    conditions.push(`canada_traffic <= $${paramIndex}`);
+    params.push(parseInt(caMax));
+    paramIndex++;
+  }
+
+  // Price filters
+  const clientPriceMin = searchParams.get('client_price_min');
+  if (clientPriceMin) {
+    conditions.push(`client_price >= $${paramIndex}`);
+    params.push(parseFloat(clientPriceMin));
+    paramIndex++;
+  }
+  const clientPriceMax = searchParams.get('client_price_max');
+  if (clientPriceMax) {
+    conditions.push(`client_price <= $${paramIndex}`);
+    params.push(parseFloat(clientPriceMax));
+    paramIndex++;
+  }
+
+  const priceMin = searchParams.get('price_min');
+  if (priceMin) {
+    conditions.push(`price >= $${paramIndex}`);
+    params.push(parseFloat(priceMin));
+    paramIndex++;
+  }
+  const priceMax = searchParams.get('price_max');
+  if (priceMax) {
+    conditions.push(`price <= $${paramIndex}`);
+    params.push(parseFloat(priceMax));
+    paramIndex++;
+  }
+
+  // Boolean filters
+  const isIndexed = searchParams.get('is_indexed');
+  if (isIndexed !== null) {
+    conditions.push(`is_indexed = $${paramIndex}`);
+    params.push(isIndexed === 'true');
+    paramIndex++;
+  }
+
+  const doFollow = searchParams.get('do_follow');
+  if (doFollow !== null) {
+    conditions.push(`do_follow = $${paramIndex}`);
+    params.push(doFollow === 'true');
+    paramIndex++;
+  }
+
+  const news = searchParams.get('news');
+  if (news !== null) {
+    conditions.push(`news = $${paramIndex}`);
+    params.push(news === 'true');
+    paramIndex++;
+  }
+
+  const sponsored = searchParams.get('sponsored');
+  if (sponsored !== null) {
+    conditions.push(`sponsored = $${paramIndex}`);
+    params.push(sponsored === 'true');
+    paramIndex++;
+  }
+
+  // AI flags
+  const aiOverview = searchParams.get('ai_overview');
+  if (aiOverview !== null) {
+    conditions.push(`ai_overview = $${paramIndex}`);
+    params.push(aiOverview === 'true');
+    paramIndex++;
+  }
+
+  const chatgpt = searchParams.get('chatgpt');
+  if (chatgpt !== null) {
+    conditions.push(`chatgpt = $${paramIndex}`);
+    params.push(chatgpt === 'true');
+    paramIndex++;
+  }
+
+  const perplexity = searchParams.get('perplexity');
+  if (perplexity !== null) {
+    conditions.push(`perplexity = $${paramIndex}`);
+    params.push(perplexity === 'true');
+    paramIndex++;
+  }
+
+  const gemini = searchParams.get('gemini');
+  if (gemini !== null) {
+    conditions.push(`gemini = $${paramIndex}`);
+    params.push(gemini === 'true');
+    paramIndex++;
+  }
+
+  const copilot = searchParams.get('copilot');
+  if (copilot !== null) {
+    conditions.push(`copilot = $${paramIndex}`);
+    params.push(copilot === 'true');
+    paramIndex++;
+  }
+
+  // Niche filters
+  const cbd = searchParams.get('cbd');
+  if (cbd !== null) {
+    conditions.push(`cbd = $${paramIndex}`);
+    params.push(cbd === 'true');
+    paramIndex++;
+  }
+
+  const casino = searchParams.get('casino');
+  if (casino !== null) {
+    conditions.push(`casino = $${paramIndex}`);
+    params.push(casino === 'true');
+    paramIndex++;
+  }
+
+  const dating = searchParams.get('dating');
+  if (dating !== null) {
+    conditions.push(`dating = $${paramIndex}`);
+    params.push(dating === 'true');
+    paramIndex++;
+  }
+
+  const crypto = searchParams.get('crypto');
+  if (crypto !== null) {
+    conditions.push(`crypto = $${paramIndex}`);
+    params.push(crypto === 'true');
+    paramIndex++;
+  }
+
+  // TAT filters
+  const tatMin = searchParams.get('tat_min');
+  if (tatMin) {
+    conditions.push(`tat >= $${paramIndex}`);
+    params.push(parseInt(tatMin));
+    paramIndex++;
+  }
+  const tatMax = searchParams.get('tat_max');
+  if (tatMax) {
+    conditions.push(`tat <= $${paramIndex}`);
+    params.push(parseInt(tatMax));
+    paramIndex++;
+  }
+
+  // Date filters
+  const createdFrom = searchParams.get('created_from');
+  if (createdFrom) {
+    conditions.push(`created_at >= $${paramIndex}`);
+    params.push(createdFrom);
+    paramIndex++;
+  }
+  const createdTo = searchParams.get('created_to');
+  if (createdTo) {
+    conditions.push(`created_at <= $${paramIndex}`);
+    params.push(createdTo);
+    paramIndex++;
+  }
+
+  return {
+    clause: conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '',
+    params
+  };
+}
 
 // GET inventory with filters and pagination
 export async function GET(request: NextRequest) {
@@ -13,79 +303,61 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    
+
     // Pagination parameters
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = (page - 1) * limit;
-    
+
     // Sort parameters
     const sortBy = searchParams.get('sort_by') || 'created_at';
     const sortOrder = searchParams.get('sort_order') || 'desc';
-    
+
     // Action parameter
     const action = searchParams.get('action');
-    
-    // Use service key for admin operations
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
 
     // If requesting metrics/summary
     if (action === 'metrics') {
-      const { data: metrics, error: metricsError } = await supabase
-        .from('website_inventory')
-        .select(`
-          id,
-          domain_rating,
-          da,
-          organic_traffic,
-          backlinks,
-          client_price,
-          price,
-          status,
-          cbd,
-          casino,
-          dating,
-          crypto,
-          news,
-          sponsored
-        `);
+      const metricsResult = await query<WebsiteInventory>(`
+        SELECT id, domain_rating, da, organic_traffic, backlinks,
+               client_price, price, status, cbd, casino, dating, crypto, news, sponsored
+        FROM website_inventory
+      `);
 
-      if (metricsError) {
-        console.error('Error fetching metrics:', metricsError);
-        return NextResponse.json({ error: 'Failed to fetch metrics' }, { status: 500 });
-      }
+      const metrics = metricsResult.rows;
 
       // Calculate metrics
-      const totalWebsites = metrics?.length || 0;
-      const activeWebsites = metrics?.filter(w => w.status === 'active').length || 0;
-      const inactiveWebsites = metrics?.filter(w => w.status === 'inactive').length || 0;
-      const pendingWebsites = metrics?.filter(w => w.status === 'pending').length || 0;
-      const blacklistedWebsites = metrics?.filter(w => w.status === 'blacklisted').length || 0;
+      const totalWebsites = metrics.length;
+      const activeWebsites = metrics.filter(w => w.status === 'active').length;
+      const inactiveWebsites = metrics.filter(w => w.status === 'inactive').length;
+      const pendingWebsites = metrics.filter(w => w.status === 'pending').length;
+      const blacklistedWebsites = metrics.filter(w => w.status === 'blacklisted').length;
 
-      const avgDomainRating = metrics && metrics.length > 0 
-        ? metrics.reduce((sum, w) => sum + (w.domain_rating || 0), 0) / metrics.filter(w => w.domain_rating).length
+      const metricsWithDR = metrics.filter(w => w.domain_rating);
+      const avgDomainRating = metricsWithDR.length > 0
+        ? metrics.reduce((sum, w) => sum + (w.domain_rating || 0), 0) / metricsWithDR.length
         : 0;
 
-      const avgDa = metrics && metrics.length > 0 
-        ? metrics.reduce((sum, w) => sum + (w.da || 0), 0) / metrics.filter(w => w.da).length
+      const metricsWithDa = metrics.filter(w => w.da);
+      const avgDa = metricsWithDa.length > 0
+        ? metrics.reduce((sum, w) => sum + (w.da || 0), 0) / metricsWithDa.length
         : 0;
 
-      const totalOrganicTraffic = metrics?.reduce((sum, w) => sum + (w.organic_traffic || 0), 0) || 0;
-      const totalBacklinks = metrics?.reduce((sum, w) => sum + (w.backlinks || 0), 0) || 0;
+      const totalOrganicTraffic = metrics.reduce((sum, w) => sum + (w.organic_traffic || 0), 0);
+      const totalBacklinks = metrics.reduce((sum, w) => sum + (w.backlinks || 0), 0);
 
-      const avgClientPrice = metrics && metrics.length > 0 
-        ? metrics.reduce((sum, w) => sum + (w.client_price || 0), 0) / metrics.filter(w => w.client_price).length
+      const metricsWithClientPrice = metrics.filter(w => w.client_price);
+      const avgClientPrice = metricsWithClientPrice.length > 0
+        ? metrics.reduce((sum, w) => sum + (w.client_price || 0), 0) / metricsWithClientPrice.length
         : 0;
 
-      const avgPrice = metrics && metrics.length > 0 
-        ? metrics.reduce((sum, w) => sum + (w.price || 0), 0) / metrics.filter(w => w.price).length
+      const metricsWithPrice = metrics.filter(w => w.price);
+      const avgPrice = metricsWithPrice.length > 0
+        ? metrics.reduce((sum, w) => sum + (w.price || 0), 0) / metricsWithPrice.length
         : 0;
 
-      const totalClientValue = metrics?.reduce((sum, w) => sum + (w.client_price || 0), 0) || 0;
-      const totalValue = metrics?.reduce((sum, w) => sum + (w.price || 0), 0) || 0;
+      const totalClientValue = metrics.reduce((sum, w) => sum + (w.client_price || 0), 0);
+      const totalValue = metrics.reduce((sum, w) => sum + (w.price || 0), 0);
 
       const inventoryMetrics: InventoryMetrics = {
         total_websites: totalWebsites,
@@ -102,201 +374,71 @@ export async function GET(request: NextRequest) {
         total_client_value: Math.round(totalClientValue * 100) / 100,
         total_value: Math.round(totalValue * 100) / 100,
         niche_breakdown: {
-          cbd_count: metrics?.filter(w => w.cbd).length || 0,
-          casino_count: metrics?.filter(w => w.casino).length || 0,
-          dating_count: metrics?.filter(w => w.dating).length || 0,
-          crypto_count: metrics?.filter(w => w.crypto).length || 0,
-          news_count: metrics?.filter(w => w.news).length || 0,
-          sponsored_count: metrics?.filter(w => w.sponsored).length || 0,
+          cbd_count: metrics.filter(w => w.cbd).length,
+          casino_count: metrics.filter(w => w.casino).length,
+          dating_count: metrics.filter(w => w.dating).length,
+          crypto_count: metrics.filter(w => w.crypto).length,
+          news_count: metrics.filter(w => w.news).length,
+          sponsored_count: metrics.filter(w => w.sponsored).length,
         },
         traffic_distribution: {
-          high_traffic: metrics?.filter(w => (w.organic_traffic || 0) > 1000000).length || 0,
-          medium_traffic: metrics?.filter(w => (w.organic_traffic || 0) >= 100000 && (w.organic_traffic || 0) <= 1000000).length || 0,
-          low_traffic: metrics?.filter(w => (w.organic_traffic || 0) < 100000).length || 0,
+          high_traffic: metrics.filter(w => (w.organic_traffic || 0) > 1000000).length,
+          medium_traffic: metrics.filter(w => (w.organic_traffic || 0) >= 100000 && (w.organic_traffic || 0) <= 1000000).length,
+          low_traffic: metrics.filter(w => (w.organic_traffic || 0) < 100000).length,
         },
         authority_distribution: {
-          high_authority: metrics?.filter(w => (w.domain_rating || 0) >= 80).length || 0,
-          medium_authority: metrics?.filter(w => (w.domain_rating || 0) >= 50 && (w.domain_rating || 0) < 80).length || 0,
-          low_authority: metrics?.filter(w => (w.domain_rating || 0) < 50).length || 0,
+          high_authority: metrics.filter(w => (w.domain_rating || 0) >= 80).length,
+          medium_authority: metrics.filter(w => (w.domain_rating || 0) >= 50 && (w.domain_rating || 0) < 80).length,
+          low_authority: metrics.filter(w => (w.domain_rating || 0) < 50).length,
         }
       };
 
-      return NextResponse.json({ 
-        success: true, 
-        metrics: inventoryMetrics 
+      return NextResponse.json({
+        success: true,
+        metrics: inventoryMetrics
       });
     }
 
-    // Build the query with filters
-    let query = supabase
-      .from('website_inventory')
-      .select('*');
+    // Build WHERE clause from filters
+    const { clause: whereClause, params: whereParams } = buildWhereClause(searchParams);
 
-    // Apply filters
-    const search = searchParams.get('search');
-    if (search) {
-      query = query.or(`website.ilike.%${search}%,contact.ilike.%${search}%,category.ilike.%${search}%,notes.ilike.%${search}%`);
-    }
-
-    const website = searchParams.get('website');
-    if (website) {
-      query = query.ilike('website', `%${website}%`);
-    }
-
-    const contact = searchParams.get('contact');
-    if (contact) {
-      query = query.ilike('contact', `%${contact}%`);
-    }
-
-    const category = searchParams.get('category');
-    if (category) {
-      query = query.eq('category', category);
-    }
-
-    const status = searchParams.get('status');
-    if (status) {
-      query = query.eq('status', status);
-    }
-
-    // Authority metrics filters
-    const drMin = searchParams.get('domain_rating_min');
-    const drMax = searchParams.get('domain_rating_max');
-    if (drMin) query = query.gte('domain_rating', parseInt(drMin));
-    if (drMax) query = query.lte('domain_rating', parseInt(drMax));
-
-    const daMin = searchParams.get('da_min');
-    const daMax = searchParams.get('da_max');
-    if (daMin) query = query.gte('da', parseInt(daMin));
-    if (daMax) query = query.lte('da', parseInt(daMax));
-
-    const backlinksMin = searchParams.get('backlinks_min');
-    const backlinksMax = searchParams.get('backlinks_max');
-    if (backlinksMin) query = query.gte('backlinks', parseInt(backlinksMin));
-    if (backlinksMax) query = query.lte('backlinks', parseInt(backlinksMax));
-
-    // Traffic filters
-    const orgMin = searchParams.get('organic_traffic_min');
-    const orgMax = searchParams.get('organic_traffic_max');
-    if (orgMin) query = query.gte('organic_traffic', parseInt(orgMin));
-    if (orgMax) query = query.lte('organic_traffic', parseInt(orgMax));
-
-    const usMin = searchParams.get('us_traffic_min');
-    const usMax = searchParams.get('us_traffic_max');
-    if (usMin) query = query.gte('us_traffic', parseInt(usMin));
-    if (usMax) query = query.lte('us_traffic', parseInt(usMax));
-
-    const ukMin = searchParams.get('uk_traffic_min');
-    const ukMax = searchParams.get('uk_traffic_max');
-    if (ukMin) query = query.gte('uk_traffic', parseInt(ukMin));
-    if (ukMax) query = query.lte('uk_traffic', parseInt(ukMax));
-
-    const caMin = searchParams.get('canada_traffic_min');
-    const caMax = searchParams.get('canada_traffic_max');
-    if (caMin) query = query.gte('canada_traffic', parseInt(caMin));
-    if (caMax) query = query.lte('canada_traffic', parseInt(caMax));
-
-    // Price filters
-    const clientPriceMin = searchParams.get('client_price_min');
-    const clientPriceMax = searchParams.get('client_price_max');
-    if (clientPriceMin) query = query.gte('client_price', parseFloat(clientPriceMin));
-    if (clientPriceMax) query = query.lte('client_price', parseFloat(clientPriceMax));
-
-    const priceMin = searchParams.get('price_min');
-    const priceMax = searchParams.get('price_max');
-    if (priceMin) query = query.gte('price', parseFloat(priceMin));
-    if (priceMax) query = query.lte('price', parseFloat(priceMax));
-
-    // Boolean filters
-    const isIndexed = searchParams.get('is_indexed');
-    if (isIndexed !== null) query = query.eq('is_indexed', isIndexed === 'true');
-
-    const doFollow = searchParams.get('do_follow');
-    if (doFollow !== null) query = query.eq('do_follow', doFollow === 'true');
-
-    const news = searchParams.get('news');
-    if (news !== null) query = query.eq('news', news === 'true');
-
-    const sponsored = searchParams.get('sponsored');
-    if (sponsored !== null) query = query.eq('sponsored', sponsored === 'true');
-
-    // AI flags
-    const aiOverview = searchParams.get('ai_overview');
-    if (aiOverview !== null) query = query.eq('ai_overview', aiOverview === 'true');
-
-    const chatgpt = searchParams.get('chatgpt');
-    if (chatgpt !== null) query = query.eq('chatgpt', chatgpt === 'true');
-
-    const perplexity = searchParams.get('perplexity');
-    if (perplexity !== null) query = query.eq('perplexity', perplexity === 'true');
-
-    const gemini = searchParams.get('gemini');
-    if (gemini !== null) query = query.eq('gemini', gemini === 'true');
-
-    const copilot = searchParams.get('copilot');
-    if (copilot !== null) query = query.eq('copilot', copilot === 'true');
-
-    // Niche filters
-    const cbd = searchParams.get('cbd');
-    if (cbd !== null) query = query.eq('cbd', cbd === 'true');
-
-    const casino = searchParams.get('casino');
-    if (casino !== null) query = query.eq('casino', casino === 'true');
-
-    const dating = searchParams.get('dating');
-    if (dating !== null) query = query.eq('dating', dating === 'true');
-
-    const crypto = searchParams.get('crypto');
-    if (crypto !== null) query = query.eq('crypto', crypto === 'true');
-
-    // TAT filters
-    const tatMin = searchParams.get('tat_min');
-    const tatMax = searchParams.get('tat_max');
-    if (tatMin) query = query.gte('tat', parseInt(tatMin));
-    if (tatMax) query = query.lte('tat', parseInt(tatMax));
-
-    // Date filters
-    const createdFrom = searchParams.get('created_from');
-    const createdTo = searchParams.get('created_to');
-    if (createdFrom) query = query.gte('created_at', createdFrom);
-    if (createdTo) query = query.lte('created_at', createdTo);
+    // Validate sort column to prevent SQL injection
+    const validSortColumns = ['created_at', 'updated_at', 'website', 'domain_rating', 'da',
+      'organic_traffic', 'backlinks', 'client_price', 'price', 'status', 'category', 'contact'];
+    const safeSortBy = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
+    const safeSortOrder = sortOrder === 'asc' ? 'ASC' : 'DESC';
 
     // Get total count for pagination
-    const { count: totalCount, error: countError } = await query
-      .select('*', { count: 'exact', head: true });
+    const countResult = await query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM website_inventory ${whereClause}`,
+      whereParams
+    );
+    const totalCount = parseInt(countResult.rows[0]?.count || '0');
 
-    if (countError) {
-      console.error('Error getting count:', countError);
-      return NextResponse.json({ error: 'Failed to get count' }, { status: 500 });
-    }
+    // Fetch websites with pagination
+    const websitesResult = await query<WebsiteInventory>(
+      `SELECT * FROM website_inventory ${whereClause}
+       ORDER BY ${safeSortBy} ${safeSortOrder}
+       LIMIT $${whereParams.length + 1} OFFSET $${whereParams.length + 2}`,
+      [...whereParams, limit, offset]
+    );
 
-    // Apply sorting and pagination
-    query = query
-      .order(sortBy, { ascending: sortOrder === 'asc' })
-      .range(offset, offset + limit - 1);
-
-    const { data: websites, error } = await query;
-
-    if (error) {
-      console.error('Database error:', error);
-      return NextResponse.json({ error: 'Failed to fetch websites' }, { status: 500 });
-    }
-
-    const totalPages = Math.ceil((totalCount || 0) / limit);
+    const totalPages = Math.ceil(totalCount / limit);
 
     const response: InventoryResponse = {
-      websites: websites || [],
+      websites: websitesResult.rows,
       pagination: {
         page,
         limit,
-        total: totalCount || 0,
+        total: totalCount,
         totalPages
       },
-      totalCount: totalCount || 0
+      totalCount
     };
 
-    return NextResponse.json({ 
-      success: true, 
-      ...response 
+    return NextResponse.json({
+      success: true,
+      ...response
     });
 
   } catch (error) {
@@ -314,55 +456,56 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    
-    // Use service key for admin operations
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
 
     // Get user ID from user_profiles
-    const { data: userProfile } = await supabase
-      .from('user_profiles')
-      .select('id')
-      .eq('email', session.user.email)
-      .single();
+    const userProfile = await queryOne<{ id: string }>(
+      'SELECT id FROM user_profiles WHERE email = $1',
+      [session.user.email]
+    );
 
-    const websiteData = {
-      ...body,
-      created_by: userProfile?.id
-    };
-
-    const { data, error } = await supabase
-      .from('website_inventory')
-      .insert(websiteData)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Database error:', error);
-      
-      // Handle unique constraint violations
-      if (error.code === '23505') {
-        return NextResponse.json({ 
-          error: 'Website already exists in inventory',
-          details: error.message 
-        }, { status: 409 });
-      }
-      
-      return NextResponse.json({ 
-        error: 'Failed to create website',
-        details: error.message 
-      }, { status: 500 });
+    // Build INSERT query dynamically
+    const fields = Object.keys(body);
+    if (userProfile?.id) {
+      fields.push('created_by');
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      website: data 
+    const values: unknown[] = Object.values(body);
+    if (userProfile?.id) {
+      values.push(userProfile.id);
+    }
+
+    const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+    const fieldNames = fields.join(', ');
+
+    const result = await query<WebsiteInventory>(
+      `INSERT INTO website_inventory (${fieldNames}) VALUES (${placeholders}) RETURNING *`,
+      values
+    );
+
+    const website = result.rows[0];
+    if (!website) {
+      throw new Error('Failed to create website');
+    }
+
+    return NextResponse.json({
+      success: true,
+      website
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating website:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+    // Handle unique constraint violations
+    if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+      return NextResponse.json({
+        error: 'Website already exists in inventory',
+        details: (error as Error).message
+      }, { status: 409 });
+    }
+
+    return NextResponse.json({
+      error: 'Failed to create website',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

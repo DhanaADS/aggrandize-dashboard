@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]/route';
-import { createClient } from '@supabase/supabase-js';
+import { query, queryOne } from '@/lib/umbrel/client';
+import { WebsiteInventory } from '@/types/inventory';
 
 // GET single website
 export async function GET(
@@ -16,24 +17,18 @@ export async function GET(
 
     const { id } = params;
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const website = await queryOne<WebsiteInventory>(
+      'SELECT * FROM website_inventory WHERE id = $1',
+      [id]
     );
 
-    const { data, error } = await supabase
-      .from('website_inventory')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error || !data) {
+    if (!website) {
       return NextResponse.json({ error: 'Website not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      website: data 
+    return NextResponse.json({
+      success: true,
+      website
     });
 
   } catch (error) {
@@ -56,57 +51,59 @@ export async function PUT(
     const { id } = params;
     const body = await request.json();
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    // Check if website exists
+    const existing = await queryOne<{ id: string }>(
+      'SELECT id FROM website_inventory WHERE id = $1',
+      [id]
     );
 
-    // Check if website exists
-    const { data: existing, error: existingError } = await supabase
-      .from('website_inventory')
-      .select('id')
-      .eq('id', id)
-      .single();
-
-    if (existingError || !existing) {
+    if (!existing) {
       return NextResponse.json({ error: 'Website not found' }, { status: 404 });
     }
 
     // Remove id and timestamps from update data
     const { id: _, created_at, created_by, updated_at, ...updateData } = body;
 
-    const { data, error } = await supabase
-      .from('website_inventory')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Database error:', error);
-      
-      // Handle unique constraint violations
-      if (error.code === '23505') {
-        return NextResponse.json({ 
-          error: 'Website URL already exists in inventory',
-          details: error.message 
-        }, { status: 409 });
-      }
-      
-      return NextResponse.json({ 
-        error: 'Failed to update website',
-        details: error.message 
-      }, { status: 500 });
+    // Build dynamic UPDATE query
+    const entries = Object.entries(updateData);
+    if (entries.length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      website: data 
+    const setClause = entries.map(([key], i) => `${key} = $${i + 1}`).join(', ');
+    const values = entries.map(([_, value]) => value);
+    values.push(id);
+
+    const result = await query<WebsiteInventory>(
+      `UPDATE website_inventory SET ${setClause}, updated_at = NOW() WHERE id = $${values.length} RETURNING *`,
+      values
+    );
+
+    const website = result.rows[0];
+    if (!website) {
+      throw new Error('Failed to update website');
+    }
+
+    return NextResponse.json({
+      success: true,
+      website
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error updating website:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+    // Handle unique constraint violations
+    if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+      return NextResponse.json({
+        error: 'Website URL already exists in inventory',
+        details: (error as Error).message
+      }, { status: 409 });
+    }
+
+    return NextResponse.json({
+      error: 'Failed to update website',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 
@@ -128,42 +125,28 @@ export async function DELETE(
 
     const { id } = params;
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    // Check if website exists and get website name for response
+    const existing = await queryOne<{ id: string; website: string }>(
+      'SELECT id, website FROM website_inventory WHERE id = $1',
+      [id]
     );
 
-    // Check if website exists
-    const { data: existing, error: existingError } = await supabase
-      .from('website_inventory')
-      .select('id, website')
-      .eq('id', id)
-      .single();
-
-    if (existingError || !existing) {
+    if (!existing) {
       return NextResponse.json({ error: 'Website not found' }, { status: 404 });
     }
 
-    const { error } = await supabase
-      .from('website_inventory')
-      .delete()
-      .eq('id', id);
+    await query('DELETE FROM website_inventory WHERE id = $1', [id]);
 
-    if (error) {
-      console.error('Database error:', error);
-      return NextResponse.json({ 
-        error: 'Failed to delete website',
-        details: error.message 
-      }, { status: 500 });
-    }
-
-    return NextResponse.json({ 
-      success: true, 
-      message: `Website ${existing.website} deleted successfully` 
+    return NextResponse.json({
+      success: true,
+      message: `Website ${existing.website} deleted successfully`
     });
 
   } catch (error) {
     console.error('Error deleting website:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({
+      error: 'Failed to delete website',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

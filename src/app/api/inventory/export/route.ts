@@ -1,8 +1,263 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]/route';
-import { createClient } from '@supabase/supabase-js';
-import { ExportConfig } from '@/types/inventory';
+import { query } from '@/lib/umbrel/client';
+import { ExportConfig, WebsiteInventory } from '@/types/inventory';
+
+// Helper to build WHERE clause from export filters
+function buildExportWhereClause(filters: ExportConfig['filters']): { clause: string; params: unknown[] } {
+  if (!filters) {
+    return { clause: '', params: [] };
+  }
+
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  let paramIndex = 1;
+
+  const { search, website, contact, category, status } = filters;
+
+  if (search) {
+    conditions.push(`(website ILIKE $${paramIndex} OR contact ILIKE $${paramIndex} OR category ILIKE $${paramIndex} OR notes ILIKE $${paramIndex})`);
+    params.push(`%${search}%`);
+    paramIndex++;
+  }
+
+  if (website) {
+    conditions.push(`website ILIKE $${paramIndex}`);
+    params.push(`%${website}%`);
+    paramIndex++;
+  }
+
+  if (contact) {
+    conditions.push(`contact ILIKE $${paramIndex}`);
+    params.push(`%${contact}%`);
+    paramIndex++;
+  }
+
+  if (category) {
+    conditions.push(`category = $${paramIndex}`);
+    params.push(category);
+    paramIndex++;
+  }
+
+  if (status) {
+    conditions.push(`status = $${paramIndex}`);
+    params.push(status);
+    paramIndex++;
+  }
+
+  // Authority metrics filters
+  if (filters.domain_rating_min) {
+    conditions.push(`domain_rating >= $${paramIndex}`);
+    params.push(filters.domain_rating_min);
+    paramIndex++;
+  }
+  if (filters.domain_rating_max) {
+    conditions.push(`domain_rating <= $${paramIndex}`);
+    params.push(filters.domain_rating_max);
+    paramIndex++;
+  }
+
+  if (filters.da_min) {
+    conditions.push(`da >= $${paramIndex}`);
+    params.push(filters.da_min);
+    paramIndex++;
+  }
+  if (filters.da_max) {
+    conditions.push(`da <= $${paramIndex}`);
+    params.push(filters.da_max);
+    paramIndex++;
+  }
+
+  if (filters.backlinks_min) {
+    conditions.push(`backlinks >= $${paramIndex}`);
+    params.push(filters.backlinks_min);
+    paramIndex++;
+  }
+  if (filters.backlinks_max) {
+    conditions.push(`backlinks <= $${paramIndex}`);
+    params.push(filters.backlinks_max);
+    paramIndex++;
+  }
+
+  // Traffic filters
+  if (filters.organic_traffic_min) {
+    conditions.push(`organic_traffic >= $${paramIndex}`);
+    params.push(filters.organic_traffic_min);
+    paramIndex++;
+  }
+  if (filters.organic_traffic_max) {
+    conditions.push(`organic_traffic <= $${paramIndex}`);
+    params.push(filters.organic_traffic_max);
+    paramIndex++;
+  }
+
+  if (filters.us_traffic_min) {
+    conditions.push(`us_traffic >= $${paramIndex}`);
+    params.push(filters.us_traffic_min);
+    paramIndex++;
+  }
+  if (filters.us_traffic_max) {
+    conditions.push(`us_traffic <= $${paramIndex}`);
+    params.push(filters.us_traffic_max);
+    paramIndex++;
+  }
+
+  if (filters.uk_traffic_min) {
+    conditions.push(`uk_traffic >= $${paramIndex}`);
+    params.push(filters.uk_traffic_min);
+    paramIndex++;
+  }
+  if (filters.uk_traffic_max) {
+    conditions.push(`uk_traffic <= $${paramIndex}`);
+    params.push(filters.uk_traffic_max);
+    paramIndex++;
+  }
+
+  if (filters.canada_traffic_min) {
+    conditions.push(`canada_traffic >= $${paramIndex}`);
+    params.push(filters.canada_traffic_min);
+    paramIndex++;
+  }
+  if (filters.canada_traffic_max) {
+    conditions.push(`canada_traffic <= $${paramIndex}`);
+    params.push(filters.canada_traffic_max);
+    paramIndex++;
+  }
+
+  // Price filters
+  if (filters.client_price_min) {
+    conditions.push(`client_price >= $${paramIndex}`);
+    params.push(filters.client_price_min);
+    paramIndex++;
+  }
+  if (filters.client_price_max) {
+    conditions.push(`client_price <= $${paramIndex}`);
+    params.push(filters.client_price_max);
+    paramIndex++;
+  }
+
+  if (filters.price_min) {
+    conditions.push(`price >= $${paramIndex}`);
+    params.push(filters.price_min);
+    paramIndex++;
+  }
+  if (filters.price_max) {
+    conditions.push(`price <= $${paramIndex}`);
+    params.push(filters.price_max);
+    paramIndex++;
+  }
+
+  // Boolean filters
+  if (filters.is_indexed !== undefined) {
+    conditions.push(`is_indexed = $${paramIndex}`);
+    params.push(filters.is_indexed);
+    paramIndex++;
+  }
+  if (filters.do_follow !== undefined) {
+    conditions.push(`do_follow = $${paramIndex}`);
+    params.push(filters.do_follow);
+    paramIndex++;
+  }
+  if (filters.news !== undefined) {
+    conditions.push(`news = $${paramIndex}`);
+    params.push(filters.news);
+    paramIndex++;
+  }
+  if (filters.sponsored !== undefined) {
+    conditions.push(`sponsored = $${paramIndex}`);
+    params.push(filters.sponsored);
+    paramIndex++;
+  }
+
+  // AI flags
+  if (filters.ai_overview !== undefined) {
+    conditions.push(`ai_overview = $${paramIndex}`);
+    params.push(filters.ai_overview);
+    paramIndex++;
+  }
+  if (filters.chatgpt !== undefined) {
+    conditions.push(`chatgpt = $${paramIndex}`);
+    params.push(filters.chatgpt);
+    paramIndex++;
+  }
+  if (filters.perplexity !== undefined) {
+    conditions.push(`perplexity = $${paramIndex}`);
+    params.push(filters.perplexity);
+    paramIndex++;
+  }
+  if (filters.gemini !== undefined) {
+    conditions.push(`gemini = $${paramIndex}`);
+    params.push(filters.gemini);
+    paramIndex++;
+  }
+  if (filters.copilot !== undefined) {
+    conditions.push(`copilot = $${paramIndex}`);
+    params.push(filters.copilot);
+    paramIndex++;
+  }
+
+  // Niche filters
+  if (filters.cbd !== undefined) {
+    conditions.push(`cbd = $${paramIndex}`);
+    params.push(filters.cbd);
+    paramIndex++;
+  }
+  if (filters.casino !== undefined) {
+    conditions.push(`casino = $${paramIndex}`);
+    params.push(filters.casino);
+    paramIndex++;
+  }
+  if (filters.dating !== undefined) {
+    conditions.push(`dating = $${paramIndex}`);
+    params.push(filters.dating);
+    paramIndex++;
+  }
+  if (filters.crypto !== undefined) {
+    conditions.push(`crypto = $${paramIndex}`);
+    params.push(filters.crypto);
+    paramIndex++;
+  }
+
+  // TAT filters
+  if (filters.tat_min) {
+    conditions.push(`tat >= $${paramIndex}`);
+    params.push(filters.tat_min);
+    paramIndex++;
+  }
+  if (filters.tat_max) {
+    conditions.push(`tat <= $${paramIndex}`);
+    params.push(filters.tat_max);
+    paramIndex++;
+  }
+
+  // Date filters
+  if (filters.created_from) {
+    conditions.push(`created_at >= $${paramIndex}`);
+    params.push(filters.created_from);
+    paramIndex++;
+  }
+  if (filters.created_to) {
+    conditions.push(`created_at <= $${paramIndex}`);
+    params.push(filters.created_to);
+    paramIndex++;
+  }
+  if (filters.updated_from) {
+    conditions.push(`updated_at >= $${paramIndex}`);
+    params.push(filters.updated_from);
+    paramIndex++;
+  }
+  if (filters.updated_to) {
+    conditions.push(`updated_at <= $${paramIndex}`);
+    params.push(filters.updated_to);
+    paramIndex++;
+  }
+
+  return {
+    clause: conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '',
+    params
+  };
+}
 
 // POST - Export inventory data
 export async function POST(request: NextRequest) {
@@ -15,121 +270,28 @@ export async function POST(request: NextRequest) {
     const body: ExportConfig = await request.json();
     const { format, columns, filters, filename } = body;
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    // Build WHERE clause from filters
+    const { clause: whereClause, params } = buildExportWhereClause(filters);
+
+    // Fetch data with filters
+    const result = await query<WebsiteInventory>(
+      `SELECT * FROM website_inventory ${whereClause} ORDER BY website ASC`,
+      params
     );
 
-    // Build query with filters (similar to GET endpoint)
-    let query = supabase
-      .from('website_inventory')
-      .select('*');
-
-    // Apply filters if provided
-    if (filters) {
-      const { search, website, contact, category, status } = filters;
-
-      if (search) {
-        query = query.or(`website.ilike.%${search}%,contact.ilike.%${search}%,category.ilike.%${search}%,notes.ilike.%${search}%`);
-      }
-
-      if (website) {
-        query = query.ilike('website', `%${website}%`);
-      }
-
-      if (contact) {
-        query = query.ilike('contact', `%${contact}%`);
-      }
-
-      if (category) {
-        query = query.eq('category', category);
-      }
-
-      if (status) {
-        query = query.eq('status', status);
-      }
-
-      // Authority metrics filters
-      if (filters.domain_rating_min) query = query.gte('domain_rating', filters.domain_rating_min);
-      if (filters.domain_rating_max) query = query.lte('domain_rating', filters.domain_rating_max);
-      
-      if (filters.da_min) query = query.gte('da', filters.da_min);
-      if (filters.da_max) query = query.lte('da', filters.da_max);
-      
-      if (filters.backlinks_min) query = query.gte('backlinks', filters.backlinks_min);
-      if (filters.backlinks_max) query = query.lte('backlinks', filters.backlinks_max);
-
-      // Traffic filters
-      if (filters.organic_traffic_min) query = query.gte('organic_traffic', filters.organic_traffic_min);
-      if (filters.organic_traffic_max) query = query.lte('organic_traffic', filters.organic_traffic_max);
-      
-      if (filters.us_traffic_min) query = query.gte('us_traffic', filters.us_traffic_min);
-      if (filters.us_traffic_max) query = query.lte('us_traffic', filters.us_traffic_max);
-      
-      if (filters.uk_traffic_min) query = query.gte('uk_traffic', filters.uk_traffic_min);
-      if (filters.uk_traffic_max) query = query.lte('uk_traffic', filters.uk_traffic_max);
-      
-      if (filters.canada_traffic_min) query = query.gte('canada_traffic', filters.canada_traffic_min);
-      if (filters.canada_traffic_max) query = query.lte('canada_traffic', filters.canada_traffic_max);
-
-      // Price filters
-      if (filters.client_price_min) query = query.gte('client_price', filters.client_price_min);
-      if (filters.client_price_max) query = query.lte('client_price', filters.client_price_max);
-      
-      if (filters.price_min) query = query.gte('price', filters.price_min);
-      if (filters.price_max) query = query.lte('price', filters.price_max);
-
-      // Boolean filters
-      if (filters.is_indexed !== undefined) query = query.eq('is_indexed', filters.is_indexed);
-      if (filters.do_follow !== undefined) query = query.eq('do_follow', filters.do_follow);
-      if (filters.news !== undefined) query = query.eq('news', filters.news);
-      if (filters.sponsored !== undefined) query = query.eq('sponsored', filters.sponsored);
-      
-      // AI flags
-      if (filters.ai_overview !== undefined) query = query.eq('ai_overview', filters.ai_overview);
-      if (filters.chatgpt !== undefined) query = query.eq('chatgpt', filters.chatgpt);
-      if (filters.perplexity !== undefined) query = query.eq('perplexity', filters.perplexity);
-      if (filters.gemini !== undefined) query = query.eq('gemini', filters.gemini);
-      if (filters.copilot !== undefined) query = query.eq('copilot', filters.copilot);
-      
-      // Niche filters
-      if (filters.cbd !== undefined) query = query.eq('cbd', filters.cbd);
-      if (filters.casino !== undefined) query = query.eq('casino', filters.casino);
-      if (filters.dating !== undefined) query = query.eq('dating', filters.dating);
-      if (filters.crypto !== undefined) query = query.eq('crypto', filters.crypto);
-
-      // TAT filters
-      if (filters.tat_min) query = query.gte('tat', filters.tat_min);
-      if (filters.tat_max) query = query.lte('tat', filters.tat_max);
-
-      // Date filters
-      if (filters.created_from) query = query.gte('created_at', filters.created_from);
-      if (filters.created_to) query = query.lte('created_at', filters.created_to);
-      if (filters.updated_from) query = query.gte('updated_at', filters.updated_from);
-      if (filters.updated_to) query = query.lte('updated_at', filters.updated_to);
-    }
-
-    // Order by website name for consistent exports
-    query = query.order('website', { ascending: true });
-
-    const { data: websites, error } = await query;
-
-    if (error) {
-      console.error('Export query error:', error);
-      return NextResponse.json({ error: 'Failed to fetch data for export' }, { status: 500 });
-    }
+    const websites = result.rows;
 
     if (!websites || websites.length === 0) {
       return NextResponse.json({ error: 'No data found to export' }, { status: 404 });
     }
 
     // Filter columns if specified
-    let exportData = websites;
+    let exportData: Record<string, unknown>[] = websites;
     if (columns && columns.length > 0) {
       exportData = websites.map(website => {
-        const filteredWebsite: any = {};
+        const filteredWebsite: Record<string, unknown> = {};
         columns.forEach(column => {
-          filteredWebsite[column] = website[column as keyof typeof website];
+          filteredWebsite[column] = website[column as keyof WebsiteInventory];
         });
         return filteredWebsite;
       });
@@ -156,7 +318,7 @@ export async function POST(request: NextRequest) {
 
       // Get headers from first object
       const headers = Object.keys(exportData[0]);
-      
+
       // Create CSV content
       const csvHeaders = headers.join(',');
       const csvRows = exportData.map(row => {
@@ -174,7 +336,7 @@ export async function POST(request: NextRequest) {
           return stringValue;
         }).join(',');
       });
-      
+
       const csvContent = [csvHeaders, ...csvRows].join('\n');
 
       return new NextResponse(csvContent, {

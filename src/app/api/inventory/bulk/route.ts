@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]/route';
-import { createClient } from '@supabase/supabase-js';
+import { query } from '@/lib/umbrel/client';
 import { BulkActionPayload } from '@/types/inventory';
+import { WebsiteInventory } from '@/types/inventory';
 
 // POST - Bulk operations
 export async function POST(request: NextRequest) {
@@ -19,13 +20,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No websites selected' }, { status: 400 });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
     let result;
     let message = '';
+
+    // Build parameterized IN clause
+    const placeholders = website_ids.map((_, i) => `$${i + 1}`).join(', ');
 
     switch (action) {
       case 'delete':
@@ -34,57 +33,33 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
         }
 
-        const { error: deleteError } = await supabase
-          .from('website_inventory')
-          .delete()
-          .in('id', website_ids);
-
-        if (deleteError) {
-          console.error('Bulk delete error:', deleteError);
-          return NextResponse.json({ 
-            error: 'Failed to delete websites',
-            details: deleteError.message 
-          }, { status: 500 });
-        }
+        await query(
+          `DELETE FROM website_inventory WHERE id IN (${placeholders})`,
+          website_ids
+        );
 
         message = `Successfully deleted ${website_ids.length} website(s)`;
         break;
 
       case 'activate':
-        const { data: activateData, error: activateError } = await supabase
-          .from('website_inventory')
-          .update({ status: 'active' })
-          .in('id', website_ids)
-          .select();
+        const activateResult = await query<WebsiteInventory>(
+          `UPDATE website_inventory SET status = 'active', updated_at = NOW()
+           WHERE id IN (${placeholders}) RETURNING *`,
+          website_ids
+        );
 
-        if (activateError) {
-          console.error('Bulk activate error:', activateError);
-          return NextResponse.json({ 
-            error: 'Failed to activate websites',
-            details: activateError.message 
-          }, { status: 500 });
-        }
-
-        result = activateData;
+        result = activateResult.rows;
         message = `Successfully activated ${website_ids.length} website(s)`;
         break;
 
       case 'deactivate':
-        const { data: deactivateData, error: deactivateError } = await supabase
-          .from('website_inventory')
-          .update({ status: 'inactive' })
-          .in('id', website_ids)
-          .select();
+        const deactivateResult = await query<WebsiteInventory>(
+          `UPDATE website_inventory SET status = 'inactive', updated_at = NOW()
+           WHERE id IN (${placeholders}) RETURNING *`,
+          website_ids
+        );
 
-        if (deactivateError) {
-          console.error('Bulk deactivate error:', deactivateError);
-          return NextResponse.json({ 
-            error: 'Failed to deactivate websites',
-            details: deactivateError.message 
-          }, { status: 500 });
-        }
-
-        result = deactivateData;
+        result = deactivateResult.rows;
         message = `Successfully deactivated ${website_ids.length} website(s)`;
         break;
 
@@ -94,21 +69,13 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
         }
 
-        const { data: blacklistData, error: blacklistError } = await supabase
-          .from('website_inventory')
-          .update({ status: 'blacklisted' })
-          .in('id', website_ids)
-          .select();
+        const blacklistResult = await query<WebsiteInventory>(
+          `UPDATE website_inventory SET status = 'blacklisted', updated_at = NOW()
+           WHERE id IN (${placeholders}) RETURNING *`,
+          website_ids
+        );
 
-        if (blacklistError) {
-          console.error('Bulk blacklist error:', blacklistError);
-          return NextResponse.json({ 
-            error: 'Failed to blacklist websites',
-            details: blacklistError.message 
-          }, { status: 500 });
-        }
-
-        result = blacklistData;
+        result = blacklistResult.rows;
         message = `Successfully blacklisted ${website_ids.length} website(s)`;
         break;
 
@@ -117,21 +84,15 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Category is required for bulk category update' }, { status: 400 });
         }
 
-        const { data: updateCategoryData, error: updateCategoryError } = await supabase
-          .from('website_inventory')
-          .update({ category: data.category })
-          .in('id', website_ids)
-          .select();
+        // Add category as the last parameter
+        const categoryParams = [...website_ids, data.category];
+        const categoryResult = await query<WebsiteInventory>(
+          `UPDATE website_inventory SET category = $${website_ids.length + 1}, updated_at = NOW()
+           WHERE id IN (${placeholders}) RETURNING *`,
+          categoryParams
+        );
 
-        if (updateCategoryError) {
-          console.error('Bulk category update error:', updateCategoryError);
-          return NextResponse.json({ 
-            error: 'Failed to update categories',
-            details: updateCategoryError.message 
-          }, { status: 500 });
-        }
-
-        result = updateCategoryData;
+        result = categoryResult.rows;
         message = `Successfully updated category to "${data.category}" for ${website_ids.length} website(s)`;
         break;
 
@@ -140,21 +101,15 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Status is required for bulk status update' }, { status: 400 });
         }
 
-        const { data: updateStatusData, error: updateStatusError } = await supabase
-          .from('website_inventory')
-          .update({ status: data.status })
-          .in('id', website_ids)
-          .select();
+        // Add status as the last parameter
+        const statusParams = [...website_ids, data.status];
+        const statusResult = await query<WebsiteInventory>(
+          `UPDATE website_inventory SET status = $${website_ids.length + 1}, updated_at = NOW()
+           WHERE id IN (${placeholders}) RETURNING *`,
+          statusParams
+        );
 
-        if (updateStatusError) {
-          console.error('Bulk status update error:', updateStatusError);
-          return NextResponse.json({ 
-            error: 'Failed to update status',
-            details: updateStatusError.message 
-          }, { status: 500 });
-        }
-
-        result = updateStatusData;
+        result = statusResult.rows;
         message = `Successfully updated status to "${data.status}" for ${website_ids.length} website(s)`;
         break;
 
@@ -162,11 +117,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid bulk action' }, { status: 400 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message,
       affected_count: website_ids.length,
-      data: result 
+      data: result
     });
 
   } catch (error) {
