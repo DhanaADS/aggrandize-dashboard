@@ -31,10 +31,11 @@ interface ApiConfig {
   apiKey: string;
 }
 
-function getApiConfig(): ApiConfig {
+function getApiConfig(): ApiConfig & { adminKey: string } {
   return {
     baseUrl: (process.env.UMBREL_API_URL || 'https://api.aggrandizedigital.com').replace(/\/$/, ''),
     apiKey: process.env.UMBREL_API_KEY || '',
+    adminKey: process.env.UMBREL_ADMIN_KEY || '',
   };
 }
 
@@ -61,9 +62,10 @@ async function queryViaApi<T extends QueryResultRow = QueryResultRow>(
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': config.apiKey,
+        'X-ADMIN-KEY': config.adminKey,
       },
       body: JSON.stringify({
-        query: text,
+        sql: text,
         params: params || [],
       }),
       signal: controller.signal,
