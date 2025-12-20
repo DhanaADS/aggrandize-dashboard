@@ -4,6 +4,7 @@ import {
   createOrder,
   getOrderStats,
   addOrderItem,
+  getOrderById,
 } from '@/lib/umbrel';
 
 // GET /api/order - List orders with filters + stats
@@ -76,7 +77,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch updated order with totals
-    const { getOrderById } = await import('@/lib/umbrel');
     const updatedOrder = await getOrderById(order.id);
 
     return NextResponse.json({

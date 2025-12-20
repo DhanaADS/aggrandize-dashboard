@@ -435,6 +435,80 @@ export function InventoryForm({ website, onSuccess, onCancel }: InventoryFormPro
         </Grid>
       </Grid>
 
+      {/* AI Platform Visibility */}
+      <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 2 }}>
+        AI Platform Visibility
+      </Typography>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid size={{ xs: 6, sm: 4, md: 2 }}>
+          <FormControlLabel
+            control={<Switch checked={formData.ai_overview} onChange={handleSwitchChange('ai_overview')} color="info" />}
+            label="AI Overview"
+          />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 4, md: 2 }}>
+          <FormControlLabel
+            control={<Switch checked={formData.chatgpt} onChange={handleSwitchChange('chatgpt')} color="info" />}
+            label="ChatGPT"
+          />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 4, md: 2 }}>
+          <FormControlLabel
+            control={<Switch checked={formData.perplexity} onChange={handleSwitchChange('perplexity')} color="info" />}
+            label="Perplexity"
+          />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 4, md: 2 }}>
+          <FormControlLabel
+            control={<Switch checked={formData.gemini} onChange={handleSwitchChange('gemini')} color="info" />}
+            label="Gemini"
+          />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 4, md: 2 }}>
+          <FormControlLabel
+            control={<Switch checked={formData.copilot} onChange={handleSwitchChange('copilot')} color="info" />}
+            label="Copilot"
+          />
+        </Grid>
+      </Grid>
+
+      {/* Traffic Breakdown */}
+      <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 2 }}>
+        Traffic Breakdown
+      </Typography>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid size={{ xs: 6, sm: 4, md: 3 }}>
+          <TextField
+            fullWidth
+            label="US Traffic"
+            type="number"
+            inputProps={{ min: 0 }}
+            value={formData.us_traffic ?? ''}
+            onChange={handleNumberChange('us_traffic')}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 4, md: 3 }}>
+          <TextField
+            fullWidth
+            label="UK Traffic"
+            type="number"
+            inputProps={{ min: 0 }}
+            value={formData.uk_traffic ?? ''}
+            onChange={handleNumberChange('uk_traffic')}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 4, md: 3 }}>
+          <TextField
+            fullWidth
+            label="Canada Traffic"
+            type="number"
+            inputProps={{ min: 0 }}
+            value={formData.canada_traffic ?? ''}
+            onChange={handleNumberChange('canada_traffic')}
+          />
+        </Grid>
+      </Grid>
+
       <Divider sx={{ my: 3 }} />
 
       {/* Notes */}

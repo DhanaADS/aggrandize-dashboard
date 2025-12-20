@@ -335,12 +335,12 @@ export async function GET(request: NextRequest) {
 
       const metricsWithDR = metrics.filter(w => w.domain_rating);
       const avgDomainRating = metricsWithDR.length > 0
-        ? metrics.reduce((sum, w) => sum + (w.domain_rating || 0), 0) / metricsWithDR.length
+        ? metricsWithDR.reduce((sum, w) => sum + (w.domain_rating || 0), 0) / metricsWithDR.length
         : 0;
 
       const metricsWithDa = metrics.filter(w => w.da);
       const avgDa = metricsWithDa.length > 0
-        ? metrics.reduce((sum, w) => sum + (w.da || 0), 0) / metricsWithDa.length
+        ? metricsWithDa.reduce((sum, w) => sum + (w.da || 0), 0) / metricsWithDa.length
         : 0;
 
       const totalOrganicTraffic = metrics.reduce((sum, w) => sum + (w.organic_traffic || 0), 0);
@@ -348,12 +348,12 @@ export async function GET(request: NextRequest) {
 
       const metricsWithClientPrice = metrics.filter(w => w.client_price);
       const avgClientPrice = metricsWithClientPrice.length > 0
-        ? metrics.reduce((sum, w) => sum + (w.client_price || 0), 0) / metricsWithClientPrice.length
+        ? metricsWithClientPrice.reduce((sum, w) => sum + (w.client_price || 0), 0) / metricsWithClientPrice.length
         : 0;
 
       const metricsWithPrice = metrics.filter(w => w.price);
       const avgPrice = metricsWithPrice.length > 0
-        ? metrics.reduce((sum, w) => sum + (w.price || 0), 0) / metricsWithPrice.length
+        ? metricsWithPrice.reduce((sum, w) => sum + (w.price || 0), 0) / metricsWithPrice.length
         : 0;
 
       const totalClientValue = metrics.reduce((sum, w) => sum + (w.client_price || 0), 0);

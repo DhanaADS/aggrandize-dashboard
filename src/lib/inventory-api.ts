@@ -239,7 +239,7 @@ class InventoryAPI {
   // Get unique categories
   async getCategories(): Promise<string[]> {
     try {
-      const response = await this.getWebsites({}, 1, 1000); // Get all to extract unique categories
+      const response = await this.getWebsites({}, 1, 10000); // Get all to extract unique categories
       const categories = [...new Set(
         response.websites
           .map(website => website.category)
@@ -256,7 +256,7 @@ class InventoryAPI {
   // Get unique contacts
   async getContacts(): Promise<string[]> {
     try {
-      const response = await this.getWebsites({}, 1, 1000); // Get all to extract unique contacts
+      const response = await this.getWebsites({}, 1, 10000); // Get all to extract unique contacts
       const contacts = [...new Set(
         response.websites
           .map(website => website.contact)
