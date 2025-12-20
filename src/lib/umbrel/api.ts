@@ -789,6 +789,8 @@ export interface Order {
   client_name: string;
   client_email: string | null;
   client_company: string | null;
+  client_whatsapp: string | null;
+  client_telegram: string | null;
   project_name: string | null;
   order_date: string;
   due_date: string | null;
@@ -922,6 +924,8 @@ export async function createOrder(data: {
   client_name: string;
   client_email?: string;
   client_company?: string;
+  client_whatsapp?: string;
+  client_telegram?: string;
   project_name?: string;
   order_date?: string;
   due_date?: string;
@@ -934,14 +938,17 @@ export async function createOrder(data: {
   const result = await queryOne<Order>(
     `INSERT INTO orders (
       order_number, client_name, client_email, client_company,
+      client_whatsapp, client_telegram,
       project_name, order_date, due_date, discount, notes, created_by
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     RETURNING *`,
     [
       orderNumber,
       data.client_name,
       data.client_email || null,
       data.client_company || null,
+      data.client_whatsapp || null,
+      data.client_telegram || null,
       data.project_name || null,
       data.order_date || new Date().toISOString().split('T')[0],
       data.due_date || null,
@@ -958,6 +965,8 @@ export async function updateOrder(id: string, data: {
   client_name?: string;
   client_email?: string;
   client_company?: string;
+  client_whatsapp?: string;
+  client_telegram?: string;
   project_name?: string;
   order_date?: string;
   due_date?: string;

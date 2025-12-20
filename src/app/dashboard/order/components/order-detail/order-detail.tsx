@@ -1,0 +1,810 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Box,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  Chip,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Skeleton,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Divider,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Payment as PaymentIcon,
+  CheckCircle as CheckIcon,
+  Link as LinkIcon,
+} from '@mui/icons-material';
+import {
+  Order,
+  OrderItem,
+  OrderPayment,
+  ORDER_STATUS_COLORS,
+  ORDER_STATUS_LABELS,
+  PAYMENT_STATUS_COLORS,
+  PAYMENT_STATUS_LABELS,
+  ITEM_STATUS_COLORS,
+  ITEM_STATUS_LABELS,
+  PAYMENT_METHODS,
+  OrderItemStatus,
+} from '@/types/orders';
+
+interface OrderDetailProps {
+  orderId: string;
+  onBack: () => void;
+}
+
+export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Dialog states
+  const [showItemDialog, setShowItemDialog] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState<OrderItem | null>(null);
+
+  // Form states
+  const [itemForm, setItemForm] = useState({
+    website: '',
+    keyword: '',
+    client_url: '',
+    price: 0,
+    status: 'pending' as OrderItemStatus,
+    live_url: '',
+    notes: '',
+  });
+
+  const [paymentForm, setPaymentForm] = useState({
+    amount: 0,
+    payment_method: '',
+    reference_number: '',
+    payment_date: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+
+  const fetchOrder = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/order/${orderId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setOrder(data.order);
+      } else {
+        setError(data.error || 'Failed to load order');
+      }
+    } catch (err) {
+      setError('Failed to connect to server');
+      console.error('Error fetching order:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [orderId]);
+
+  useEffect(() => {
+    fetchOrder();
+  }, [fetchOrder, refreshTrigger]);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  // Item handlers
+  const handleAddItem = async () => {
+    try {
+      const response = await fetch(`/api/order/${orderId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(itemForm),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setShowItemDialog(false);
+        resetItemForm();
+        setRefreshTrigger((prev) => prev + 1);
+      } else {
+        alert(data.error || 'Failed to add item');
+      }
+    } catch (err) {
+      alert('Failed to add item');
+    }
+  };
+
+  const handleUpdateItem = async () => {
+    if (!editingItem) return;
+    try {
+      const response = await fetch(`/api/order/${orderId}/items`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: editingItem.id, ...itemForm }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setShowItemDialog(false);
+        setEditingItem(null);
+        resetItemForm();
+        setRefreshTrigger((prev) => prev + 1);
+      } else {
+        alert(data.error || 'Failed to update item');
+      }
+    } catch (err) {
+      alert('Failed to update item');
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!confirm('Delete this item?')) return;
+    try {
+      const response = await fetch(`/api/order/${orderId}/items?item_id=${itemId}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (data.success) {
+        setRefreshTrigger((prev) => prev + 1);
+      } else {
+        alert(data.error || 'Failed to delete item');
+      }
+    } catch (err) {
+      alert('Failed to delete item');
+    }
+  };
+
+  // Payment handlers
+  const handleAddPayment = async () => {
+    try {
+      const response = await fetch(`/api/order/${orderId}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentForm),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setShowPaymentDialog(false);
+        resetPaymentForm();
+        setRefreshTrigger((prev) => prev + 1);
+      } else {
+        alert(data.error || 'Failed to add payment');
+      }
+    } catch (err) {
+      alert('Failed to add payment');
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!confirm('Delete this payment?')) return;
+    try {
+      const response = await fetch(`/api/order/${orderId}/payments?payment_id=${paymentId}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (data.success) {
+        setRefreshTrigger((prev) => prev + 1);
+      } else {
+        alert(data.error || 'Failed to delete payment');
+      }
+    } catch (err) {
+      alert('Failed to delete payment');
+    }
+  };
+
+  const resetItemForm = () => {
+    setItemForm({
+      website: '',
+      keyword: '',
+      client_url: '',
+      price: 0,
+      status: 'pending',
+      live_url: '',
+      notes: '',
+    });
+  };
+
+  const resetPaymentForm = () => {
+    setPaymentForm({
+      amount: 0,
+      payment_method: '',
+      reference_number: '',
+      payment_date: new Date().toISOString().split('T')[0],
+      notes: '',
+    });
+  };
+
+  const openEditItem = (item: OrderItem) => {
+    setEditingItem(item);
+    setItemForm({
+      website: item.website,
+      keyword: item.keyword,
+      client_url: item.client_url,
+      price: item.price,
+      status: item.status,
+      live_url: item.live_url || '',
+      notes: item.notes || '',
+    });
+    setShowItemDialog(true);
+  };
+
+  if (loading) {
+    return (
+      <Box>
+        <Skeleton variant="rectangular" height={200} sx={{ mb: 3, borderRadius: 2 }} />
+        <Skeleton variant="rectangular" height={300} sx={{ mb: 3, borderRadius: 2 }} />
+        <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 2 }} />
+      </Box>
+    );
+  }
+
+  if (error || !order) {
+    return (
+      <Alert severity="error">
+        {error || 'Order not found'}
+        <Button size="small" onClick={fetchOrder} sx={{ ml: 2 }}>
+          Retry
+        </Button>
+      </Alert>
+    );
+  }
+
+  return (
+    <Box>
+      {/* Order Header */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                <Typography variant="h5" fontWeight="700">
+                  {order.order_number}
+                </Typography>
+                <Chip
+                  label={ORDER_STATUS_LABELS[order.status]}
+                  size="small"
+                  sx={{
+                    bgcolor: `${ORDER_STATUS_COLORS[order.status]}20`,
+                    color: ORDER_STATUS_COLORS[order.status],
+                    fontWeight: 600,
+                  }}
+                />
+                <Chip
+                  label={PAYMENT_STATUS_LABELS[order.payment_status]}
+                  size="small"
+                  sx={{
+                    bgcolor: `${PAYMENT_STATUS_COLORS[order.payment_status]}20`,
+                    color: PAYMENT_STATUS_COLORS[order.payment_status],
+                    fontWeight: 600,
+                  }}
+                />
+              </Box>
+              <Typography variant="body1" fontWeight="600">
+                {order.client_name}
+              </Typography>
+              {order.client_company && (
+                <Typography variant="body2" color="text.secondary">
+                  {order.client_company}
+                </Typography>
+              )}
+              {order.client_email && (
+                <Typography variant="body2" color="text.secondary">
+                  {order.client_email}
+                </Typography>
+              )}
+              {order.project_name && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Project: {order.project_name}
+                </Typography>
+              )}
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Box sx={{ textAlign: { xs: 'left', md: 'right' } }}>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Order Date
+                    </Typography>
+                    <Typography variant="body2" fontWeight="600">
+                      {formatDate(order.order_date)}
+                    </Typography>
+                  </Grid>
+                  {order.due_date && (
+                    <Grid size={{ xs: 6, sm: 3 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Due Date
+                      </Typography>
+                      <Typography variant="body2" fontWeight="600">
+                        {formatDate(order.due_date)}
+                      </Typography>
+                    </Grid>
+                  )}
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Total
+                    </Typography>
+                    <Typography variant="body2" fontWeight="700" color="primary.main">
+                      {formatCurrency(order.total_amount)}
+                    </Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Balance
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      fontWeight="700"
+                      color={order.balance_due > 0 ? 'warning.main' : 'success.main'}
+                    >
+                      {formatCurrency(order.balance_due)}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Box>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Order Items */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" fontWeight="600">
+              Publications ({order.items?.length || 0})
+            </Typography>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                resetItemForm();
+                setEditingItem(null);
+                setShowItemDialog(true);
+              }}
+            >
+              Add Publication
+            </Button>
+          </Box>
+
+          {!order.items || order.items.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography color="text.secondary">No publications added yet</Typography>
+            </Box>
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Website</TableCell>
+                    <TableCell>Keyword</TableCell>
+                    <TableCell>Client URL</TableCell>
+                    <TableCell align="right">Price</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Live URL</TableCell>
+                    <TableCell align="center">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {order.items.map((item) => (
+                    <TableRow key={item.id} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="500">
+                          {item.website}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{item.keyword}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            maxWidth: 200,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={item.client_url}
+                        >
+                          {item.client_url}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" fontWeight="600">
+                          {formatCurrency(item.price)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={ITEM_STATUS_LABELS[item.status]}
+                          size="small"
+                          sx={{
+                            bgcolor: `${ITEM_STATUS_COLORS[item.status]}20`,
+                            color: ITEM_STATUS_COLORS[item.status],
+                            fontWeight: 600,
+                            fontSize: '0.7rem',
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {item.live_url ? (
+                          <IconButton
+                            size="small"
+                            href={item.live_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{ color: 'success.main' }}
+                          >
+                            <LinkIcon fontSize="small" />
+                          </IconButton>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton size="small" onClick={() => openEditItem(item)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteItem(item.id)}
+                          sx={{ color: 'error.main' }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+
+          {order.items && order.items.length > 0 && (
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Subtotal
+                  </Typography>
+                  <Typography variant="body1" fontWeight="600">
+                    {formatCurrency(order.subtotal)}
+                  </Typography>
+                </Box>
+                {order.discount > 0 && (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Discount
+                    </Typography>
+                    <Typography variant="body1" fontWeight="600" color="error.main">
+                      -{formatCurrency(order.discount)}
+                    </Typography>
+                  </Box>
+                )}
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Total
+                  </Typography>
+                  <Typography variant="h6" fontWeight="700" color="primary.main">
+                    {formatCurrency(order.total_amount)}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Payments */}
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" fontWeight="600">
+              Payments ({order.payments?.length || 0})
+            </Typography>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<PaymentIcon />}
+              onClick={() => {
+                resetPaymentForm();
+                setShowPaymentDialog(true);
+              }}
+              disabled={order.balance_due <= 0}
+            >
+              Record Payment
+            </Button>
+          </Box>
+
+          {!order.payments || order.payments.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography color="text.secondary">No payments recorded yet</Typography>
+            </Box>
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Method</TableCell>
+                    <TableCell>Reference</TableCell>
+                    <TableCell align="right">Amount</TableCell>
+                    <TableCell>Notes</TableCell>
+                    <TableCell align="center">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {order.payments.map((payment) => (
+                    <TableRow key={payment.id} hover>
+                      <TableCell>
+                        <Typography variant="body2">{formatDate(payment.payment_date)}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{payment.payment_method || '-'}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{payment.reference_number || '-'}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" fontWeight="600" color="success.main">
+                          {formatCurrency(payment.amount)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {payment.notes || '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeletePayment(payment.id)}
+                          sx={{ color: 'error.main' }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+
+          {/* Payment Summary */}
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Total Paid
+                </Typography>
+                <Typography variant="body1" fontWeight="600" color="success.main">
+                  {formatCurrency(order.amount_paid)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Balance Due
+                </Typography>
+                <Typography
+                  variant="h6"
+                  fontWeight="700"
+                  color={order.balance_due > 0 ? 'warning.main' : 'success.main'}
+                >
+                  {formatCurrency(order.balance_due)}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Add/Edit Item Dialog */}
+      <Dialog open={showItemDialog} onClose={() => setShowItemDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{editingItem ? 'Edit Publication' : 'Add Publication'}</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Website"
+                required
+                value={itemForm.website}
+                onChange={(e) => setItemForm({ ...itemForm, website: e.target.value })}
+                disabled={!!editingItem}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Price ($)"
+                type="number"
+                required
+                value={itemForm.price}
+                onChange={(e) => setItemForm({ ...itemForm, price: Number(e.target.value) })}
+                inputProps={{ min: 0, step: 0.01 }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                fullWidth
+                label="Keyword"
+                required
+                value={itemForm.keyword}
+                onChange={(e) => setItemForm({ ...itemForm, keyword: e.target.value })}
+              />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                fullWidth
+                label="Client URL"
+                required
+                value={itemForm.client_url}
+                onChange={(e) => setItemForm({ ...itemForm, client_url: e.target.value })}
+              />
+            </Grid>
+            {editingItem && (
+              <>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      value={itemForm.status}
+                      label="Status"
+                      onChange={(e) =>
+                        setItemForm({ ...itemForm, status: e.target.value as OrderItemStatus })
+                      }
+                    >
+                      {Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => (
+                        <MenuItem key={value} value={value}>
+                          {label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Live URL"
+                    value={itemForm.live_url}
+                    onChange={(e) => setItemForm({ ...itemForm, live_url: e.target.value })}
+                  />
+                </Grid>
+              </>
+            )}
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                fullWidth
+                label="Notes"
+                multiline
+                rows={2}
+                value={itemForm.notes}
+                onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowItemDialog(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={editingItem ? handleUpdateItem : handleAddItem}
+            disabled={!itemForm.website || !itemForm.keyword || !itemForm.client_url || itemForm.price <= 0}
+          >
+            {editingItem ? 'Update' : 'Add'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Payment Dialog */}
+      <Dialog open={showPaymentDialog} onClose={() => setShowPaymentDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Record Payment</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2, mt: 1 }}>
+            Balance Due: {formatCurrency(order.balance_due)}
+          </Alert>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Amount ($)"
+                type="number"
+                required
+                value={paymentForm.amount}
+                onChange={(e) => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })}
+                inputProps={{ min: 0.01, step: 0.01, max: order.balance_due }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Date"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={paymentForm.payment_date}
+                onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FormControl fullWidth>
+                <InputLabel>Payment Method</InputLabel>
+                <Select
+                  value={paymentForm.payment_method}
+                  label="Payment Method"
+                  onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
+                >
+                  {PAYMENT_METHODS.map((method) => (
+                    <MenuItem key={method} value={method}>
+                      {method}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Reference Number"
+                value={paymentForm.reference_number}
+                onChange={(e) => setPaymentForm({ ...paymentForm, reference_number: e.target.value })}
+              />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                fullWidth
+                label="Notes"
+                multiline
+                rows={2}
+                value={paymentForm.notes}
+                onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowPaymentDialog(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleAddPayment}
+            disabled={paymentForm.amount <= 0 || paymentForm.amount > order.balance_due}
+          >
+            Record Payment
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}

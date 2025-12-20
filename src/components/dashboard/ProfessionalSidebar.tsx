@@ -21,6 +21,7 @@ const DASHBOARD_MENU: MenuItem[] = [
   { id: 'orders', label: 'Orders', href: '/dashboard/order', icon: 'shopping_cart' },
   { id: 'processing', label: 'Processing', href: '/dashboard/processing', icon: 'sync' },
   { id: 'admin', label: 'Admin', href: '/dashboard/admin', icon: 'admin_panel_settings' },
+  { id: 'api', label: 'API', href: '/dashboard/api', icon: 'api' },
 ];
 
 export function ProfessionalSidebar() {

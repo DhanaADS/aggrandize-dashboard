@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-nextauth';
 import { useRouter } from 'next/navigation';
 import { StandardPageLayout } from '@/components/dashboard/StandardPageLayout';
+import { DatabaseStatusIndicator } from '@/components/dashboard/DatabaseStatusIndicator';
 import {
   Box,
   Grid,
@@ -123,6 +124,11 @@ export default function DashboardPage() {
       description="Welcome to your AGGRANDIZE Dashboard. Here's what's happening today."
       icon={<DashboardIcon />}
     >
+      {/* Database Status Indicator */}
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+        <DatabaseStatusIndicator />
+      </Box>
+
       {/* Quick Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {quickStats.map((stat, index) => (

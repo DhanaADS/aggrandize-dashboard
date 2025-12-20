@@ -14,6 +14,8 @@ export interface Order {
   client_name: string;
   client_email: string | null;
   client_company: string | null;
+  client_whatsapp: string | null;
+  client_telegram: string | null;
 
   // Order Details
   project_name: string | null;
@@ -90,6 +92,8 @@ export interface CreateOrderInput {
   client_name: string;
   client_email?: string;
   client_company?: string;
+  client_whatsapp?: string;
+  client_telegram?: string;
   project_name?: string;
   order_date?: string;
   due_date?: string;
@@ -103,6 +107,8 @@ export interface UpdateOrderInput {
   client_name?: string;
   client_email?: string;
   client_company?: string;
+  client_whatsapp?: string;
+  client_telegram?: string;
   project_name?: string;
   order_date?: string;
   due_date?: string;
