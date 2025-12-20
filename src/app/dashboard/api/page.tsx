@@ -575,6 +575,64 @@ Response:
           </AccordionDetails>
         </Accordion>
 
+        {/* Generic Query Endpoint */}
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Chip label="POST" size="small" color="primary" />
+              <Typography variant="subtitle1" fontWeight="bold">/query</Typography>
+              <Chip label="NEW" size="small" color="secondary" sx={{ ml: 1 }} />
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Typography variant="body2" paragraph>
+              Execute any SQL query with parameterized values. This is the primary endpoint for database operations from the dashboard.
+            </Typography>
+            <Paper sx={{ p: 2, bgcolor: 'grey.900', mb: 2 }}>
+              <code style={{ color: '#00ff88', fontSize: '13px', whiteSpace: 'pre-wrap' }}>
+{`curl -X POST "${API_URL}/query" \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -H "X-ADMIN-KEY: YOUR_ADMIN_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "sql": "SELECT * FROM website_inventory WHERE status = $1 LIMIT $2",
+    "params": ["active", 10]
+  }'
+
+Response:
+{
+  "success": true,
+  "rows": [...],
+  "rowCount": 10,
+  "duration_ms": 45
+}`}
+              </code>
+            </Paper>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Use parameterized queries ($1, $2, etc.) to prevent SQL injection. The params array values are substituted in order.
+            </Alert>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Request Body:</Typography>
+            <TableContainer component={Paper} sx={{ mb: 2 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Field</TableCell>
+                    <TableCell>Type</TableCell>
+                    <TableCell>Description</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  <TableRow><TableCell>sql</TableCell><TableCell>string</TableCell><TableCell>SQL query with $1, $2 placeholders (required)</TableCell></TableRow>
+                  <TableRow><TableCell>params</TableCell><TableCell>array</TableCell><TableCell>Parameter values in order (optional, default: [])</TableCell></TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <Alert severity="warning">
+              Requires both X-API-Key and X-ADMIN-KEY headers. All queries are logged for audit purposes.
+            </Alert>
+          </AccordionDetails>
+        </Accordion>
+
         <Divider sx={{ my: 2 }} />
         <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>Migration Endpoints</Typography>
 

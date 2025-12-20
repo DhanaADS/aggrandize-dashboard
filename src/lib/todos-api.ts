@@ -3,7 +3,7 @@
 // AGGRANDIZE Team Todos - API Layer
 // Database: Umbrel PostgreSQL (direct connection)
 // Storage & Real-time: Supabase (for file uploads and live updates)
-import { query, queryOne } from '@/lib/umbrel/client';
+import { query, queryOne } from '@/lib/umbrel/query-wrapper';
 import { createClient } from '@/lib/supabase/client';
 import {
   Todo,

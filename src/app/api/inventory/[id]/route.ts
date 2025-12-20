@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]/route';
-import { query, queryOne } from '@/lib/umbrel/client';
+import { query, queryOne } from '@/lib/umbrel/query-wrapper';
 import { WebsiteInventory } from '@/types/inventory';
 
 // GET single website

@@ -149,9 +149,73 @@ const updated = await apiClient.put('/expenses/123', {
 await apiClient.delete('/expenses/123');
 ```
 
-### 4. Unified Client (`unified-client.ts`)
+### 4. Query Wrapper (`query-wrapper.ts`)
 
-Intelligent connection manager with automatic mode switching.
+Unified query interface that auto-switches between direct PostgreSQL and HTTP API.
+
+**Connection Modes:**
+
+1. **`direct`** - Use direct PostgreSQL connection (default)
+2. **`api`** - Use HTTP API connection through Cloudflare
+
+**Features:**
+- Same interface as direct client (`query`, `queryOne`)
+- Environment-based mode switching
+- Dynamic import for optimal performance
+- Compatible with all existing code using `client.ts`
+
+**Configuration:**
+```bash
+# .env - Use API mode
+UMBREL_CONNECTION_MODE=api
+UMBREL_API_URL=https://api.aggrandizedigital.com
+UMBREL_API_KEY=your-secret-api-key
+
+# .env - Use Direct mode (default)
+UMBREL_CONNECTION_MODE=direct  # or leave unset
+UMBREL_SSH_HOST=umbrel.local
+UMBREL_DB_PORT=5432
+UMBREL_DB_NAME=aggrandize_business
+UMBREL_DB_USER=aggrandize
+UMBREL_DB_PASSWORD=your-db-password
+```
+
+**Usage:**
+```typescript
+import { query, queryOne, testConnection, getMode } from '@/lib/umbrel/query-wrapper';
+
+// Check current mode
+console.log('Connection mode:', getMode()); // 'direct' or 'api'
+
+// Execute query (works in both modes)
+const result = await query('SELECT * FROM expenses WHERE id = $1', [expenseId]);
+
+// Get single row
+const expense = await queryOne('SELECT * FROM expenses WHERE id = $1', [expenseId]);
+
+// Test connection
+const isConnected = await testConnection();
+```
+
+**Migration:**
+```typescript
+// Before
+import { query, queryOne } from '@/lib/umbrel/client';
+
+// After (drop-in replacement)
+import { query, queryOne } from '@/lib/umbrel/query-wrapper';
+```
+
+**Updated Routes:**
+All inventory API routes now use the query wrapper:
+- `/api/inventory` - List and create websites
+- `/api/inventory/[id]` - Get, update, delete single website
+- `/api/inventory/bulk` - Bulk operations
+- `/api/inventory/export` - Export data
+
+### 5. Unified Client (`unified-client.ts`)
+
+Intelligent connection manager with automatic mode switching and fallback.
 
 **Connection Modes:**
 

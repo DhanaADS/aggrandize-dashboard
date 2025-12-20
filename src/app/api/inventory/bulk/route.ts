@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]/route';
-import { query } from '@/lib/umbrel/client';
+import { query } from '@/lib/umbrel/query-wrapper';
 import { BulkActionPayload } from '@/types/inventory';
 import { WebsiteInventory } from '@/types/inventory';
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]/route';
-import { query } from '@/lib/umbrel/client';
+import { query } from '@/lib/umbrel/query-wrapper';
 import { ExportConfig, WebsiteInventory } from '@/types/inventory';
 
 // Helper to build WHERE clause from export filters

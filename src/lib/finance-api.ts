@@ -1,6 +1,6 @@
 'use server';
 // Umbrel PostgreSQL Database Layer - Replaces Supabase
-import { query, queryOne } from '@/lib/umbrel/client';
+import { query, queryOne } from '@/lib/umbrel/query-wrapper';
 import {
   Expense,
   Subscription,
