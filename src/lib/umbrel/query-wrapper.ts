@@ -18,7 +18,7 @@ type ConnectionMode = 'api' | 'direct';
 
 // Determine connection mode from environment
 function getConnectionMode(): ConnectionMode {
-  const mode = process.env.UMBREL_CONNECTION_MODE?.toLowerCase();
+  const mode = process.env.UMBREL_CONNECTION_MODE?.trim().toLowerCase();
   if (mode === 'api') {
     return 'api';
   }
@@ -33,9 +33,9 @@ interface ApiConfig {
 
 function getApiConfig(): ApiConfig & { adminKey: string } {
   return {
-    baseUrl: (process.env.UMBREL_API_URL || 'https://api.aggrandizedigital.com').replace(/\/$/, ''),
-    apiKey: process.env.UMBREL_API_KEY || '',
-    adminKey: process.env.UMBREL_ADMIN_KEY || '',
+    baseUrl: (process.env.UMBREL_API_URL?.trim() || 'https://api.aggrandizedigital.com').replace(/\/$/, ''),
+    apiKey: process.env.UMBREL_API_KEY?.trim() || '',
+    adminKey: process.env.UMBREL_ADMIN_KEY?.trim() || '',
   };
 }
 
