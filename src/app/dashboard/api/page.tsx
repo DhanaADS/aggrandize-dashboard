@@ -526,8 +526,126 @@ export default function ApiManagementPage() {
           Base URL: <strong>{API_URL}</strong> | All endpoints require <code>X-API-Key</code> header. Migration endpoints also require <code>X-ADMIN-KEY</code> header.
         </Alert>
 
-        {/* Authentication Section */}
+        {/* Connection Modes Section */}
         <Accordion defaultExpanded>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle1" fontWeight="bold">🔌 Connection Modes</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Typography variant="body2" paragraph>
+              The application supports two database connection modes:
+            </Typography>
+            <TableContainer component={Paper} sx={{ mb: 2 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Mode</TableCell>
+                    <TableCell>Environment</TableCell>
+                    <TableCell>Description</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  <TableRow>
+                    <TableCell><Chip label="direct" size="small" color="success" /></TableCell>
+                    <TableCell>Local Development</TableCell>
+                    <TableCell>Direct PostgreSQL connection to umbrel.local:5432</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><Chip label="api" size="small" color="primary" /></TableCell>
+                    <TableCell>Vercel / Remote</TableCell>
+                    <TableCell>HTTP API via Cloudflare (api.aggrandizedigital.com)</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Environment Variables:</Typography>
+            <Paper sx={{ p: 2, bgcolor: 'grey.900', mb: 2 }}>
+              <code style={{ color: '#00ff88', fontSize: '13px', whiteSpace: 'pre-wrap' }}>
+{`# For Vercel / Remote deployment:
+UMBREL_CONNECTION_MODE=api
+UMBREL_API_URL=https://api.aggrandizedigital.com
+UMBREL_API_KEY=your-api-key
+UMBREL_ADMIN_KEY=your-admin-key
+
+# For Local Development (optional, defaults to direct):
+UMBREL_CONNECTION_MODE=direct`}
+              </code>
+            </Paper>
+            <Alert severity="warning">
+              <strong>Important:</strong> When setting environment variables on Vercel, ensure there are no trailing newlines or spaces in the values.
+            </Alert>
+          </AccordionDetails>
+        </Accordion>
+
+        {/* Troubleshooting Section */}
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle1" fontWeight="bold">🔧 Troubleshooting</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Common Errors:</Typography>
+            <TableContainer component={Paper} sx={{ mb: 2 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Error</TableCell>
+                    <TableCell>Cause</TableCell>
+                    <TableCell>Solution</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  <TableRow>
+                    <TableCell><code>getaddrinfo ENOTFOUND umbrel.local</code></TableCell>
+                    <TableCell>App trying direct PostgreSQL but can&apos;t reach Umbrel</TableCell>
+                    <TableCell>Set <code>UMBREL_CONNECTION_MODE=api</code> on Vercel</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><code>401 Unauthorized</code></TableCell>
+                    <TableCell>Missing or invalid API key</TableCell>
+                    <TableCell>Check <code>X-API-Key</code> header value</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><code>403 Forbidden</code></TableCell>
+                    <TableCell>Missing admin key for protected endpoints</TableCell>
+                    <TableCell>Add <code>X-ADMIN-KEY</code> header for /migrate/* and /query endpoints</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><code>UMBREL_API_KEY is required</code></TableCell>
+                    <TableCell>API mode enabled but no key configured</TableCell>
+                    <TableCell>Add <code>UMBREL_API_KEY</code> environment variable</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><code>Query request timeout</code></TableCell>
+                    <TableCell>API request took too long (30s timeout)</TableCell>
+                    <TableCell>Check Umbrel server status, simplify query</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Quick Checks:</Typography>
+            <Paper sx={{ p: 2, bgcolor: 'grey.900' }}>
+              <code style={{ color: '#00ff88', fontSize: '13px', whiteSpace: 'pre-wrap' }}>
+{`# 1. Test API connectivity:
+curl -X GET "${API_URL}/health" -H "X-API-Key: YOUR_KEY"
+
+# 2. Test database query:
+curl -X POST "${API_URL}/query" \\
+  -H "X-API-Key: YOUR_KEY" \\
+  -H "X-ADMIN-KEY: YOUR_ADMIN_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"sql": "SELECT NOW()"}'
+
+# 3. List tables:
+curl -X GET "${API_URL}/migrate/tables" \\
+  -H "X-API-Key: YOUR_KEY" \\
+  -H "X-ADMIN-KEY: YOUR_ADMIN_KEY"`}
+              </code>
+            </Paper>
+          </AccordionDetails>
+        </Accordion>
+
+        {/* Authentication Section */}
+        <Accordion>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography variant="subtitle1" fontWeight="bold">🔐 Authentication</Typography>
           </AccordionSummary>
