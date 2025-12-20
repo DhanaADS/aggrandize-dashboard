@@ -4,8 +4,18 @@
  * Supports 'direct', 'api', and 'auto' modes with automatic fallback
  */
 
-import { testConnection as testDirectConnection } from './client';
 import { apiClient } from './api-client';
+
+// Dynamic import for direct client to avoid loading PostgreSQL pool on Vercel
+let testDirectConnection: (() => Promise<boolean>) | null = null;
+
+async function getTestDirectConnection(): Promise<() => Promise<boolean>> {
+  if (!testDirectConnection) {
+    const clientModule = await import('./client');
+    testDirectConnection = clientModule.testConnection;
+  }
+  return testDirectConnection;
+}
 
 export type ConnectionMode = 'direct' | 'api' | 'auto';
 
@@ -68,7 +78,8 @@ class UnifiedClient {
 
     try {
       console.log('[UnifiedClient] Testing direct PostgreSQL connection...');
-      const isAvailable = await testDirectConnection();
+      const testFn = await getTestDirectConnection();
+      const isAvailable = await testFn();
 
       // Cache the result
       this.statusCache.set(cacheKey, {
