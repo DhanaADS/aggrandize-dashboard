@@ -11,7 +11,7 @@
  * - UMBREL_API_KEY
  */
 
-import { QueryResult, QueryResultRow } from 'pg';
+import type { QueryResult, QueryResultRow } from 'pg';
 
 // Connection mode type
 type ConnectionMode = 'api' | 'direct';
