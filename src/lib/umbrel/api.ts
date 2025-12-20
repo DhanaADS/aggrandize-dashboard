@@ -809,6 +809,19 @@ export interface Order {
   items_completed?: number;
 }
 
+export interface OrderItemAssignment {
+  id: string;
+  order_item_id: string;
+  assigned_to: string;
+  assigned_by: string;
+  assigned_at: string;
+  due_date: string | null;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface OrderItem {
   id: string;
   order_id: string;
@@ -820,9 +833,14 @@ export interface OrderItem {
   status: string;
   live_url: string | null;
   live_date: string | null;
+  processing_status: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
+  assignment?: OrderItemAssignment;
 }
 
 export interface OrderPayment {
@@ -1046,13 +1064,67 @@ export async function getOrderStats(): Promise<OrderStats> {
 // ORDER ITEMS
 // ============================================
 
-// Get items for an order
+// Get items for an order with assignment data
 export async function getOrderItems(orderId: string): Promise<OrderItem[]> {
-  const result = await query<OrderItem>(
-    'SELECT * FROM order_items WHERE order_id = $1 ORDER BY created_at ASC',
+  const result = await query<any>(
+    `SELECT
+       i.*,
+       a.id as assignment_id,
+       a.assigned_to,
+       a.assigned_by,
+       a.assigned_at,
+       a.due_date,
+       a.priority,
+       a.notes as assignment_notes,
+       a.created_at as assignment_created_at,
+       a.updated_at as assignment_updated_at
+     FROM order_items i
+     LEFT JOIN order_item_assignments a ON i.id = a.order_item_id
+     WHERE i.order_id = $1
+     ORDER BY i.created_at ASC`,
     [orderId]
   );
-  return result.rows;
+
+  // Transform the joined data into proper OrderItem objects with assignment
+  return result.rows.map((row) => {
+    const item: OrderItem = {
+      id: row.id,
+      order_id: row.order_id,
+      publication_id: row.publication_id,
+      website: row.website,
+      keyword: row.keyword,
+      client_url: row.client_url,
+      price: row.price,
+      status: row.status,
+      live_url: row.live_url,
+      live_date: row.live_date,
+      processing_status: row.processing_status,
+      approved_by: row.approved_by,
+      approved_at: row.approved_at,
+      rejection_reason: row.rejection_reason,
+      notes: row.notes,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    };
+
+    // Add assignment data if it exists
+    if (row.assignment_id) {
+      item.assignment = {
+        id: row.assignment_id,
+        order_item_id: row.id,
+        assigned_to: row.assigned_to,
+        assigned_by: row.assigned_by,
+        assigned_at: row.assigned_at,
+        due_date: row.due_date,
+        priority: row.priority,
+        notes: row.assignment_notes,
+        created_at: row.assignment_created_at,
+        updated_at: row.assignment_updated_at,
+      };
+    }
+
+    return item;
+  });
 }
 
 // Add item to order

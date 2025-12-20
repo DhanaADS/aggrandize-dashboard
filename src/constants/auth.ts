@@ -53,21 +53,32 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
     canAccessProcessing: true,
     canAccessInventory: true,
     canAccessTools: true,
-    canAccessPayments: true
+    canAccessPayments: true,
+    canAccessAccounts: true
   },
   marketing: {
     canAccessOrder: true,
     canAccessProcessing: false,
     canAccessInventory: true,
     canAccessTools: false, // Can be enabled by admin
-    canAccessPayments: false
+    canAccessPayments: false,
+    canAccessAccounts: false
   },
   processing: {
     canAccessOrder: false,
     canAccessProcessing: true,
     canAccessInventory: false,
     canAccessTools: false, // Can be enabled by admin
-    canAccessPayments: false
+    canAccessPayments: false,
+    canAccessAccounts: false
+  },
+  accounts: {
+    canAccessOrder: false,
+    canAccessProcessing: false,
+    canAccessInventory: false,
+    canAccessTools: false,
+    canAccessPayments: true,
+    canAccessAccounts: true
   }
 };
 

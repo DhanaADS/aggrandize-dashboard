@@ -18,7 +18,7 @@ export interface UserProfile {
   updated_at: string;
 }
 
-export type UserRole = 'admin' | 'marketing' | 'processing';
+export type UserRole = 'admin' | 'marketing' | 'processing' | 'accounts';
 
 export interface LoginCredentials {
   email: string;
@@ -37,6 +37,7 @@ export interface RolePermissions {
   canAccessInventory: boolean;
   canAccessTools: boolean;
   canAccessPayments: boolean;
+  canAccessAccounts: boolean;
 }
 
 export interface UserPermissions {

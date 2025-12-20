@@ -67,7 +67,30 @@ export interface OrderItem {
   live_url: string | null;
   live_date: string | null;
 
+  // Processing status and assignment
+  processing_status: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
+
   // Metadata
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+
+  // Joined assignment data (optional)
+  assignment?: OrderItemAssignment;
+}
+
+// Order Item Assignment
+export interface OrderItemAssignment {
+  id: string;
+  order_item_id: string;
+  assigned_to: string;
+  assigned_by: string;
+  assigned_at: string;
+  due_date: string | null;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -190,6 +213,22 @@ export const ITEM_STATUS_COLORS: Record<OrderItemStatus, string> = {
   rejected: '#ef4444',     // Red
 };
 
+export const PROCESSING_STATUS_COLORS: Record<string, string> = {
+  not_started: '#64748b',      // Gray
+  in_progress: '#3b82f6',      // Blue
+  content_writing: '#8b5cf6',  // Purple
+  pending_approval: '#f59e0b', // Amber
+  approved: '#10b981',         // Green
+  rejected: '#ef4444',         // Red
+};
+
+export const PRIORITY_COLORS: Record<string, string> = {
+  low: '#64748b',      // Gray
+  normal: '#3b82f6',   // Blue
+  high: '#f59e0b',     // Amber
+  urgent: '#ef4444',   // Red
+};
+
 // Status Labels
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   draft: 'Draft',
@@ -211,6 +250,22 @@ export const ITEM_STATUS_LABELS: Record<OrderItemStatus, string> = {
   submitted: 'Submitted',
   live: 'Live',
   rejected: 'Rejected',
+};
+
+export const PROCESSING_STATUS_LABELS: Record<string, string> = {
+  not_started: 'Not Started',
+  in_progress: 'In Progress',
+  content_writing: 'Content Writing',
+  pending_approval: 'Pending Approval',
+  approved: 'Approved',
+  rejected: 'Rejected',
+};
+
+export const PRIORITY_LABELS: Record<string, string> = {
+  low: 'Low',
+  normal: 'Normal',
+  high: 'High',
+  urgent: 'Urgent',
 };
 
 // Payment Methods

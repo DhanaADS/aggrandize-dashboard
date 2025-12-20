@@ -36,6 +36,7 @@ export default withAuth(
         canAccessTools?: boolean;
         canAccessPayments?: boolean;
         canAccessTodos?: boolean;
+        canAccessAccounts?: boolean;
       } | undefined;
 
       // Admin access - role-based only
@@ -61,6 +62,10 @@ export default withAuth(
       }
 
       if (path.startsWith('/dashboard/tools') && !permissions?.canAccessTools) {
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
+
+      if (path.startsWith('/dashboard/accounts') && !permissions?.canAccessAccounts) {
         return NextResponse.redirect(new URL('/dashboard', req.url));
       }
     }

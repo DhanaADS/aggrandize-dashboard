@@ -23,6 +23,7 @@ const DASHBOARD_MENU: MenuItem[] = [
   { id: 'tools', label: 'Tools', href: '/dashboard/tools', icon: 'build', permissionKey: 'canAccessTools' },
   { id: 'orders', label: 'Orders', href: '/dashboard/order', icon: 'shopping_cart', permissionKey: 'canAccessOrder' },
   { id: 'processing', label: 'Processing', href: '/dashboard/processing', icon: 'sync', permissionKey: 'canAccessProcessing' },
+  { id: 'accounts', label: 'Accounts', href: '/dashboard/accounts', icon: 'account_balance', permissionKey: 'canAccessAccounts' },
   { id: 'admin', label: 'Admin', href: '/dashboard/admin', icon: 'admin_panel_settings', adminOnly: true },
   { id: 'api', label: 'API', href: '/dashboard/api', icon: 'api', adminOnly: true },
 ];

@@ -3,11 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-nextauth';
-import { ProcessingOverview } from './components/overview/processing-overview';
-import { MyTasksTab } from './components/my-tasks/my-tasks-tab';
-import { PendingApprovalTab } from './components/pending-approval/pending-approval-tab';
-import { PublishedTab } from './components/published/published-tab';
-import { PaymentStatusTab } from './components/payment-status/payment-status-tab';
+import { AccountsOverview } from './components/overview/accounts-overview';
+import { RequestsTab } from './components/requests/requests-tab';
 import {
   Box,
   Typography,
@@ -17,23 +14,23 @@ import {
   Skeleton
 } from '@mui/material';
 import {
-  Dashboard as OverviewIcon,
-  Assignment as TasksIcon,
+  AccountBalance as AccountsIcon,
   PendingActions as PendingIcon,
-  CheckCircle as PublishedIcon,
-  Payment as PaymentIcon,
+  CheckCircle as ApprovedIcon,
+  Paid as PaidIcon,
+  History as AllIcon,
 } from '@mui/icons-material';
 
-type ProcessingModule = 'overview' | 'my-tasks' | 'pending-approval' | 'published' | 'payment-status';
+type AccountsModule = 'overview' | 'pending' | 'approved' | 'paid' | 'all';
 
-export default function ProcessingPage() {
+export default function AccountsPage() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
-  const tabParam = searchParams.get('tab') as ProcessingModule;
-  const [activeModule, setActiveModule] = useState<ProcessingModule>('overview');
+  const tabParam = searchParams.get('tab') as AccountsModule;
+  const [activeModule, setActiveModule] = useState<AccountsModule>('overview');
 
   useEffect(() => {
-    if (tabParam && ['overview', 'my-tasks', 'pending-approval', 'published', 'payment-status'].includes(tabParam)) {
+    if (tabParam && ['overview', 'pending', 'approved', 'paid', 'all'].includes(tabParam)) {
       setActiveModule(tabParam);
     }
   }, [tabParam]);
@@ -43,11 +40,11 @@ export default function ProcessingPage() {
   }
 
   const modules = [
-    { id: 'overview' as const, label: 'Overview', icon: <OverviewIcon /> },
-    { id: 'my-tasks' as const, label: 'My Tasks', icon: <TasksIcon /> },
-    { id: 'pending-approval' as const, label: 'Pending Approval', icon: <PendingIcon /> },
-    { id: 'published' as const, label: 'Published', icon: <PublishedIcon /> },
-    { id: 'payment-status' as const, label: 'Payment Status', icon: <PaymentIcon /> },
+    { id: 'overview' as const, label: 'Overview', icon: <AccountsIcon /> },
+    { id: 'pending' as const, label: 'Pending Requests', icon: <PendingIcon /> },
+    { id: 'approved' as const, label: 'Approved', icon: <ApprovedIcon /> },
+    { id: 'paid' as const, label: 'Paid', icon: <PaidIcon /> },
+    { id: 'all' as const, label: 'All Requests', icon: <AllIcon /> },
   ];
 
   return (
@@ -65,7 +62,7 @@ export default function ProcessingPage() {
               letterSpacing: '-0.025em'
             }}
           >
-            Processing Dashboard
+            Accounts Management
           </Typography>
           <Typography
             variant="body1"
@@ -75,7 +72,7 @@ export default function ProcessingPage() {
               lineHeight: 1.5
             }}
           >
-            Manage your assigned tasks and payment requests.
+            Manage and process payment requests for the team.
           </Typography>
         </Box>
       </Box>
@@ -88,7 +85,7 @@ export default function ProcessingPage() {
           variant="scrollable"
           scrollButtons="auto"
           allowScrollButtonsMobile
-          aria-label="Processing modules"
+          aria-label="Accounts modules"
         >
           {modules.map((module) => (
             <Tab
@@ -105,11 +102,11 @@ export default function ProcessingPage() {
 
       {/* Content Section */}
       <Paper elevation={3} sx={{ p: { xs: 2, sm: 3, md: 4 }, borderRadius: 2 }}>
-        {activeModule === 'overview' && <ProcessingOverview />}
-        {activeModule === 'my-tasks' && <MyTasksTab />}
-        {activeModule === 'pending-approval' && <PendingApprovalTab />}
-        {activeModule === 'published' && <PublishedTab />}
-        {activeModule === 'payment-status' && <PaymentStatusTab />}
+        {activeModule === 'overview' && <AccountsOverview />}
+        {activeModule === 'pending' && <RequestsTab statusFilter="pending" />}
+        {activeModule === 'approved' && <RequestsTab statusFilter="approved" />}
+        {activeModule === 'paid' && <RequestsTab statusFilter="paid" />}
+        {activeModule === 'all' && <RequestsTab />}
       </Paper>
     </Box>
   );

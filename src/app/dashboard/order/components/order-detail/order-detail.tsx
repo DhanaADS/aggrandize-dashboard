@@ -49,7 +49,14 @@ import {
   ITEM_STATUS_LABELS,
   PAYMENT_METHODS,
   OrderItemStatus,
+  PROCESSING_STATUS_COLORS,
+  PROCESSING_STATUS_LABELS,
+  PRIORITY_COLORS,
+  PRIORITY_LABELS,
+  OrderItemAssignment,
 } from '@/types/orders';
+import { AssignmentDialog, AssignmentFormData } from './assignment-dialog';
+import { ContentApprovalDialog } from './content-approval-dialog';
 
 interface OrderDetailProps {
   orderId: string;
@@ -65,7 +72,10 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
   // Dialog states
   const [showItemDialog, setShowItemDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<OrderItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<OrderItem | null>(null);
 
   // Form states
   const [itemForm, setItemForm] = useState({
@@ -259,6 +269,69 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
     setShowItemDialog(true);
   };
 
+  // Assignment handlers
+  const handleAssignItem = async (formData: AssignmentFormData) => {
+    if (!selectedItem) return;
+
+    const response = await fetch(`/api/order/${orderId}/items/${selectedItem.id}/assign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to assign item');
+    }
+
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
+  const openAssignmentDialog = (item: OrderItem) => {
+    setSelectedItem(item);
+    setShowAssignmentDialog(true);
+  };
+
+  // Approval handlers
+  const handleApproveContent = async () => {
+    if (!selectedItem) return;
+
+    const response = await fetch(`/api/order/${orderId}/items/${selectedItem.id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'approve' }),
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to approve content');
+    }
+
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
+  const handleRejectContent = async (rejectionReason: string) => {
+    if (!selectedItem) return;
+
+    const response = await fetch(`/api/order/${orderId}/items/${selectedItem.id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reject', rejection_reason: rejectionReason }),
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to reject content');
+    }
+
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
+  const openApprovalDialog = (item: OrderItem) => {
+    setSelectedItem(item);
+    setShowApprovalDialog(true);
+  };
+
   if (loading) {
     return (
       <Box>
@@ -412,81 +485,166 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
                     <TableCell>Client URL</TableCell>
                     <TableCell align="right">Price</TableCell>
                     <TableCell>Status</TableCell>
+                    <TableCell>Processing Status</TableCell>
+                    <TableCell>Assigned To</TableCell>
                     <TableCell>Live URL</TableCell>
                     <TableCell align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {order.items.map((item) => (
-                    <TableRow key={item.id} hover>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="500">
-                          {item.website}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{item.keyword}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            maxWidth: 200,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                          title={item.client_url}
-                        >
-                          {item.client_url}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2" fontWeight="600">
-                          {formatCurrency(item.price)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={ITEM_STATUS_LABELS[item.status]}
-                          size="small"
-                          sx={{
-                            bgcolor: `${ITEM_STATUS_COLORS[item.status]}20`,
-                            color: ITEM_STATUS_COLORS[item.status],
-                            fontWeight: 600,
-                            fontSize: '0.7rem',
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {item.live_url ? (
-                          <IconButton
-                            size="small"
-                            href={item.live_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            sx={{ color: 'success.main' }}
+                  {order.items.map((item) => {
+                    const isPendingApproval = item.processing_status === 'pending_approval';
+                    const isOverdue = item.assignment?.due_date
+                      && new Date(item.assignment.due_date) < new Date()
+                      && item.processing_status !== 'approved';
+
+                    return (
+                      <TableRow key={item.id} hover>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="500">
+                            {item.website}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">{item.keyword}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              maxWidth: 200,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={item.client_url}
                           >
-                            <LinkIcon fontSize="small" />
-                          </IconButton>
-                        ) : (
-                          '-'
-                        )}
-                      </TableCell>
-                      <TableCell align="center">
-                        <IconButton size="small" onClick={() => openEditItem(item)}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDeleteItem(item.id)}
-                          sx={{ color: 'error.main' }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            {item.client_url}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" fontWeight="600">
+                            {formatCurrency(item.price)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={ITEM_STATUS_LABELS[item.status]}
+                            size="small"
+                            sx={{
+                              bgcolor: `${ITEM_STATUS_COLORS[item.status]}20`,
+                              color: ITEM_STATUS_COLORS[item.status],
+                              fontWeight: 600,
+                              fontSize: '0.7rem',
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {item.processing_status ? (
+                            <Chip
+                              label={PROCESSING_STATUS_LABELS[item.processing_status] || item.processing_status}
+                              size="small"
+                              sx={{
+                                bgcolor: `${PROCESSING_STATUS_COLORS[item.processing_status] || '#64748b'}20`,
+                                color: PROCESSING_STATUS_COLORS[item.processing_status] || '#64748b',
+                                fontWeight: 600,
+                                fontSize: '0.7rem',
+                              }}
+                            />
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">-</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {item.assignment ? (
+                            <Box>
+                              <Typography variant="body2" fontWeight="600">
+                                {item.assignment.assigned_to.split('@')[0]}
+                              </Typography>
+                              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', mt: 0.5 }}>
+                                <Chip
+                                  label={PRIORITY_LABELS[item.assignment.priority]}
+                                  size="small"
+                                  sx={{
+                                    bgcolor: `${PRIORITY_COLORS[item.assignment.priority]}20`,
+                                    color: PRIORITY_COLORS[item.assignment.priority],
+                                    fontSize: '0.65rem',
+                                    height: 18,
+                                  }}
+                                />
+                                {isOverdue && (
+                                  <Chip
+                                    label="Overdue"
+                                    size="small"
+                                    sx={{
+                                      bgcolor: '#ef444420',
+                                      color: '#ef4444',
+                                      fontSize: '0.65rem',
+                                      height: 18,
+                                    }}
+                                  />
+                                )}
+                              </Box>
+                              {item.assignment.due_date && (
+                                <Typography variant="caption" color="text.secondary">
+                                  Due: {formatDate(item.assignment.due_date)}
+                                </Typography>
+                              )}
+                            </Box>
+                          ) : (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => openAssignmentDialog(item)}
+                              sx={{ fontSize: '0.7rem' }}
+                            >
+                              Assign
+                            </Button>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {item.live_url ? (
+                            <IconButton
+                              size="small"
+                              href={item.live_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{ color: 'success.main' }}
+                            >
+                              <LinkIcon fontSize="small" />
+                            </IconButton>
+                          ) : (
+                            '-'
+                          )}
+                        </TableCell>
+                        <TableCell align="center">
+                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                            {isPendingApproval && (
+                              <Button
+                                size="small"
+                                variant="contained"
+                                color="warning"
+                                onClick={() => openApprovalDialog(item)}
+                                sx={{ fontSize: '0.7rem', minWidth: 'auto', px: 1 }}
+                              >
+                                Review
+                              </Button>
+                            )}
+                            <IconButton size="small" onClick={() => openEditItem(item)}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteItem(item.id)}
+                              sx={{ color: 'error.main' }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -805,6 +963,34 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Assignment Dialog */}
+      {selectedItem && (
+        <AssignmentDialog
+          open={showAssignmentDialog}
+          onClose={() => setShowAssignmentDialog(false)}
+          onSubmit={handleAssignItem}
+          itemDetails={{
+            website: selectedItem.website,
+            keyword: selectedItem.keyword,
+          }}
+        />
+      )}
+
+      {/* Content Approval Dialog */}
+      {selectedItem && (
+        <ContentApprovalDialog
+          open={showApprovalDialog}
+          onClose={() => setShowApprovalDialog(false)}
+          onApprove={handleApproveContent}
+          onReject={handleRejectContent}
+          itemDetails={{
+            website: selectedItem.website,
+            keyword: selectedItem.keyword,
+            live_url: selectedItem.live_url || undefined,
+          }}
+        />
+      )}
     </Box>
   );
 }
