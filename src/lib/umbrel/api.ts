@@ -1,4 +1,4 @@
-import { query, queryOne } from './client';
+import { query, queryOne } from './query-wrapper';
 
 // ============================================
 // EXPENSE CATEGORIES
