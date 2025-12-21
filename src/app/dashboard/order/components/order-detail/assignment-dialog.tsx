@@ -33,7 +33,11 @@ export interface AssignmentFormData {
   notes: string;
 }
 
-const PROCESSING_TEAM_MEMBERS = [
+const ALL_TEAM_MEMBERS = [
+  { email: 'dhana@aggrandizedigital.com', name: 'Dhana' },
+  { email: 'veera@aggrandizedigital.com', name: 'Veera' },
+  { email: 'saravana@aggrandizedigital.com', name: 'Saravana' },
+  { email: 'saran@aggrandizedigital.com', name: 'Saran' },
   { email: 'abbas@aggrandizedigital.com', name: 'Abbas' },
   { email: 'gokul@aggrandizedigital.com', name: 'Gokul' },
 ];
@@ -96,7 +100,7 @@ export function AssignmentDialog({ open, onClose, onSubmit, itemDetails }: Assig
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Assign to Processing Team</DialogTitle>
+      <DialogTitle>Assign to Team Member</DialogTitle>
       <DialogContent>
         <Alert severity="info" sx={{ mb: 2, mt: 1 }}>
           <strong>{itemDetails.website}</strong>
@@ -119,7 +123,7 @@ export function AssignmentDialog({ open, onClose, onSubmit, itemDetails }: Assig
                 label="Assign To"
                 onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
               >
-                {PROCESSING_TEAM_MEMBERS.map((member) => (
+                {ALL_TEAM_MEMBERS.map((member) => (
                   <MenuItem key={member.email} value={member.email}>
                     {member.name} ({member.email})
                   </MenuItem>
@@ -164,7 +168,7 @@ export function AssignmentDialog({ open, onClose, onSubmit, itemDetails }: Assig
               label="Assignment Notes"
               multiline
               rows={3}
-              placeholder="Special instructions or requirements for the processing team..."
+              placeholder="Special instructions or requirements for the assigned team member..."
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
             />

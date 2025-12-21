@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../auth/[...nextauth]/route';
 import {
   getOrders,
   createOrder,
@@ -6,6 +8,7 @@ import {
   addOrderItem,
   getOrderById,
 } from '@/lib/umbrel';
+import { query } from '@/lib/umbrel/query-wrapper';
 
 // GET /api/order - List orders with filters + stats
 export async function GET(request: NextRequest) {
@@ -48,9 +51,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/order - Create new order (optionally with items)
+// POST /api/order - Create new order (optionally with items and assignments)
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const userEmail = session?.user?.email || 'system';
+
     const body = await request.json();
 
     // Validate required fields
@@ -67,11 +73,46 @@ export async function POST(request: NextRequest) {
     // Create the order
     const order = await createOrder(orderData);
 
-    // Add items if provided
+    // Add items if provided (with optional assignments)
     if (items && Array.isArray(items) && items.length > 0) {
       for (const item of items) {
         if (item.website && item.keyword && item.client_url && item.price) {
-          await addOrderItem(order.id, item);
+          // Add the order item
+          const createdItem = await addOrderItem(order.id, {
+            publication_id: item.publication_id,
+            website: item.website,
+            keyword: item.keyword,
+            client_url: item.client_url,
+            price: item.price,
+            notes: item.notes,
+          });
+
+          // If assignment data is provided, create the assignment
+          if (item.assigned_to && createdItem?.id) {
+            try {
+              await query(
+                `INSERT INTO order_item_assignments
+                 (order_item_id, assigned_to, assigned_by, due_date, priority, notes)
+                 VALUES ($1, $2, $3, $4, $5, $6)`,
+                [
+                  createdItem.id,
+                  item.assigned_to,
+                  userEmail,
+                  item.assignment_due_date || null,
+                  item.assignment_priority || 'normal',
+                  item.assignment_notes || null,
+                ]
+              );
+
+              // Update processing_status to 'in_progress'
+              await query(
+                "UPDATE order_items SET processing_status = 'in_progress', updated_at = NOW() WHERE id = $1",
+                [createdItem.id]
+              );
+            } catch (assignErr) {
+              console.warn('[API] Failed to create assignment for item:', createdItem.id, assignErr);
+            }
+          }
         }
       }
     }

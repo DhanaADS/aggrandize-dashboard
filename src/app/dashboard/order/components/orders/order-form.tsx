@@ -48,6 +48,23 @@ import {
 import { WebsiteInventory } from '@/types/inventory';
 import { PublicationSelector } from '../publication-selector';
 
+// All team members for assignment
+const ALL_TEAM_MEMBERS = [
+  { email: 'dhana@aggrandizedigital.com', name: 'Dhana' },
+  { email: 'veera@aggrandizedigital.com', name: 'Veera' },
+  { email: 'saravana@aggrandizedigital.com', name: 'Saravana' },
+  { email: 'saran@aggrandizedigital.com', name: 'Saran' },
+  { email: 'abbas@aggrandizedigital.com', name: 'Abbas' },
+  { email: 'gokul@aggrandizedigital.com', name: 'Gokul' },
+];
+
+const PRIORITY_OPTIONS = [
+  { value: 'low', label: 'Low', color: '#64748b' },
+  { value: 'normal', label: 'Normal', color: '#3b82f6' },
+  { value: 'high', label: 'High', color: '#f59e0b' },
+  { value: 'urgent', label: 'Urgent', color: '#ef4444' },
+];
+
 interface OrderFormProps {
   order: Order | null;
   onSuccess: () => void;
@@ -61,6 +78,11 @@ interface PublicationItem {
   client_url: string;
   price: number;
   notes: string;
+  // Assignment fields
+  assigned_to?: string;
+  assignment_priority?: 'low' | 'normal' | 'high' | 'urgent';
+  assignment_due_date?: string;
+  assignment_notes?: string;
 }
 
 export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
@@ -88,6 +110,11 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
     client_url: '',
     notes: '',
     price: 0,
+    // Assignment fields
+    assigned_to: '',
+    assignment_priority: 'normal' as 'low' | 'normal' | 'high' | 'urgent',
+    assignment_due_date: '',
+    assignment_notes: '',
   });
   const [pubErrors, setPubErrors] = useState<Record<string, string>>({});
 
@@ -177,6 +204,11 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
       client_url: pubForm.client_url,
       price: Number(pubForm.price) || 0,
       notes: pubForm.notes,
+      // Include assignment if selected
+      assigned_to: pubForm.assigned_to || undefined,
+      assignment_priority: pubForm.assigned_to ? pubForm.assignment_priority : undefined,
+      assignment_due_date: pubForm.assigned_to ? pubForm.assignment_due_date || undefined : undefined,
+      assignment_notes: pubForm.assigned_to ? pubForm.assignment_notes || undefined : undefined,
     };
 
     setPublications([...publications, newPub]);
@@ -188,6 +220,10 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
       client_url: '',
       notes: '',
       price: 0,
+      assigned_to: '',
+      assignment_priority: 'normal',
+      assignment_due_date: '',
+      assignment_notes: '',
     });
     setPubErrors({});
   };
@@ -247,7 +283,7 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
         (payload as UpdateOrderInput).status = formData.status;
       }
 
-      // For new orders, include items
+      // For new orders, include items with optional assignment data
       if (!order && publications.length > 0) {
         (payload as CreateOrderInput).items = publications.map(pub => ({
           publication_id: pub.publication_id,
@@ -256,6 +292,16 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
           client_url: pub.client_url,
           price: pub.price,
           notes: pub.notes || undefined,
+          // Assignment data (will be handled by API)
+          assigned_to: pub.assigned_to,
+          assignment_priority: pub.assignment_priority,
+          assignment_due_date: pub.assignment_due_date,
+          assignment_notes: pub.assignment_notes,
+        } as CreateOrderItemInput & {
+          assigned_to?: string;
+          assignment_priority?: string;
+          assignment_due_date?: string;
+          assignment_notes?: string;
         }));
       }
 
@@ -560,13 +606,77 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
                   placeholder="Optional"
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 4, md: 1 }}>
+            </Grid>
+
+            {/* Assignment Fields Row */}
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Assign To (Optional)</InputLabel>
+                  <Select
+                    value={pubForm.assigned_to}
+                    label="Assign To (Optional)"
+                    onChange={(e) => setPubForm({ ...pubForm, assigned_to: e.target.value })}
+                  >
+                    <MenuItem value="">
+                      <em>No Assignment</em>
+                    </MenuItem>
+                    {ALL_TEAM_MEMBERS.map((member) => (
+                      <MenuItem key={member.email} value={member.email}>
+                        {member.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              {pubForm.assigned_to && (
+                <>
+                  <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Priority</InputLabel>
+                      <Select
+                        value={pubForm.assignment_priority}
+                        label="Priority"
+                        onChange={(e) => setPubForm({ ...pubForm, assignment_priority: e.target.value as 'low' | 'normal' | 'high' | 'urgent' })}
+                      >
+                        {PRIORITY_OPTIONS.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            <span style={{ color: option.color, fontWeight: 600 }}>{option.label}</span>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Due Date"
+                      type="date"
+                      InputLabelProps={{ shrink: true }}
+                      value={pubForm.assignment_due_date}
+                      onChange={(e) => setPubForm({ ...pubForm, assignment_due_date: e.target.value })}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Assignment Notes"
+                      value={pubForm.assignment_notes}
+                      onChange={(e) => setPubForm({ ...pubForm, assignment_notes: e.target.value })}
+                      placeholder="Instructions for assigned team member..."
+                    />
+                  </Grid>
+                </>
+              )}
+              <Grid size={{ xs: 12, sm: pubForm.assigned_to ? 6 : 4, md: pubForm.assigned_to ? 1 : 1 }}>
                 <Button
                   fullWidth
                   variant="contained"
                   startIcon={<AddIcon />}
                   onClick={handleAddPublication}
-                  sx={{ height: 56 }}
+                  sx={{ height: 40 }}
                 >
                   Add
                 </Button>
@@ -585,6 +695,7 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
                     <TableCell>Keyword</TableCell>
                     <TableCell>Client URL</TableCell>
                     <TableCell align="right">Price</TableCell>
+                    <TableCell>Assigned To</TableCell>
                     <TableCell align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -612,6 +723,34 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
                         </Typography>
                       </TableCell>
                       <TableCell align="right">${Number(pub.price).toFixed(2)}</TableCell>
+                      <TableCell>
+                        {pub.assigned_to ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Typography variant="body2" fontWeight={500}>
+                              {ALL_TEAM_MEMBERS.find(m => m.email === pub.assigned_to)?.name || pub.assigned_to}
+                            </Typography>
+                            {pub.assignment_priority && pub.assignment_priority !== 'normal' && (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  px: 0.5,
+                                  py: 0.25,
+                                  borderRadius: 0.5,
+                                  bgcolor: PRIORITY_OPTIONS.find(p => p.value === pub.assignment_priority)?.color || '#3b82f6',
+                                  color: 'white',
+                                  fontSize: '0.65rem',
+                                }}
+                              >
+                                {pub.assignment_priority.toUpperCase()}
+                              </Typography>
+                            )}
+                          </Box>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                            Unassigned
+                          </Typography>
+                        )}
+                      </TableCell>
                       <TableCell align="center">
                         <IconButton
                           size="small"
@@ -624,7 +763,7 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
                     </TableRow>
                   ))}
                   <TableRow>
-                    <TableCell colSpan={4} align="right">
+                    <TableCell colSpan={5} align="right">
                       <Typography variant="subtitle1" fontWeight={600}>
                         Subtotal:
                       </Typography>
