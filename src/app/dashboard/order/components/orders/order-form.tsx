@@ -58,6 +58,7 @@ const ALL_TEAM_MEMBERS = [
   { email: 'saran@aggrandizedigital.com', name: 'Saran' },
   { email: 'abbas@aggrandizedigital.com', name: 'Abbas' },
   { email: 'gokul@aggrandizedigital.com', name: 'Gokul' },
+  { email: 'thelaurakeen@gmail.com', name: 'Laura Keen' },
 ];
 
 const PRIORITY_OPTIONS = [
