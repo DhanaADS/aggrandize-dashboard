@@ -78,8 +78,8 @@ export interface OrderItem {
   created_at: string;
   updated_at: string;
 
-  // Joined assignment data (optional)
-  assignment?: OrderItemAssignment;
+  // Joined assignment data (optional) - supports multiple assignments per item
+  assignments?: OrderItemAssignment[];
 }
 
 // Order Item Assignment

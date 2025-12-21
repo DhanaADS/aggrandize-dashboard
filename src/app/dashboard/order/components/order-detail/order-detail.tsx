@@ -287,6 +287,26 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
     setRefreshTrigger((prev) => prev + 1);
   };
 
+  const handleRemoveAssignment = async (assignmentId: string) => {
+    if (!selectedItem) return;
+
+    const response = await fetch(`/api/order/${orderId}/items/${selectedItem.id}/assign?assignment_id=${assignmentId}`, {
+      method: 'DELETE',
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to remove assignment');
+    }
+
+    // Update selectedItem's assignments in state to reflect the removal
+    setSelectedItem({
+      ...selectedItem,
+      assignments: (selectedItem.assignments || []).filter(a => a.id !== assignmentId),
+    });
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
   const openAssignmentDialog = (item: OrderItem) => {
     setSelectedItem(item);
     setShowAssignmentDialog(true);
@@ -494,9 +514,11 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
                 <TableBody>
                   {order.items.map((item) => {
                     const isPendingApproval = item.processing_status === 'pending_approval';
-                    const isOverdue = item.assignment?.due_date
-                      && new Date(item.assignment.due_date) < new Date()
-                      && item.processing_status !== 'approved';
+                    // Check if any assignment is overdue
+                    const overdueAssignments = (item.assignments || []).filter(a =>
+                      a.due_date && new Date(a.due_date) < new Date() && item.processing_status !== 'approved'
+                    );
+                    const hasOverdue = overdueAssignments.length > 0;
 
                     return (
                       <TableRow key={item.id} hover>
@@ -556,51 +578,82 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
                           )}
                         </TableCell>
                         <TableCell>
-                          {item.assignment ? (
-                            <Box>
-                              <Typography variant="body2" fontWeight="600">
-                                {item.assignment.assigned_to.split('@')[0]}
-                              </Typography>
-                              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', mt: 0.5 }}>
-                                <Chip
-                                  label={PRIORITY_LABELS[item.assignment.priority]}
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            {(item.assignments && item.assignments.length > 0) ? (
+                              <>
+                                {item.assignments.map((assignment) => {
+                                  const isAssignmentOverdue = assignment.due_date
+                                    && new Date(assignment.due_date) < new Date()
+                                    && item.processing_status !== 'approved';
+                                  return (
+                                    <Box
+                                      key={assignment.id}
+                                      sx={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 0.25,
+                                        p: 0.5,
+                                        borderRadius: 1,
+                                        bgcolor: 'rgba(255,255,255,0.02)',
+                                        border: '1px solid rgba(255,255,255,0.05)',
+                                      }}
+                                    >
+                                      <Typography variant="body2" fontWeight="600" sx={{ fontSize: '0.8rem' }}>
+                                        {assignment.assigned_to.split('@')[0]}
+                                      </Typography>
+                                      <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <Chip
+                                          label={PRIORITY_LABELS[assignment.priority]}
+                                          size="small"
+                                          sx={{
+                                            bgcolor: `${PRIORITY_COLORS[assignment.priority]}20`,
+                                            color: PRIORITY_COLORS[assignment.priority],
+                                            fontSize: '0.6rem',
+                                            height: 16,
+                                          }}
+                                        />
+                                        {isAssignmentOverdue && (
+                                          <Chip
+                                            label="Overdue"
+                                            size="small"
+                                            sx={{
+                                              bgcolor: '#ef444420',
+                                              color: '#ef4444',
+                                              fontSize: '0.6rem',
+                                              height: 16,
+                                            }}
+                                          />
+                                        )}
+                                        {assignment.due_date && (
+                                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                                            Due: {formatDate(assignment.due_date)}
+                                          </Typography>
+                                        )}
+                                      </Box>
+                                    </Box>
+                                  );
+                                })}
+                                <Button
                                   size="small"
-                                  sx={{
-                                    bgcolor: `${PRIORITY_COLORS[item.assignment.priority]}20`,
-                                    color: PRIORITY_COLORS[item.assignment.priority],
-                                    fontSize: '0.65rem',
-                                    height: 18,
-                                  }}
-                                />
-                                {isOverdue && (
-                                  <Chip
-                                    label="Overdue"
-                                    size="small"
-                                    sx={{
-                                      bgcolor: '#ef444420',
-                                      color: '#ef4444',
-                                      fontSize: '0.65rem',
-                                      height: 18,
-                                    }}
-                                  />
-                                )}
-                              </Box>
-                              {item.assignment.due_date && (
-                                <Typography variant="caption" color="text.secondary">
-                                  Due: {formatDate(item.assignment.due_date)}
-                                </Typography>
-                              )}
-                            </Box>
-                          ) : (
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() => openAssignmentDialog(item)}
-                              sx={{ fontSize: '0.7rem' }}
-                            >
-                              Assign
-                            </Button>
-                          )}
+                                  variant="text"
+                                  onClick={() => openAssignmentDialog(item)}
+                                  sx={{ fontSize: '0.65rem', alignSelf: 'flex-start', mt: 0.5, p: 0.5 }}
+                                  startIcon={<AddIcon sx={{ fontSize: '0.9rem' }} />}
+                                >
+                                  Add
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => openAssignmentDialog(item)}
+                                sx={{ fontSize: '0.7rem' }}
+                              >
+                                Assign
+                              </Button>
+                            )}
+                          </Box>
                         </TableCell>
                         <TableCell>
                           {item.live_url ? (
@@ -970,10 +1023,12 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
           open={showAssignmentDialog}
           onClose={() => setShowAssignmentDialog(false)}
           onSubmit={handleAssignItem}
+          onRemoveAssignment={handleRemoveAssignment}
           itemDetails={{
             website: selectedItem.website,
             keyword: selectedItem.keyword,
           }}
+          existingAssignments={selectedItem.assignments || []}
         />
       )}
 

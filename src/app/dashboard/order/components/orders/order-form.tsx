@@ -27,6 +27,8 @@ import {
   Radio,
   FormControlLabel,
   FormLabel,
+  Chip,
+  OutlinedInput,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -78,8 +80,8 @@ interface PublicationItem {
   client_url: string;
   price: number;
   notes: string;
-  // Assignment fields
-  assigned_to?: string;
+  // Assignment fields - supports multiple assignees
+  assigned_to?: string[];
   assignment_priority?: 'low' | 'normal' | 'high' | 'urgent';
   assignment_due_date?: string;
   assignment_notes?: string;
@@ -110,8 +112,8 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
     client_url: '',
     notes: '',
     price: 0,
-    // Assignment fields
-    assigned_to: '',
+    // Assignment fields - supports multiple assignees
+    assigned_to: [] as string[],
     assignment_priority: 'normal' as 'low' | 'normal' | 'high' | 'urgent',
     assignment_due_date: '',
     assignment_notes: '',
@@ -197,6 +199,7 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
   const handleAddPublication = () => {
     if (!validatePubForm() || !selectedPublication) return;
 
+    const hasAssignments = pubForm.assigned_to.length > 0;
     const newPub: PublicationItem = {
       publication_id: selectedPublication.id,
       website: selectedPublication.website,
@@ -204,11 +207,11 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
       client_url: pubForm.client_url,
       price: Number(pubForm.price) || 0,
       notes: pubForm.notes,
-      // Include assignment if selected
-      assigned_to: pubForm.assigned_to || undefined,
-      assignment_priority: pubForm.assigned_to ? pubForm.assignment_priority : undefined,
-      assignment_due_date: pubForm.assigned_to ? pubForm.assignment_due_date || undefined : undefined,
-      assignment_notes: pubForm.assigned_to ? pubForm.assignment_notes || undefined : undefined,
+      // Include assignments if selected (multiple)
+      assigned_to: hasAssignments ? pubForm.assigned_to : undefined,
+      assignment_priority: hasAssignments ? pubForm.assignment_priority : undefined,
+      assignment_due_date: hasAssignments ? pubForm.assignment_due_date || undefined : undefined,
+      assignment_notes: hasAssignments ? pubForm.assignment_notes || undefined : undefined,
     };
 
     setPublications([...publications, newPub]);
@@ -220,7 +223,7 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
       client_url: '',
       notes: '',
       price: 0,
-      assigned_to: '',
+      assigned_to: [],
       assignment_priority: 'normal',
       assignment_due_date: '',
       assignment_notes: '',
@@ -610,17 +613,28 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
 
             {/* Assignment Fields Row */}
             <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Assign To (Optional)</InputLabel>
                   <Select
+                    multiple
                     value={pubForm.assigned_to}
                     label="Assign To (Optional)"
-                    onChange={(e) => setPubForm({ ...pubForm, assigned_to: e.target.value })}
+                    onChange={(e) => setPubForm({ ...pubForm, assigned_to: e.target.value as string[] })}
+                    input={<OutlinedInput label="Assign To (Optional)" />}
+                    renderValue={(selected) => (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {selected.map((email) => (
+                          <Chip
+                            key={email}
+                            label={ALL_TEAM_MEMBERS.find(m => m.email === email)?.name || email}
+                            size="small"
+                            sx={{ height: 20, fontSize: '0.75rem' }}
+                          />
+                        ))}
+                      </Box>
+                    )}
                   >
-                    <MenuItem value="">
-                      <em>No Assignment</em>
-                    </MenuItem>
                     {ALL_TEAM_MEMBERS.map((member) => (
                       <MenuItem key={member.email} value={member.email}>
                         {member.name}
@@ -629,7 +643,7 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
                   </Select>
                 </FormControl>
               </Grid>
-              {pubForm.assigned_to && (
+              {pubForm.assigned_to.length > 0 && (
                 <>
                   <Grid size={{ xs: 6, sm: 3, md: 2 }}>
                     <FormControl fullWidth size="small">
@@ -670,7 +684,7 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
                   </Grid>
                 </>
               )}
-              <Grid size={{ xs: 12, sm: pubForm.assigned_to ? 6 : 4, md: pubForm.assigned_to ? 1 : 1 }}>
+              <Grid size={{ xs: 12, sm: pubForm.assigned_to.length > 0 ? 6 : 4, md: pubForm.assigned_to.length > 0 ? 1 : 2 }}>
                 <Button
                   fullWidth
                   variant="contained"
@@ -724,11 +738,18 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
                       </TableCell>
                       <TableCell align="right">${Number(pub.price).toFixed(2)}</TableCell>
                       <TableCell>
-                        {pub.assigned_to ? (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Typography variant="body2" fontWeight={500}>
-                              {ALL_TEAM_MEMBERS.find(m => m.email === pub.assigned_to)?.name || pub.assigned_to}
-                            </Typography>
+                        {pub.assigned_to && pub.assigned_to.length > 0 ? (
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                              {pub.assigned_to.map((email) => (
+                                <Chip
+                                  key={email}
+                                  label={ALL_TEAM_MEMBERS.find(m => m.email === email)?.name || email}
+                                  size="small"
+                                  sx={{ height: 20, fontSize: '0.7rem' }}
+                                />
+                              ))}
+                            </Box>
                             {pub.assignment_priority && pub.assignment_priority !== 'normal' && (
                               <Typography
                                 variant="caption"
@@ -738,7 +759,8 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
                                   borderRadius: 0.5,
                                   bgcolor: PRIORITY_OPTIONS.find(p => p.value === pub.assignment_priority)?.color || '#3b82f6',
                                   color: 'white',
-                                  fontSize: '0.65rem',
+                                  fontSize: '0.6rem',
+                                  alignSelf: 'flex-start',
                                 }}
                               >
                                 {pub.assignment_priority.toUpperCase()}

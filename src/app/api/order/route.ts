@@ -87,30 +87,39 @@ export async function POST(request: NextRequest) {
             notes: item.notes,
           });
 
-          // If assignment data is provided, create the assignment
+          // If assignment data is provided, create assignments (supports multiple)
           if (item.assigned_to && createdItem?.id) {
-            try {
-              await query(
-                `INSERT INTO order_item_assignments
-                 (order_item_id, assigned_to, assigned_by, due_date, priority, notes)
-                 VALUES ($1, $2, $3, $4, $5, $6)`,
-                [
-                  createdItem.id,
-                  item.assigned_to,
-                  userEmail,
-                  item.assignment_due_date || null,
-                  item.assignment_priority || 'normal',
-                  item.assignment_notes || null,
-                ]
-              );
+            // Handle both single string (legacy) and array (new multi-select)
+            const assignees = Array.isArray(item.assigned_to)
+              ? item.assigned_to
+              : [item.assigned_to];
 
-              // Update processing_status to 'in_progress'
+            for (const assignee of assignees) {
+              try {
+                await query(
+                  `INSERT INTO order_item_assignments
+                   (order_item_id, assigned_to, assigned_by, due_date, priority, notes)
+                   VALUES ($1, $2, $3, $4, $5, $6)`,
+                  [
+                    createdItem.id,
+                    assignee,
+                    userEmail,
+                    item.assignment_due_date || null,
+                    item.assignment_priority || 'normal',
+                    item.assignment_notes || null,
+                  ]
+                );
+              } catch (assignErr) {
+                console.warn('[API] Failed to create assignment for item:', createdItem.id, assignee, assignErr);
+              }
+            }
+
+            // Update processing_status to 'in_progress' if we assigned anyone
+            if (assignees.length > 0) {
               await query(
                 "UPDATE order_items SET processing_status = 'in_progress', updated_at = NOW() WHERE id = $1",
                 [createdItem.id]
               );
-            } catch (assignErr) {
-              console.warn('[API] Failed to create assignment for item:', createdItem.id, assignErr);
             }
           }
         }

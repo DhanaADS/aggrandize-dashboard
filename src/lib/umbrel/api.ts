@@ -1064,67 +1064,42 @@ export async function getOrderStats(): Promise<OrderStats> {
 // ORDER ITEMS
 // ============================================
 
-// Get items for an order with assignment data
+// Get items for an order with assignment data (supports multiple assignments per item)
 export async function getOrderItems(orderId: string): Promise<OrderItem[]> {
-  const result = await query<any>(
-    `SELECT
-       i.*,
-       a.id as assignment_id,
-       a.assigned_to,
-       a.assigned_by,
-       a.assigned_at,
-       a.due_date,
-       a.priority,
-       a.notes as assignment_notes,
-       a.created_at as assignment_created_at,
-       a.updated_at as assignment_updated_at
-     FROM order_items i
-     LEFT JOIN order_item_assignments a ON i.id = a.order_item_id
-     WHERE i.order_id = $1
-     ORDER BY i.created_at ASC`,
+  // Fetch order items
+  const itemsResult = await query<OrderItem>(
+    `SELECT * FROM order_items WHERE order_id = $1 ORDER BY created_at ASC`,
     [orderId]
   );
 
-  // Transform the joined data into proper OrderItem objects with assignment
-  return result.rows.map((row) => {
-    const item: OrderItem = {
-      id: row.id,
-      order_id: row.order_id,
-      publication_id: row.publication_id,
-      website: row.website,
-      keyword: row.keyword,
-      client_url: row.client_url,
-      price: row.price,
-      status: row.status,
-      live_url: row.live_url,
-      live_date: row.live_date,
-      processing_status: row.processing_status,
-      approved_by: row.approved_by,
-      approved_at: row.approved_at,
-      rejection_reason: row.rejection_reason,
-      notes: row.notes,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    };
+  if (itemsResult.rows.length === 0) {
+    return [];
+  }
 
-    // Add assignment data if it exists
-    if (row.assignment_id) {
-      item.assignment = {
-        id: row.assignment_id,
-        order_item_id: row.id,
-        assigned_to: row.assigned_to,
-        assigned_by: row.assigned_by,
-        assigned_at: row.assigned_at,
-        due_date: row.due_date,
-        priority: row.priority,
-        notes: row.assignment_notes,
-        created_at: row.assignment_created_at,
-        updated_at: row.assignment_updated_at,
-      };
+  // Fetch all assignments for these items
+  const itemIds = itemsResult.rows.map(item => item.id);
+  const assignmentsResult = await query<OrderItemAssignment>(
+    `SELECT * FROM order_item_assignments
+     WHERE order_item_id = ANY($1::uuid[])
+     ORDER BY created_at ASC`,
+    [itemIds]
+  );
+
+  // Group assignments by order_item_id
+  const assignmentsByItemId: Record<string, OrderItemAssignment[]> = {};
+  for (const assignment of assignmentsResult.rows) {
+    const itemId = assignment.order_item_id;
+    if (!assignmentsByItemId[itemId]) {
+      assignmentsByItemId[itemId] = [];
     }
+    assignmentsByItemId[itemId].push(assignment);
+  }
 
-    return item;
-  });
+  // Attach assignments array to each item
+  return itemsResult.rows.map((item) => ({
+    ...item,
+    assignments: assignmentsByItemId[item.id] || [],
+  }));
 }
 
 // Add item to order

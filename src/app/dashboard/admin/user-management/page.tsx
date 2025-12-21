@@ -27,19 +27,36 @@ export default function UserManagementPage() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [editingPermissions, setEditingPermissions] = useState<string | null>(null);
 
-  // Load team members
+  // Load team members using admin API (bypasses RLS)
   const loadTeamMembers = async () => {
     try {
       setLoading(true);
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('id, email, full_name, role, individual_permissions, created_at')
-        .order('role', { ascending: true })
-        .order('full_name', { ascending: true });
+      const response = await fetch('/api/admin/users');
+      const data = await response.json();
 
-      if (error) throw error;
-      setTeamMembers(data || []);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load users');
+      }
+
+      // Transform API response to TeamMember format
+      const members: TeamMember[] = (Array.isArray(data) ? data : []).map((user: any) => ({
+        id: user.userId || user.id,
+        email: user.email,
+        full_name: user.name || user.full_name || user.email,
+        role: user.role || 'member',
+        created_at: user.created_at || '',
+        individual_permissions: user.permissions || user.individual_permissions || null,
+      }));
+
+      // Sort by role and name
+      members.sort((a, b) => {
+        const roleOrder = { admin: 0, marketing: 1, processing: 2, member: 3 };
+        const roleCompare = (roleOrder[a.role] || 4) - (roleOrder[b.role] || 4);
+        if (roleCompare !== 0) return roleCompare;
+        return (a.full_name || '').localeCompare(b.full_name || '');
+      });
+
+      setTeamMembers(members);
     } catch (error) {
       console.error('Failed to load team members:', error);
     } finally {
