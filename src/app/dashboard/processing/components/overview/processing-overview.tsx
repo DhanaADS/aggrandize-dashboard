@@ -35,10 +35,12 @@ export function ProcessingOverview() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`/api/processing/stats?user=${user?.name || user?.email}`);
+      // Stats API uses session.user.email from server-side auth
+      const response = await fetch('/api/processing/stats');
       if (!response.ok) throw new Error('Failed to fetch stats');
       const data = await response.json();
-      setStats(data);
+      // API returns { success: true, stats: {...} }, extract stats
+      setStats(data.stats || data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load stats');
     } finally {
@@ -70,7 +72,7 @@ export function ProcessingOverview() {
     },
     {
       title: 'In Progress',
-      value: stats.in_progress_count + stats.content_writing_count,
+      value: Number(stats.in_progress_count || 0) + Number(stats.content_writing_count || 0),
       icon: <InProgressIcon />,
       color: '#8b5cf6',
       bgColor: 'rgba(139, 92, 246, 0.1)'

@@ -48,6 +48,14 @@ export interface ProcessingOrderItem {
   live_url: string | null;
   live_date: string | null;
 
+  // Article content (Google Drive link for approval)
+  content_url: string | null;
+  content_notes: string | null;
+
+  // Approval workflow
+  approval_feedback: string | null;      // Rejection feedback from Marketing
+  approval_requested_at: string | null;  // When submitted for approval
+
   // Processing metadata
   content_submitted_at: string | null;
   published_at: string | null;
@@ -58,6 +66,7 @@ export interface ProcessingOrderItem {
   updated_at: string;
 
   // Joined data (optional)
+  inventory_price?: number;              // Price from website_inventory
   assignment?: OrderItemAssignment;
   payment_request?: ProcessingPaymentRequest;
   order?: {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import {
   Box,
   Typography,
@@ -31,6 +32,7 @@ import {
   FilterList as FilterIcon,
   Close as CloseIcon,
   Search as SearchIcon,
+  CloudUpload as ImportIcon,
 } from '@mui/icons-material';
 import {
   Order,
@@ -43,12 +45,20 @@ import {
   PaymentStatus,
 } from '@/types/orders';
 import { OrderForm } from './order-form';
+import { ImportOrdersDialog } from '../import/import-orders-dialog';
+
+// Admin emails who can see all orders
+const ADMIN_EMAILS = [
+  'dhana@aggrandizedigital.com',
+  'saravana@aggrandizedigital.com',
+];
 
 interface OrdersTabProps {
   onViewOrder: (orderId: string) => void;
 }
 
 export function OrdersTab({ onViewOrder }: OrdersTabProps) {
+  const { data: session } = useSession();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +67,11 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<OrderFilters>({});
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+
+  // Check if current user is admin
+  const userEmail = session?.user?.email || '';
+  const isAdmin = ADMIN_EMAILS.includes(userEmail);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -69,6 +84,11 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
       if (filters.date_from) params.append('date_from', filters.date_from);
       if (filters.date_to) params.append('date_to', filters.date_to);
       if (filters.search) params.append('search', filters.search);
+
+      // Non-admins can only see orders assigned to them
+      if (!isAdmin && userEmail) {
+        params.append('assigned_to', userEmail);
+      }
 
       const url = `/api/order${params.toString() ? `?${params.toString()}` : ''}`;
       const response = await fetch(url);
@@ -85,7 +105,7 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, isAdmin, userEmail]);
 
   useEffect(() => {
     fetchOrders();
@@ -170,6 +190,15 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
           >
             Filters {hasActiveFilters && `(${Object.values(filters).filter(Boolean).length})`}
           </Button>
+          {isAdmin && (
+            <Button
+              variant="outlined"
+              startIcon={<ImportIcon />}
+              onClick={() => setShowImportDialog(true)}
+            >
+              Import
+            </Button>
+          )}
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setShowForm(true)}>
             New Order
           </Button>
@@ -306,8 +335,8 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
           )}
         </Box>
       ) : (
-        <TableContainer>
-          <Table>
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 1200 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Order #</TableCell>
@@ -318,7 +347,10 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
                 <TableCell align="right">Balance</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Payment</TableCell>
+                <TableCell>Assigned To</TableCell>
                 <TableCell align="center">Items</TableCell>
+                <TableCell align="center">Article</TableCell>
+                <TableCell align="center">Live</TableCell>
                 <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -398,10 +430,55 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
                       }}
                     />
                   </TableCell>
+                  <TableCell>
+                    {order.assigned_to ? (
+                      <Typography variant="body2" fontWeight={500}>
+                        {order.assigned_to.split('@')[0]}
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                        Unassigned
+                      </Typography>
+                    )}
+                  </TableCell>
                   <TableCell align="center">
                     <Typography variant="body2">
                       {order.items_completed || 0}/{order.items_count || 0}
                     </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    {(order.items_with_article || 0) > 0 ? (
+                      <Button
+                        size="small"
+                        variant="text"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewOrder(order.id);
+                        }}
+                        sx={{ minWidth: 'auto', textTransform: 'none', fontSize: '0.75rem' }}
+                      >
+                        View ({order.items_with_article})
+                      </Button>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">-</Typography>
+                    )}
+                  </TableCell>
+                  <TableCell align="center">
+                    {(order.items_with_live || 0) > 0 ? (
+                      <Button
+                        size="small"
+                        variant="text"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewOrder(order.id);
+                        }}
+                        sx={{ minWidth: 'auto', textTransform: 'none', fontSize: '0.75rem' }}
+                      >
+                        View ({order.items_with_live})
+                      </Button>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">-</Typography>
+                    )}
                   </TableCell>
                   <TableCell align="center">
                     <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
@@ -438,6 +515,13 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
           </Table>
         </TableContainer>
       )}
+
+      {/* Import Dialog */}
+      <ImportOrdersDialog
+        open={showImportDialog}
+        onClose={() => setShowImportDialog(false)}
+        onImportComplete={() => setRefreshTrigger((prev) => prev + 1)}
+      />
     </Box>
   );
 }

@@ -5,6 +5,7 @@ import { query } from '@/lib/umbrel';
 import { ProcessingStats } from '@/types/processing';
 
 // GET /api/processing/stats - Get processing statistics for current user
+// Uses ORDER-level assignment (orders.assigned_to) instead of item-level assignments
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -13,10 +14,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Get comprehensive statistics for the current processing user
+    // Using ORDER-level assignment (orders.assigned_to)
     const statsResult = await query<ProcessingStats>(`
       SELECT
         COUNT(*) as total_tasks,
-        COUNT(*) FILTER (WHERE oi.processing_status = 'not_started') as not_started_count,
+        COUNT(*) FILTER (WHERE oi.processing_status = 'not_started' OR oi.processing_status IS NULL) as not_started_count,
         COUNT(*) FILTER (WHERE oi.processing_status = 'in_progress') as in_progress_count,
         COUNT(*) FILTER (WHERE oi.processing_status = 'content_writing') as content_writing_count,
         COUNT(*) FILTER (WHERE oi.processing_status = 'pending_approval') as pending_approval_count,
@@ -25,11 +27,13 @@ export async function GET(request: NextRequest) {
         COUNT(*) FILTER (WHERE oi.processing_status = 'published') as published_count,
         COUNT(*) FILTER (WHERE oi.processing_status = 'payment_requested') as payment_requested_count,
         COUNT(*) FILTER (WHERE oi.processing_status = 'completed') as completed_count,
-        COUNT(*) FILTER (WHERE oia.due_date < CURRENT_DATE AND oi.processing_status NOT IN ('completed', 'published')) as overdue_count,
+        COUNT(*) FILTER (WHERE o.due_date < CURRENT_DATE AND oi.processing_status NOT IN ('completed', 'published')) as overdue_count,
         COUNT(*) as my_tasks_count
-      FROM order_item_assignments oia
-      JOIN order_items oi ON oi.id = oia.order_item_id
-      WHERE oia.assigned_to = $1
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      WHERE o.assigned_to = $1
+        AND o.status != 'cancelled'
+        AND oi.status != 'live'
     `, [session.user.email]);
 
     const stats = statsResult.rows[0] || {

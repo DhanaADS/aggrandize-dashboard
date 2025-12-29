@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { 
-  getUtilityBills, 
-  getExpenses, 
-  getSubscriptions, 
-  getTeamSettlementStatus 
+import {
+  getUtilityBills,
+  getExpenses,
+  getSubscriptions,
+  getTeamSettlementStatus
 } from '@/lib/finance-api';
 import { getMonthlySalaryOverview } from '@/lib/salary-payments-api';
 import {
@@ -49,7 +49,7 @@ export function OverviewFinalDesign() {
   const [selectedRange, setSelectedRange] = useState('This Month');
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
 
   const selectedMonth = useMemo(() => {
     const now = new Date();
@@ -60,36 +60,88 @@ export function OverviewFinalDesign() {
   useEffect(() => {
     const loadFinancialSummary = async () => {
       setIsLoading(true);
-      setError(null);
-      try {
-        const dateRange = { from: `${selectedMonth}-01`, to: new Date(new Date(selectedMonth).getFullYear(), new Date(selectedMonth).getMonth() + 1, 0).toISOString().slice(0, 10) };
-        const [salary, utility, expenses, subscriptions, settlements] = await Promise.all([
-          getMonthlySalaryOverview(selectedMonth),
-          getUtilityBills({ month_from: selectedMonth, month_to: selectedMonth }),
-          getExpenses({ date_from: dateRange.from, date_to: dateRange.to }),
-          getSubscriptions(),
-          getTeamSettlementStatus(selectedMonth)
-        ]);
+      setErrors([]);
 
-        const breakdown = {
-          Salary: { settled: salary.total_paid_amount, outstanding: salary.total_pending_amount },
-          'Utility Bills': { settled: utility.filter(b => b.payment_status === 'paid').reduce((s, b) => s + (b.amount_usd || 0), 0), outstanding: utility.filter(b => ['pending', 'overdue'].includes(b.payment_status)).reduce((s, b) => s + (b.amount_usd || 0), 0) },
-          Expenses: { settled: expenses.filter(e => e.payment_status === 'approved').reduce((s, e) => s + (e.amount_usd || 0), 0), outstanding: expenses.filter(e => e.payment_status !== 'approved').reduce((s, e) => s + (e.amount_usd || 0), 0) },
-          Subscriptions: { settled: subscriptions.filter(s => new Date(s.due_date) >= new Date(dateRange.from) && new Date(s.due_date) <= new Date(dateRange.to) && s.is_active).reduce((s, sub) => s + sub.amount_usd, 0), outstanding: 0 },
-          Settlements: { settled: settlements.completedAmount, outstanding: settlements.pendingAmount },
-        };
+      const dateRange = {
+        from: `${selectedMonth}-01`,
+        to: new Date(new Date(selectedMonth).getFullYear(), new Date(selectedMonth).getMonth() + 1, 0).toISOString().slice(0, 10)
+      };
 
-        const totalSettled = Object.values(breakdown).reduce((sum, item) => sum + item.settled, 0);
-        const totalOutstanding = Object.values(breakdown).reduce((sum, item) => sum + item.outstanding, 0);
+      // Use Promise.allSettled to handle individual API failures gracefully
+      const results = await Promise.allSettled([
+        getMonthlySalaryOverview(selectedMonth),
+        getUtilityBills({ month_from: selectedMonth, month_to: selectedMonth }),
+        getExpenses({ date_from: dateRange.from, date_to: dateRange.to }),
+        getSubscriptions(),
+        getTeamSettlementStatus(selectedMonth)
+      ]);
 
-        setSummary({ settled: totalSettled, outstanding: totalOutstanding, netBalance: totalSettled - totalOutstanding, breakdown });
-      } catch (err) {
-        console.error(err);
-        setError('Failed to load financial data. Some APIs may be down.');
-      } finally {
-        setIsLoading(false);
+      const loadErrors: string[] = [];
+
+      // Extract results or use defaults for failed promises
+      const salary = results[0].status === 'fulfilled' ? results[0].value : null;
+      if (results[0].status === 'rejected') {
+        console.error('Salary data failed:', results[0].reason);
+        loadErrors.push('Salary data unavailable');
       }
+
+      const utility = results[1].status === 'fulfilled' ? results[1].value : [];
+      if (results[1].status === 'rejected') {
+        console.error('Utility bills failed:', results[1].reason);
+        loadErrors.push('Utility bills unavailable');
+      }
+
+      const expenses = results[2].status === 'fulfilled' ? results[2].value : [];
+      if (results[2].status === 'rejected') {
+        console.error('Expenses failed:', results[2].reason);
+        loadErrors.push('Expenses unavailable');
+      }
+
+      const subscriptions = results[3].status === 'fulfilled' ? results[3].value : [];
+      if (results[3].status === 'rejected') {
+        console.error('Subscriptions failed:', results[3].reason);
+        loadErrors.push('Subscriptions unavailable');
+      }
+
+      const settlements = results[4].status === 'fulfilled' ? results[4].value : null;
+      if (results[4].status === 'rejected') {
+        console.error('Settlements failed:', results[4].reason);
+        loadErrors.push('Settlements unavailable');
+      }
+
+      setErrors(loadErrors);
+
+      // Build breakdown with available data (ensure all amounts are converted to numbers)
+      const breakdown = {
+        Salary: {
+          settled: Number(salary?.total_paid_amount) || 0,
+          outstanding: Number(salary?.total_pending_amount) || 0
+        },
+        'Utility Bills': {
+          settled: utility.filter(b => b.payment_status === 'paid').reduce((s, b) => s + (Number(b.amount_inr) || 0), 0),
+          outstanding: utility.filter(b => ['pending', 'overdue'].includes(b.payment_status)).reduce((s, b) => s + (Number(b.amount_inr) || 0), 0)
+        },
+        Expenses: {
+          settled: expenses.filter(e => e.payment_status === 'approved').reduce((s, e) => s + (Number(e.amount_inr) || 0), 0),
+          outstanding: expenses.filter(e => e.payment_status !== 'approved').reduce((s, e) => s + (Number(e.amount_inr) || 0), 0)
+        },
+        Subscriptions: {
+          settled: subscriptions.filter(s => new Date(s.due_date) >= new Date(dateRange.from) && new Date(s.due_date) <= new Date(dateRange.to) && s.is_active).reduce((s, sub) => s + (Number(sub.amount_inr) || 0), 0),
+          outstanding: 0
+        },
+        Settlements: {
+          settled: Number(settlements?.completedAmount) || 0,
+          outstanding: Number(settlements?.pendingAmount) || 0
+        },
+      };
+
+      const totalSettled = Object.values(breakdown).reduce((sum, item) => sum + item.settled, 0);
+      const totalOutstanding = Object.values(breakdown).reduce((sum, item) => sum + item.outstanding, 0);
+
+      setSummary({ settled: totalSettled, outstanding: totalOutstanding, netBalance: totalSettled - totalOutstanding, breakdown });
+      setIsLoading(false);
     };
+
     loadFinancialSummary();
   }, [selectedMonth]);
 
@@ -103,7 +155,11 @@ export function OverviewFinalDesign() {
         <Button variant="contained" startIcon={<AddIcon />}>New Payment</Button>
       </Box>
 
-      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+      {errors.length > 0 && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          Partial data available. Issues: {errors.join(', ')}
+        </Alert>
+      )}
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {isLoading ? Array.from(new Array(3)).map((_, i) => <Grid item xs={12} md={4} key={i}><Skeleton variant="rectangular" height={100} sx={{ borderRadius: 2 }} /></Grid>) : (
@@ -126,7 +182,7 @@ export function OverviewFinalDesign() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {isLoading ? Array.from(new Array(5)).map((_, i) => <TableRow key={i}>{Array.from(new Array(3)).map((_, j) => <TableCell key={j}><Skeleton /></TableCell>)}</TableRow>) : 
+              {isLoading ? Array.from(new Array(5)).map((_, i) => <TableRow key={i}>{Array.from(new Array(3)).map((_, j) => <TableCell key={j}><Skeleton /></TableCell>)}</TableRow>) :
                 summary && Object.entries(summary.breakdown).map(([category, amounts]) => (
                   <TableRow key={category} sx={{ '&:hover': { backgroundColor: 'action.hover' } }}>
                     <TableCell component="th" scope="row"><Typography variant="body2" fontWeight="500">{category}</Typography></TableCell>

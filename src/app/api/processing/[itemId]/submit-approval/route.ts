@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../auth/[...nextauth]/route';
 import { query, queryOne } from '@/lib/umbrel';
 
-// POST /api/processing/[itemId]/submit-approval - Request approval from Marketing
+// POST /api/processing/[itemId]/submit-approval - Submit article for Marketing approval
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ itemId: string }> }
@@ -15,49 +15,49 @@ export async function POST(
     }
 
     const { itemId } = await params;
+    const body = await request.json();
+    const { content_url, notes } = body;
 
-    // Verify the task is assigned to the current user (unless admin)
-    const assignmentCheck = await queryOne<{ assigned_to: string }>(`
-      SELECT assigned_to
-      FROM order_item_assignments
-      WHERE order_item_id = $1
-    `, [itemId]);
-
-    if (
-      !assignmentCheck ||
-      (session.user.role !== 'admin' && assignmentCheck.assigned_to !== session.user.email)
-    ) {
-      return NextResponse.json({ error: 'Unauthorized to submit this task for approval' }, { status: 403 });
-    }
-
-    // Verify task exists and has content URL
-    const taskCheck = await queryOne<{ content_url: string | null; processing_status: string }>(`
-      SELECT content_url, processing_status
-      FROM order_items
-      WHERE id = $1
-    `, [itemId]);
-
-    if (!taskCheck) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-    }
-
-    if (!taskCheck.content_url) {
+    // Verify content_url is provided
+    if (!content_url || !content_url.trim()) {
       return NextResponse.json({
-        error: 'Cannot submit for approval without content URL. Please add content URL first.'
+        error: 'Article link (content_url) is required'
       }, { status: 400 });
     }
 
-    // Update task to pending_approval status
+    // Verify the task is assigned to the current user via ORDER-level assignment
+    const assignmentCheck = await queryOne<{ assigned_to: string }>(`
+      SELECT o.assigned_to
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      WHERE oi.id = $1
+    `, [itemId]);
+
+    if (!assignmentCheck) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    // Check authorization (order assignee or admin)
+    const isAdmin = session.user.role === 'admin' ||
+      ['dhana@aggrandizedigital.com', 'saravana@aggrandizedigital.com'].includes(session.user.email);
+
+    if (!isAdmin && assignmentCheck.assigned_to !== session.user.email) {
+      return NextResponse.json({ error: 'Unauthorized to submit this task for approval' }, { status: 403 });
+    }
+
+    // Update task: set content_url, status to pending_approval, clear any previous feedback
     const result = await query(`
       UPDATE order_items
       SET
+        content_url = $2,
+        content_notes = $3,
         processing_status = 'pending_approval',
+        approval_feedback = NULL,
         approval_requested_at = NOW(),
-        content_submitted_at = NOW(),
         updated_at = NOW()
       WHERE id = $1
       RETURNING *
-    `, [itemId]);
+    `, [itemId, content_url.trim(), notes || null]);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: 'Failed to submit for approval' }, { status: 500 });
@@ -66,7 +66,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       task: result.rows[0],
-      message: 'Task submitted for approval successfully',
+      message: 'Article submitted for approval successfully',
     });
 
   } catch (error) {

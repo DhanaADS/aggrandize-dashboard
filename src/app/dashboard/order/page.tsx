@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-nextauth';
 import { OrderOverview } from './components/overview/order-overview';
 import { OrdersTab } from './components/orders/orders-tab';
 import { OrderDetail } from './components/order-detail/order-detail';
+import { ApprovalsTab } from './components/approvals/approvals-tab';
 import {
   Box,
   Typography,
@@ -22,9 +23,10 @@ import {
   ShoppingCart as OrdersIcon,
   Receipt as DetailIcon,
   ArrowBack as BackIcon,
+  FactCheck as ApprovalsIcon,
 } from '@mui/icons-material';
 
-type OrderModule = 'overview' | 'orders' | 'detail';
+type OrderModule = 'overview' | 'orders' | 'detail' | 'approvals';
 
 export default function OrderPage() {
   const { user } = useAuth();
@@ -36,7 +38,7 @@ export default function OrderPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (tabParam && ['overview', 'orders', 'detail'].includes(tabParam)) {
+    if (tabParam && ['overview', 'orders', 'detail', 'approvals'].includes(tabParam)) {
       setActiveModule(tabParam);
     }
     if (orderIdParam) {
@@ -52,6 +54,7 @@ export default function OrderPage() {
   const modules = [
     { id: 'overview' as const, label: 'Overview', icon: <OverviewIcon /> },
     { id: 'orders' as const, label: 'Orders', icon: <OrdersIcon /> },
+    { id: 'approvals' as const, label: 'Approvals', icon: <ApprovalsIcon /> },
   ];
 
   const handleViewOrder = (orderId: string) => {
@@ -143,6 +146,7 @@ export default function OrderPage() {
       <Paper elevation={3} sx={{ p: { xs: 2, sm: 3, md: 4 }, borderRadius: 2 }}>
         {activeModule === 'overview' && <OrderOverview onViewOrder={handleViewOrder} />}
         {activeModule === 'orders' && <OrdersTab onViewOrder={handleViewOrder} />}
+        {activeModule === 'approvals' && <ApprovalsTab />}
         {activeModule === 'detail' && selectedOrderId && (
           <OrderDetail orderId={selectedOrderId} onBack={handleBackToOrders} />
         )}

@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     date_from: searchParams.get('date_from') || undefined,
     date_to: searchParams.get('date_to') || undefined,
     search: searchParams.get('search') || undefined,
+    assigned_to: searchParams.get('assigned_to') || undefined,
   };
 
   // Remove undefined values

@@ -4,9 +4,8 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-nextauth';
 import { OverviewFinalDesign } from './components/overview/overview-final-design';
-import { FinancialExpensesSimple } from './components/financial-expenses/financial-expenses-simple';
+import { ExpensesTab } from './components/expenses/expenses-tab';
 import { SalaryTab } from './components/salary/salary-tab';
-import { SettlementsTab } from './components/settlements/settlements-tab';
 import {
   Box,
   Typography,
@@ -19,10 +18,9 @@ import {
   AccountBalance as PaymentsIcon,
   CreditCard as ExpensesIcon,
   Group as SalaryIcon,
-  Handshake as SettlementsIcon,
 } from '@mui/icons-material';
 
-type FinanceModule = 'overview' | 'expenses' | 'salary' | 'settlements';
+type FinanceModule = 'overview' | 'expenses' | 'salary';
 
 export default function PaymentsPage() {
   const { user } = useAuth();
@@ -31,7 +29,7 @@ export default function PaymentsPage() {
   const [activeModule, setActiveModule] = useState<FinanceModule>('overview');
 
   useEffect(() => {
-    if (tabParam && ['overview', 'expenses', 'salary', 'settlements'].includes(tabParam)) {
+    if (tabParam && ['overview', 'expenses', 'salary'].includes(tabParam)) {
       setActiveModule(tabParam);
     }
   }, [tabParam]);
@@ -44,7 +42,6 @@ export default function PaymentsPage() {
     { id: 'overview' as const, label: 'Overview', icon: <PaymentsIcon /> },
     { id: 'expenses' as const, label: 'Expenses', icon: <ExpensesIcon /> },
     { id: 'salary' as const, label: 'Salary', icon: <SalaryIcon /> },
-    { id: 'settlements' as const, label: 'Settlements', icon: <SettlementsIcon /> },
   ];
 
   return (
@@ -103,9 +100,8 @@ export default function PaymentsPage() {
       {/* Content Section */}
       <Paper elevation={3} sx={{ p: { xs: 2, sm: 3, md: 4 }, borderRadius: 2 }}>
         {activeModule === 'overview' && <OverviewFinalDesign />}
-        {activeModule === 'expenses' && <FinancialExpensesSimple />}
+        {activeModule === 'expenses' && <ExpensesTab />}
         {activeModule === 'salary' && <SalaryTab />}
-        {activeModule === 'settlements' && <SettlementsTab />}
       </Paper>
     </Box>
   );

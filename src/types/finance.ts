@@ -463,10 +463,13 @@ export interface EmployeeProfile {
 // Note: Employee data is now stored in the database user_profiles table
 // Use the getEmployees() API function to fetch current employee list
 
+// Company account constant - all expenses are paid from this account
+export const ADS_ACCOUNTS = 'ADS_Accounts';
+
 // Team member names for backward compatibility (will be replaced with dynamic data)
 export const TEAM_MEMBERS = [
   'Dhanapal',
-  'Veerakeswaran', 
+  'Veerakeswaran',
   'Saravanakumar',
   'Saran Kumar',
   'Abbas Manthri',
@@ -474,6 +477,22 @@ export const TEAM_MEMBERS = [
 ];
 
 export type TeamMember = typeof TEAM_MEMBERS[number];
+
+// User settlement summary interface
+export interface UserSettlementSummary {
+  user: string;
+  total_owed: number;
+  pending_count: number;
+  expenses: {
+    id: string;
+    date: string;
+    category: string;
+    purpose: string;
+    amount_inr: number;
+    status: string;
+    settlement_id?: string;
+  }[];
+}
 
 // Payslip related interfaces
 export interface PayslipData {

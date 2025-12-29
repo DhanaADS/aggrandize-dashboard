@@ -22,17 +22,23 @@ export async function POST(
       return NextResponse.json({ error: 'live_url is required' }, { status: 400 });
     }
 
-    // Verify the task is assigned to the current user (unless admin)
+    // Verify the task is assigned to the current user via ORDER-level assignment
     const assignmentCheck = await queryOne<{ assigned_to: string }>(`
-      SELECT assigned_to
-      FROM order_item_assignments
-      WHERE order_item_id = $1
+      SELECT o.assigned_to
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      WHERE oi.id = $1
     `, [itemId]);
 
-    if (
-      !assignmentCheck ||
-      (session.user.role !== 'admin' && assignmentCheck.assigned_to !== session.user.email)
-    ) {
+    if (!assignmentCheck) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    // Check authorization (order assignee or admin)
+    const isAdmin = session.user.role === 'admin' ||
+      ['dhana@aggrandizedigital.com', 'saravana@aggrandizedigital.com'].includes(session.user.email);
+
+    if (!isAdmin && assignmentCheck.assigned_to !== session.user.email) {
       return NextResponse.json({ error: 'Unauthorized to submit live URL for this task' }, { status: 403 });
     }
 
@@ -56,7 +62,6 @@ export async function POST(
         live_submitted_by = $2,
         live_submitted_at = NOW(),
         processing_status = 'published',
-        published_at = NOW(),
         updated_at = NOW()
       WHERE id = $3
       RETURNING *

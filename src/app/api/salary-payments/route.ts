@@ -1,14 +1,31 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]/route';
-import { createClient } from '@supabase/supabase-js';
+import { query } from '@/lib/umbrel/query-wrapper';
+
+interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  employee_no: string | null;
+  monthly_salary_inr: number | null;
+  designation: string | null;
+  role: string;
+}
+
+interface SalaryPayment {
+  employee_id: string;
+  payment_status: 'paid' | 'not_paid';
+  payment_date: string | null;
+  notes: string | null;
+}
 
 // GET /api/salary-payments - Get salary payment status for all employees for a specific month
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const month = searchParams.get('month'); // Format: YYYY-MM
-    
+
     if (!month) {
       return NextResponse.json(
         { error: 'Month parameter is required (format: YYYY-MM)' },
@@ -23,55 +40,44 @@ export async function GET(request: Request) {
     }
 
     // Only admin can access salary payments
-    if (session.user.role !== 'admin') {
+    const isAdmin = session.user.role === 'admin' ||
+      ['dhana@aggrandizedigital.com', 'saravana@aggrandizedigital.com'].includes(session.user.email);
+
+    if (!isAdmin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    // Use service key for admin operations
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    // Get all employees with their salary information from Umbrel
+    const employeesResult = await query<UserProfile>(
+      'SELECT id, email, full_name, employee_no, monthly_salary_inr, designation, role FROM user_profiles ORDER BY employee_no'
     );
+    const employees = employeesResult.rows || [];
 
-    // Get all employees with their salary information
-    const { data: employees, error: employeesError } = await supabase
-      .from('user_profiles')
-      .select('id, email, full_name, employee_no, monthly_salary_inr, designation, role')
-      .order('employee_no');
-
-    if (employeesError) {
-      console.error('Error fetching employees:', employeesError);
-      return NextResponse.json(
-        { error: 'Failed to fetch employees' },
-        { status: 500 }
+    // Get payment status for the specified month from Umbrel
+    let payments: SalaryPayment[] = [];
+    try {
+      const paymentsResult = await query<SalaryPayment>(
+        'SELECT employee_id, payment_status, payment_date, notes FROM monthly_salary_payments WHERE payment_month = $1',
+        [month]
       );
-    }
-
-    // Get payment status for the specified month (gracefully handle missing table)
-    let payments = [];
-    const { data: paymentsData, error: paymentsError } = await supabase
-      .from('monthly_salary_payments')
-      .select('employee_id, payment_status, payment_date, notes')
-      .eq('payment_month', month);
-
-    if (paymentsError) {
-      console.error('Error fetching payments (table may not exist yet):', paymentsError);
-      // If table doesn't exist, assume all payments are 'paid' for Jan-Aug, 'not_paid' for others
+      payments = paymentsResult.rows || [];
+    } catch (err) {
+      console.error('Error fetching payments (table may not exist yet):', err);
+      // If table doesn't exist, default to not_paid for current month, paid for past
       const [year, monthNum] = month.split('-');
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
-      
-      // If it's Jan-Aug 2024 (or current year), mark as paid, otherwise not_paid
-      const isPaid = (parseInt(year) === currentYear && parseInt(monthNum) >= 1 && parseInt(monthNum) <= 8);
-      
+
+      // For months before current, mark as paid
+      const isPastMonth = parseInt(year) < currentYear ||
+        (parseInt(year) === currentYear && parseInt(monthNum) < currentMonth);
+
       payments = employees.map(emp => ({
         employee_id: emp.id,
-        payment_status: isPaid ? 'paid' : 'not_paid',
-        payment_date: isPaid ? `${year}-${monthNum.padStart(2, '0')}-01T00:00:00Z` : null,
-        notes: isPaid ? 'Historical payment data' : null
+        payment_status: isPastMonth ? 'paid' : 'not_paid',
+        payment_date: isPastMonth ? `${year}-${monthNum.padStart(2, '0')}-01` : null,
+        notes: isPastMonth ? 'Historical payment' : null
       }));
-    } else {
-      payments = paymentsData || [];
     }
 
     // Combine employee data with payment status
@@ -85,14 +91,14 @@ export async function GET(request: Request) {
       };
     });
 
-    // Calculate totals
+    // Calculate totals (convert decimal strings from DB to numbers)
     const totalEmployees = employees.length;
     const totalPaid = employeePayments.filter(ep => ep.payment_status === 'paid').length;
     const totalPending = totalEmployees - totalPaid;
-    const totalSalaryAmount = employees.reduce((sum, emp) => sum + (emp.monthly_salary_inr || 0), 0);
+    const totalSalaryAmount = employees.reduce((sum, emp) => sum + (Number(emp.monthly_salary_inr) || 0), 0);
     const totalPaidAmount = employeePayments
       .filter(ep => ep.payment_status === 'paid')
-      .reduce((sum, ep) => sum + (ep.employee.monthly_salary_inr || 0), 0);
+      .reduce((sum, ep) => sum + (Number(ep.employee.monthly_salary_inr) || 0), 0);
     const totalPendingAmount = totalSalaryAmount - totalPaidAmount;
 
     const result = {
@@ -143,55 +149,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only admin can access salary payments
-    if (session.user.role !== 'admin') {
+    // Only admin can update salary payments
+    const isAdmin = session.user.role === 'admin' ||
+      ['dhana@aggrandizedigital.com', 'saravana@aggrandizedigital.com'].includes(session.user.email);
+
+    if (!isAdmin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    // Use service key for admin operations
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    // Upsert payment record in Umbrel
+    const paymentDate = payment_status === 'paid' ? new Date().toISOString() : null;
 
-    // Upsert payment record
-    const paymentData = {
-      employee_id,
-      payment_month,
-      payment_status,
-      payment_date: payment_status === 'paid' ? new Date().toISOString() : null,
-      notes: notes || null
-    };
+    const result = await query<SalaryPayment>(`
+      INSERT INTO monthly_salary_payments (employee_id, payment_month, payment_status, payment_date, notes)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (employee_id, payment_month)
+      DO UPDATE SET payment_status = $3, payment_date = $4, notes = $5, updated_at = NOW()
+      RETURNING *
+    `, [employee_id, payment_month, payment_status, paymentDate, notes || null]);
 
-    const { data, error } = await supabase
-      .from('monthly_salary_payments')
-      .upsert(paymentData, { 
-        onConflict: 'employee_id,payment_month',
-        ignoreDuplicates: false 
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating payment status:', error);
-      
-      // If table doesn't exist, provide helpful error message
-      if (error.message?.includes('relation "monthly_salary_payments" does not exist')) {
-        return NextResponse.json(
-          { error: 'Database table not found. Please run the database schema update first.' },
-          { status: 503 }
-        );
-      }
-      
+    if (!result.rows || result.rows.length === 0) {
       return NextResponse.json(
         { error: 'Failed to update payment status' },
         { status: 500 }
       );
     }
 
-    return NextResponse.json(data, { status: 200 });
+    return NextResponse.json(result.rows[0], { status: 200 });
   } catch (error) {
     console.error('Error updating salary payment:', error);
+
+    // Check for missing table error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('relation "monthly_salary_payments" does not exist')) {
+      return NextResponse.json(
+        { error: 'Database table not found. Please run the database schema update first.' },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -5,6 +5,9 @@ import { useAuth } from '@/lib/auth-nextauth';
 import { useRouter } from 'next/navigation';
 import { StandardPageLayout } from '@/components/dashboard/StandardPageLayout';
 import { DatabaseStatusIndicator } from '@/components/dashboard/DatabaseStatusIndicator';
+import { QuickExpenseWidget } from './components/quick-expense-widget';
+import { MyPendingPayment } from './components/my-pending-payment';
+import { RoleBasedStats } from './components/role-based-stats';
 import {
   Box,
   Grid,
@@ -24,7 +27,7 @@ import {
 } from '@mui/icons-material';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isAdmin, hasPermission } = useAuth();
   const router = useRouter();
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -124,49 +127,64 @@ export default function DashboardPage() {
       description="Welcome to your AGGRANDIZE Dashboard. Here's what's happening today."
       icon={<DashboardIcon />}
     >
-      {/* Database Status Indicator */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
-        <DatabaseStatusIndicator />
-      </Box>
+      {/* Database Status Indicator - Admin Only */}
+      {isAdmin && (
+        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+          <DatabaseStatusIndicator />
+        </Box>
+      )}
 
-      {/* Quick Stats */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {quickStats.map((stat, index) => (
-          <Grid item xs={12} sm={6} lg={3} key={index}>
-            <Paper sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                <Box sx={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 1,
-                  backgroundColor: `${stat.color}20`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: stat.color
-                }}>
-                  {stat.icon}
+      {/* Stats Section - Conditional based on role */}
+      {isAdmin ? (
+        // Admin: Show full quick stats
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {quickStats.map((stat, index) => (
+            <Grid item xs={12} sm={6} lg={3} key={index}>
+              <Paper sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                  <Box sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 1,
+                    backgroundColor: `${stat.color}20`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: stat.color
+                  }}>
+                    {stat.icon}
+                  </Box>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: 'success.main',
+                      fontWeight: 600
+                    }}
+                  >
+                    {stat.change}
+                  </Typography>
                 </Box>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: 'success.main',
-                    fontWeight: 600
-                  }}
-                >
-                  {stat.change}
+                <Typography variant="h4" component="h3" fontWeight="700" sx={{ mb: 0.5 }}>
+                  {stat.value}
                 </Typography>
-              </Box>
-              <Typography variant="h4" component="h3" fontWeight="700" sx={{ mb: 0.5 }}>
-                {stat.value}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {stat.title}
-              </Typography>
-            </Paper>
-          </Grid>
-        ))}
-      </Grid>
+                <Typography variant="body2" color="text.secondary">
+                  {stat.title}
+                </Typography>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
+      ) : (
+        // Non-Admin: Show pending payment + role-based stats
+        <>
+          <MyPendingPayment userName={user?.name || ''} />
+          <RoleBasedStats
+            role={user?.role}
+            permissions={user?.permissions}
+            userName={user?.name}
+          />
+        </>
+      )}
 
       <Grid container spacing={3}>
         {/* Recent Activities */}
@@ -226,42 +244,54 @@ export default function DashboardPage() {
           </Paper>
         </Grid>
 
-        {/* Quick Actions */}
+        {/* Quick Expense Widget - Expandable for non-admins */}
         <Grid item xs={12} lg={4}>
-          <Paper sx={{ p: 0 }}>
-            <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
-              <Typography variant="h6" fontWeight="600">
-                Quick Actions
-              </Typography>
-            </Box>
-            <Box sx={{ p: 3 }}>
-              <Grid container spacing={2}>
-                {quickActions.map((action, index) => (
-                  <Grid item xs={6} key={index}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      onClick={() => router.push(action.href)}
-                      sx={{
-                        height: 'auto',
-                        p: 3,
-                        flexDirection: 'column',
-                        gap: 1,
-                        textTransform: 'none'
-                      }}
-                    >
-                      {action.icon}
-                      <Typography variant="body2" fontWeight="600">
-                        {action.title}
-                      </Typography>
-                    </Button>
-                  </Grid>
-                ))}
-              </Grid>
-            </Box>
-          </Paper>
+          <QuickExpenseWidget
+            currentUser={user?.name || ''}
+            defaultExpanded={isAdmin}
+          />
         </Grid>
       </Grid>
+
+      {/* Quick Actions Row - Admin Only */}
+      {isAdmin && (
+        <Grid container spacing={3} sx={{ mt: 1 }}>
+          <Grid item xs={12}>
+            <Paper sx={{ p: 0 }}>
+              <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
+                <Typography variant="h6" fontWeight="600">
+                  Quick Actions
+                </Typography>
+              </Box>
+              <Box sx={{ p: 3 }}>
+                <Grid container spacing={2}>
+                  {quickActions.map((action, index) => (
+                    <Grid item xs={6} sm={3} key={index}>
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        onClick={() => router.push(action.href)}
+                        sx={{
+                          height: 'auto',
+                          p: 3,
+                          flexDirection: 'column',
+                          gap: 1,
+                          textTransform: 'none'
+                        }}
+                      >
+                        {action.icon}
+                        <Typography variant="body2" fontWeight="600">
+                          {action.title}
+                        </Typography>
+                      </Button>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
     </StandardPageLayout>
   );
 }

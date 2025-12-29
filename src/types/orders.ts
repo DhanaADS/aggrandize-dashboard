@@ -39,11 +39,16 @@ export interface Order {
   created_at: string;
   updated_at: string;
 
+  // Assignment
+  assigned_to: string | null;
+
   // Joined data (optional)
   items?: OrderItem[];
   payments?: OrderPayment[];
   items_count?: number;
   items_completed?: number;
+  items_with_article?: number;
+  items_with_live?: number;
 }
 
 // Order Item (Publication in an order)
@@ -123,6 +128,7 @@ export interface CreateOrderInput {
   discount?: number;
   notes?: string;
   created_by?: string;
+  assigned_to?: string;
   items?: CreateOrderItemInput[];
 }
 
@@ -138,6 +144,7 @@ export interface UpdateOrderInput {
   discount?: number;
   status?: OrderStatus;
   notes?: string;
+  assigned_to?: string;
 }
 
 export interface CreateOrderItemInput {
@@ -175,6 +182,7 @@ export interface OrderFilters {
   date_from?: string;
   date_to?: string;
   search?: string;
+  assigned_to?: string;
 }
 
 // Statistics

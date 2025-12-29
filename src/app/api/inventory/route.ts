@@ -46,16 +46,16 @@ function buildWhereClause(searchParams: URLSearchParams): { clause: string; para
     paramIndex++;
   }
 
-  // Authority metrics filters
+  // Authority metrics filters (using actual DB column: dr)
   const drMin = searchParams.get('domain_rating_min');
   if (drMin) {
-    conditions.push(`domain_rating >= $${paramIndex}`);
+    conditions.push(`dr >= $${paramIndex}`);
     params.push(parseInt(drMin));
     paramIndex++;
   }
   const drMax = searchParams.get('domain_rating_max');
   if (drMax) {
-    conditions.push(`domain_rating <= $${paramIndex}`);
+    conditions.push(`dr <= $${paramIndex}`);
     params.push(parseInt(drMax));
     paramIndex++;
   }
@@ -73,71 +73,23 @@ function buildWhereClause(searchParams: URLSearchParams): { clause: string; para
     paramIndex++;
   }
 
-  const backlinksMin = searchParams.get('backlinks_min');
-  if (backlinksMin) {
-    conditions.push(`backlinks >= $${paramIndex}`);
-    params.push(parseInt(backlinksMin));
-    paramIndex++;
-  }
-  const backlinksMax = searchParams.get('backlinks_max');
-  if (backlinksMax) {
-    conditions.push(`backlinks <= $${paramIndex}`);
-    params.push(parseInt(backlinksMax));
-    paramIndex++;
-  }
+  // Note: backlinks column doesn't exist in DB, skipping filter
 
-  // Traffic filters
+  // Traffic filters (using actual DB column: traffic)
   const orgMin = searchParams.get('organic_traffic_min');
   if (orgMin) {
-    conditions.push(`organic_traffic >= $${paramIndex}`);
+    conditions.push(`traffic >= $${paramIndex}`);
     params.push(parseInt(orgMin));
     paramIndex++;
   }
   const orgMax = searchParams.get('organic_traffic_max');
   if (orgMax) {
-    conditions.push(`organic_traffic <= $${paramIndex}`);
+    conditions.push(`traffic <= $${paramIndex}`);
     params.push(parseInt(orgMax));
     paramIndex++;
   }
 
-  const usMin = searchParams.get('us_traffic_min');
-  if (usMin) {
-    conditions.push(`us_traffic >= $${paramIndex}`);
-    params.push(parseInt(usMin));
-    paramIndex++;
-  }
-  const usMax = searchParams.get('us_traffic_max');
-  if (usMax) {
-    conditions.push(`us_traffic <= $${paramIndex}`);
-    params.push(parseInt(usMax));
-    paramIndex++;
-  }
-
-  const ukMin = searchParams.get('uk_traffic_min');
-  if (ukMin) {
-    conditions.push(`uk_traffic >= $${paramIndex}`);
-    params.push(parseInt(ukMin));
-    paramIndex++;
-  }
-  const ukMax = searchParams.get('uk_traffic_max');
-  if (ukMax) {
-    conditions.push(`uk_traffic <= $${paramIndex}`);
-    params.push(parseInt(ukMax));
-    paramIndex++;
-  }
-
-  const caMin = searchParams.get('canada_traffic_min');
-  if (caMin) {
-    conditions.push(`canada_traffic >= $${paramIndex}`);
-    params.push(parseInt(caMin));
-    paramIndex++;
-  }
-  const caMax = searchParams.get('canada_traffic_max');
-  if (caMax) {
-    conditions.push(`canada_traffic <= $${paramIndex}`);
-    params.push(parseInt(caMax));
-    paramIndex++;
-  }
+  // Note: us_traffic, uk_traffic, canada_traffic columns don't exist in DB, skipping filters
 
   // Price filters
   const clientPriceMin = searchParams.get('client_price_min');
@@ -153,109 +105,50 @@ function buildWhereClause(searchParams: URLSearchParams): { clause: string; para
     paramIndex++;
   }
 
+  // Price filter (using actual DB column: our_price)
   const priceMin = searchParams.get('price_min');
   if (priceMin) {
-    conditions.push(`price >= $${paramIndex}`);
+    conditions.push(`our_price >= $${paramIndex}`);
     params.push(parseFloat(priceMin));
     paramIndex++;
   }
   const priceMax = searchParams.get('price_max');
   if (priceMax) {
-    conditions.push(`price <= $${paramIndex}`);
+    conditions.push(`our_price <= $${paramIndex}`);
     params.push(parseFloat(priceMax));
     paramIndex++;
   }
 
-  // Boolean filters
-  const isIndexed = searchParams.get('is_indexed');
-  if (isIndexed !== null) {
-    conditions.push(`is_indexed = $${paramIndex}`);
-    params.push(isIndexed === 'true');
-    paramIndex++;
-  }
+  // Note: is_indexed, do_follow, news, sponsored columns don't exist in DB, skipping filters
 
-  const doFollow = searchParams.get('do_follow');
-  if (doFollow !== null) {
-    conditions.push(`do_follow = $${paramIndex}`);
-    params.push(doFollow === 'true');
-    paramIndex++;
-  }
+  // Note: AI flags (ai_overview, chatgpt, perplexity, gemini, copilot) don't exist as separate columns
+  // DB has: ai_platform, ai_platform_score instead
 
-  const news = searchParams.get('news');
-  if (news !== null) {
-    conditions.push(`news = $${paramIndex}`);
-    params.push(news === 'true');
-    paramIndex++;
-  }
-
-  const sponsored = searchParams.get('sponsored');
-  if (sponsored !== null) {
-    conditions.push(`sponsored = $${paramIndex}`);
-    params.push(sponsored === 'true');
-    paramIndex++;
-  }
-
-  // AI flags
-  const aiOverview = searchParams.get('ai_overview');
-  if (aiOverview !== null) {
-    conditions.push(`ai_overview = $${paramIndex}`);
-    params.push(aiOverview === 'true');
-    paramIndex++;
-  }
-
-  const chatgpt = searchParams.get('chatgpt');
-  if (chatgpt !== null) {
-    conditions.push(`chatgpt = $${paramIndex}`);
-    params.push(chatgpt === 'true');
-    paramIndex++;
-  }
-
-  const perplexity = searchParams.get('perplexity');
-  if (perplexity !== null) {
-    conditions.push(`perplexity = $${paramIndex}`);
-    params.push(perplexity === 'true');
-    paramIndex++;
-  }
-
-  const gemini = searchParams.get('gemini');
-  if (gemini !== null) {
-    conditions.push(`gemini = $${paramIndex}`);
-    params.push(gemini === 'true');
-    paramIndex++;
-  }
-
-  const copilot = searchParams.get('copilot');
-  if (copilot !== null) {
-    conditions.push(`copilot = $${paramIndex}`);
-    params.push(copilot === 'true');
-    paramIndex++;
-  }
-
-  // Niche filters
+  // Niche filters (using actual DB columns: accepts_cbd, accepts_casino, accepts_dating, accepts_crypto)
   const cbd = searchParams.get('cbd');
   if (cbd !== null) {
-    conditions.push(`cbd = $${paramIndex}`);
+    conditions.push(`accepts_cbd = $${paramIndex}`);
     params.push(cbd === 'true');
     paramIndex++;
   }
 
   const casino = searchParams.get('casino');
   if (casino !== null) {
-    conditions.push(`casino = $${paramIndex}`);
+    conditions.push(`accepts_casino = $${paramIndex}`);
     params.push(casino === 'true');
     paramIndex++;
   }
 
   const dating = searchParams.get('dating');
   if (dating !== null) {
-    conditions.push(`dating = $${paramIndex}`);
+    conditions.push(`accepts_dating = $${paramIndex}`);
     params.push(dating === 'true');
     paramIndex++;
   }
 
   const crypto = searchParams.get('crypto');
   if (crypto !== null) {
-    conditions.push(`crypto = $${paramIndex}`);
+    conditions.push(`accepts_crypto = $${paramIndex}`);
     params.push(crypto === 'true');
     paramIndex++;
   }
@@ -318,9 +211,22 @@ export async function GET(request: NextRequest) {
 
     // If requesting metrics/summary
     if (action === 'metrics') {
-      const metricsResult = await query<WebsiteInventory>(`
-        SELECT id, domain_rating, da, organic_traffic, backlinks,
-               client_price, price, status, cbd, casino, dating, crypto, news, sponsored
+      // Use actual DB column names: dr, traffic, our_price, accepts_cbd, accepts_casino, accepts_dating, accepts_crypto
+      const metricsResult = await query<{
+        id: string;
+        dr: number | null;
+        da: number | null;
+        traffic: number | null;
+        client_price: number | null;
+        our_price: number | null;
+        status: string;
+        accepts_cbd: boolean;
+        accepts_casino: boolean;
+        accepts_dating: boolean;
+        accepts_crypto: boolean;
+      }>(`
+        SELECT id, dr, da, traffic, client_price, our_price, status,
+               accepts_cbd, accepts_casino, accepts_dating, accepts_crypto
         FROM website_inventory
       `);
 
@@ -333,31 +239,31 @@ export async function GET(request: NextRequest) {
       const pendingWebsites = metrics.filter(w => w.status === 'pending').length;
       const blacklistedWebsites = metrics.filter(w => w.status === 'blacklisted').length;
 
-      const metricsWithDR = metrics.filter(w => w.domain_rating);
+      const metricsWithDR = metrics.filter(w => w.dr != null);
       const avgDomainRating = metricsWithDR.length > 0
-        ? metricsWithDR.reduce((sum, w) => sum + (w.domain_rating || 0), 0) / metricsWithDR.length
+        ? metricsWithDR.reduce((sum, w) => sum + (w.dr || 0), 0) / metricsWithDR.length
         : 0;
 
-      const metricsWithDa = metrics.filter(w => w.da);
+      const metricsWithDa = metrics.filter(w => w.da != null);
       const avgDa = metricsWithDa.length > 0
         ? metricsWithDa.reduce((sum, w) => sum + (w.da || 0), 0) / metricsWithDa.length
         : 0;
 
-      const totalOrganicTraffic = metrics.reduce((sum, w) => sum + (w.organic_traffic || 0), 0);
-      const totalBacklinks = metrics.reduce((sum, w) => sum + (w.backlinks || 0), 0);
+      const totalOrganicTraffic = metrics.reduce((sum, w) => sum + (w.traffic || 0), 0);
+      const totalBacklinks = 0; // Column doesn't exist in DB
 
-      const metricsWithClientPrice = metrics.filter(w => w.client_price);
+      const metricsWithClientPrice = metrics.filter(w => w.client_price != null);
       const avgClientPrice = metricsWithClientPrice.length > 0
         ? metricsWithClientPrice.reduce((sum, w) => sum + (w.client_price || 0), 0) / metricsWithClientPrice.length
         : 0;
 
-      const metricsWithPrice = metrics.filter(w => w.price);
+      const metricsWithPrice = metrics.filter(w => w.our_price != null);
       const avgPrice = metricsWithPrice.length > 0
-        ? metricsWithPrice.reduce((sum, w) => sum + (w.price || 0), 0) / metricsWithPrice.length
+        ? metricsWithPrice.reduce((sum, w) => sum + (w.our_price || 0), 0) / metricsWithPrice.length
         : 0;
 
       const totalClientValue = metrics.reduce((sum, w) => sum + (w.client_price || 0), 0);
-      const totalValue = metrics.reduce((sum, w) => sum + (w.price || 0), 0);
+      const totalValue = metrics.reduce((sum, w) => sum + (w.our_price || 0), 0);
 
       const inventoryMetrics: InventoryMetrics = {
         total_websites: totalWebsites,
@@ -374,22 +280,22 @@ export async function GET(request: NextRequest) {
         total_client_value: Math.round(totalClientValue * 100) / 100,
         total_value: Math.round(totalValue * 100) / 100,
         niche_breakdown: {
-          cbd_count: metrics.filter(w => w.cbd).length,
-          casino_count: metrics.filter(w => w.casino).length,
-          dating_count: metrics.filter(w => w.dating).length,
-          crypto_count: metrics.filter(w => w.crypto).length,
-          news_count: metrics.filter(w => w.news).length,
-          sponsored_count: metrics.filter(w => w.sponsored).length,
+          cbd_count: metrics.filter(w => w.accepts_cbd).length,
+          casino_count: metrics.filter(w => w.accepts_casino).length,
+          dating_count: metrics.filter(w => w.accepts_dating).length,
+          crypto_count: metrics.filter(w => w.accepts_crypto).length,
+          news_count: 0, // Column doesn't exist in DB
+          sponsored_count: 0, // Column doesn't exist in DB
         },
         traffic_distribution: {
-          high_traffic: metrics.filter(w => (w.organic_traffic || 0) > 1000000).length,
-          medium_traffic: metrics.filter(w => (w.organic_traffic || 0) >= 100000 && (w.organic_traffic || 0) <= 1000000).length,
-          low_traffic: metrics.filter(w => (w.organic_traffic || 0) < 100000).length,
+          high_traffic: metrics.filter(w => (w.traffic || 0) > 1000000).length,
+          medium_traffic: metrics.filter(w => (w.traffic || 0) >= 100000 && (w.traffic || 0) <= 1000000).length,
+          low_traffic: metrics.filter(w => (w.traffic || 0) < 100000).length,
         },
         authority_distribution: {
-          high_authority: metrics.filter(w => (w.domain_rating || 0) >= 80).length,
-          medium_authority: metrics.filter(w => (w.domain_rating || 0) >= 50 && (w.domain_rating || 0) < 80).length,
-          low_authority: metrics.filter(w => (w.domain_rating || 0) < 50).length,
+          high_authority: metrics.filter(w => (w.dr || 0) >= 80).length,
+          medium_authority: metrics.filter(w => (w.dr || 0) >= 50 && (w.dr || 0) < 80).length,
+          low_authority: metrics.filter(w => (w.dr || 0) < 50).length,
         }
       };
 
@@ -402,10 +308,18 @@ export async function GET(request: NextRequest) {
     // Build WHERE clause from filters
     const { clause: whereClause, params: whereParams } = buildWhereClause(searchParams);
 
-    // Validate sort column to prevent SQL injection
-    const validSortColumns = ['created_at', 'updated_at', 'website', 'domain_rating', 'da',
-      'organic_traffic', 'backlinks', 'client_price', 'price', 'status', 'category', 'contact'];
-    const safeSortBy = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
+    // Validate sort column to prevent SQL injection (using actual DB column names)
+    const validSortColumns = ['created_at', 'updated_at', 'website', 'dr', 'da',
+      'traffic', 'client_price', 'our_price', 'status', 'category', 'contact', 'tat', 'spam_score'];
+    // Map frontend column names to actual DB column names
+    const columnMapping: Record<string, string> = {
+      'domain_rating': 'dr',
+      'organic_traffic': 'traffic',
+      'price': 'our_price',
+      'backlinks': 'dr', // fallback since backlinks doesn't exist
+    };
+    const mappedSortBy = columnMapping[sortBy] || sortBy;
+    const safeSortBy = validSortColumns.includes(mappedSortBy) ? mappedSortBy : 'created_at';
     const safeSortOrder = sortOrder === 'asc' ? 'ASC' : 'DESC';
 
     // Get total count for pagination
@@ -415,9 +329,18 @@ export async function GET(request: NextRequest) {
     );
     const totalCount = parseInt(countResult.rows[0]?.count || '0');
 
-    // Fetch websites with pagination
+    // Fetch websites with pagination (using aliases to map DB columns to frontend expected names)
     const websitesResult = await query<WebsiteInventory>(
-      `SELECT * FROM website_inventory ${whereClause}
+      `SELECT
+        id, website, contact, category, status, notes, tat, spam_score,
+        dr as domain_rating, da, traffic as organic_traffic,
+        client_price, our_price as price,
+        accepts_cbd as cbd, accepts_casino as casino,
+        accepts_dating as dating, accepts_crypto as crypto,
+        link_type, guidelines, platform, niche_tags,
+        ai_platform, ai_platform_score, ai_country, ai_traffic_breakdown,
+        created_at, updated_at
+       FROM website_inventory ${whereClause}
        ORDER BY ${safeSortBy} ${safeSortOrder}
        LIMIT $${whereParams.length + 1} OFFSET $${whereParams.length + 2}`,
       [...whereParams, limit, offset]

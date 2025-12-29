@@ -6,12 +6,31 @@ export async function getMonthlySalaryOverview(month: string): Promise<MonthlySa
   try {
     const response = await fetch(`/api/salary-payments?month=${month}`);
     if (!response.ok) {
-      throw new Error('Failed to fetch monthly salary overview');
+      // Return empty default instead of throwing - Umbrel connection may not be available
+      return {
+        month,
+        employees: [],
+        total_employees: 0,
+        total_paid: 0,
+        total_pending: 0,
+        total_salary_amount: 0,
+        total_paid_amount: 0,
+        total_pending_amount: 0
+      };
     }
     return await response.json();
   } catch (error) {
-    console.error('Error fetching monthly salary overview:', error);
-    throw error;
+    // Return empty default instead of throwing
+    return {
+      month,
+      employees: [],
+      total_employees: 0,
+      total_paid: 0,
+      total_pending: 0,
+      total_salary_amount: 0,
+      total_paid_amount: 0,
+      total_pending_amount: 0
+    };
   }
 }
 

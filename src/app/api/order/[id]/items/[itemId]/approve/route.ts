@@ -75,23 +75,27 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (body.action === 'approve') {
       // Approve: Set approved_by, approved_at, processing_status to 'approved'
+      // Clear any previous rejection feedback
       updatedItem = await queryOne<OrderItem>(
         `UPDATE order_items
          SET processing_status = 'approved',
              approved_by = $1,
              approved_at = NOW(),
              rejection_reason = NULL,
+             approval_feedback = NULL,
              updated_at = NOW()
          WHERE id = $2
          RETURNING *`,
         [session.user.email, itemId]
       );
     } else {
-      // Reject: Set rejection_reason, processing_status back to 'content_writing'
+      // Reject: Set rejection_reason and approval_feedback, status back to 'content_writing'
+      // approval_feedback is used by Processing page to show rejection notes
       updatedItem = await queryOne<OrderItem>(
         `UPDATE order_items
          SET processing_status = 'content_writing',
              rejection_reason = $1,
+             approval_feedback = $1,
              approved_by = NULL,
              approved_at = NULL,
              updated_at = NOW()

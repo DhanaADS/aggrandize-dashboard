@@ -882,11 +882,14 @@ export async function getOrders(filters?: {
   date_from?: string;
   date_to?: string;
   search?: string;
+  assigned_to?: string;
 }): Promise<Order[]> {
   let sql = `
     SELECT o.*,
            (SELECT COUNT(*) FROM order_items WHERE order_id = o.id)::int as items_count,
-           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id AND status = 'live')::int as items_completed
+           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id AND status = 'live')::int as items_completed,
+           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id AND content_url IS NOT NULL)::int as items_with_article,
+           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id AND live_url IS NOT NULL)::int as items_with_live
     FROM orders o
     WHERE 1=1
   `;
@@ -918,6 +921,10 @@ export async function getOrders(filters?: {
     params.push(`%${filters.search}%`);
     paramIndex++;
   }
+  if (filters?.assigned_to) {
+    sql += ` AND o.assigned_to = $${paramIndex++}`;
+    params.push(filters.assigned_to);
+  }
 
   sql += ' ORDER BY o.created_at DESC';
 
@@ -930,7 +937,9 @@ export async function getOrderById(id: string): Promise<Order | null> {
   const result = await queryOne<Order>(`
     SELECT o.*,
            (SELECT COUNT(*) FROM order_items WHERE order_id = o.id)::int as items_count,
-           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id AND status = 'live')::int as items_completed
+           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id AND status = 'live')::int as items_completed,
+           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id AND content_url IS NOT NULL)::int as items_with_article,
+           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id AND live_url IS NOT NULL)::int as items_with_live
     FROM orders o
     WHERE o.id = $1
   `, [id]);
@@ -950,6 +959,7 @@ export async function createOrder(data: {
   discount?: number;
   notes?: string;
   created_by?: string;
+  assigned_to?: string;
 }): Promise<Order> {
   const orderNumber = await generateOrderNumber();
 
@@ -957,8 +967,8 @@ export async function createOrder(data: {
     `INSERT INTO orders (
       order_number, client_name, client_email, client_company,
       client_whatsapp, client_telegram,
-      project_name, order_date, due_date, discount, notes, created_by
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      project_name, order_date, due_date, discount, notes, created_by, assigned_to
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *`,
     [
       orderNumber,
@@ -973,6 +983,7 @@ export async function createOrder(data: {
       data.discount || 0,
       data.notes || null,
       data.created_by || null,
+      data.assigned_to || null,
     ]
   );
   return result!;
@@ -991,6 +1002,7 @@ export async function updateOrder(id: string, data: {
   discount?: number;
   status?: string;
   notes?: string;
+  assigned_to?: string;
 }): Promise<Order | null> {
   const fields: string[] = [];
   const values: unknown[] = [];

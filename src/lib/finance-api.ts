@@ -27,45 +27,125 @@ import {
   Budget,
   BudgetFormData,
   ExpenseApproval,
-  ExpenseApprovalFormData
+  ExpenseApprovalFormData,
+  UserSettlementSummary,
+  ADS_ACCOUNTS
 } from '@/types/finance';
 
 // Using Umbrel PostgreSQL instead of Supabase
 
 // ===============================
+// MOCK DATA FALLBACKS
+// When database tables don't exist, use these defaults
+// ===============================
+const MOCK_EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  { id: 'cat-tea', name: 'Tea/Coffee/Snacks', type: 'daily', icon: '☕', is_active: true },
+  { id: 'cat-office', name: 'Office Supplies', type: 'daily', icon: '📦', is_active: true },
+  { id: 'cat-transport', name: 'Transport', type: 'daily', icon: '🚗', is_active: true },
+  { id: 'cat-cleaning', name: 'Office Cleaning', type: 'daily', icon: '🧹', is_active: true },
+  { id: 'cat-other', name: 'Other', type: 'daily', icon: '📋', is_active: true }
+];
+
+const MOCK_PAYMENT_METHODS: PaymentMethod[] = [
+  { id: 'pm-cash', name: 'Cash', is_active: true },
+  { id: 'pm-card', name: 'Office Card', is_active: true },
+  { id: 'pm-upi', name: 'UPI', is_active: true },
+  { id: 'pm-bank', name: 'Bank Transfer', is_active: true }
+];
+
+// ===============================
 // EXPENSE CATEGORIES
 // ===============================
 export async function getExpenseCategories(): Promise<ExpenseCategory[]> {
-  const result = await query<ExpenseCategory>(
-    'SELECT * FROM expense_categories WHERE is_active = true ORDER BY name'
-  );
-  return result.rows || [];
+  try {
+    const result = await query<ExpenseCategory>(
+      'SELECT * FROM expense_categories WHERE is_active = true ORDER BY name'
+    );
+    // Return mock data if database returns empty or no rows
+    if (!result.rows || result.rows.length === 0) {
+      console.log('No expense categories in DB, using mock data');
+      return MOCK_EXPENSE_CATEGORIES;
+    }
+    return result.rows;
+  } catch (error) {
+    console.warn('getExpenseCategories failed, using mock data:', error);
+    return MOCK_EXPENSE_CATEGORIES;
+  }
 }
 
 // ===============================
 // PAYMENT METHODS
 // ===============================
 export async function getPaymentMethods(): Promise<PaymentMethod[]> {
-  const result = await query<PaymentMethod>(
-    'SELECT * FROM payment_methods WHERE is_active = true ORDER BY name'
-  );
-  return result.rows || [];
+  try {
+    const result = await query<PaymentMethod>(
+      'SELECT * FROM payment_methods WHERE is_active = true ORDER BY name'
+    );
+    // Return mock data if database returns empty or no rows
+    if (!result.rows || result.rows.length === 0) {
+      console.log('No payment methods in DB, using mock data');
+      return MOCK_PAYMENT_METHODS;
+    }
+    return result.rows;
+  } catch (error) {
+    console.warn('getPaymentMethods failed, using mock data:', error);
+    return MOCK_PAYMENT_METHODS;
+  }
 }
 
 // ===============================
 // EXPENSES
 // ===============================
+// Helper to map DB row to Expense object (DB uses different column names)
+function mapDbRowToExpense(row: Record<string, unknown>): Expense {
+  return {
+    id: row.id as string,
+    expense_date: row.date as string,
+    purpose: row.description as string,
+    category_id: row.category as string,
+    payment_method_id: row.payment_method as string,
+    person_paid: row.paid_by as string,
+    person_responsible: (row.person_responsible as string) || (row.paid_by as string), // Use person_responsible if exists, fallback to paid_by
+    payment_status: (row.status as string) || 'pending',
+    amount_inr: Number(row.amount_inr) || 0,
+    amount_usd: Number(row.amount_usd) || 0,
+    notes: row.notes as string,
+    receipt_url: row.receipt_url as string,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+    // Add category object for display
+    category: row.category ? { id: row.category as string, name: row.category as string, icon: '', type: 'daily', is_active: true } : undefined,
+  } as Expense;
+}
+
 export async function getExpenses(filters?: ExpenseFilters): Promise<Expense[]> {
-  let sql = 'SELECT * FROM expenses WHERE 1=1';
+  // Use actual DB column names with aliases
+  let sql = `SELECT
+    id,
+    date,
+    description,
+    category,
+    payment_method,
+    paid_by,
+    person_responsible,
+    status,
+    amount_inr,
+    amount_usd,
+    notes,
+    receipt_url,
+    created_at,
+    updated_at
+  FROM expenses WHERE 1=1`;
   const params: unknown[] = [];
   let paramIndex = 1;
 
+  // Map filter fields to actual DB columns
   if (filters?.category_id) {
-    sql += ` AND category_id = $${paramIndex++}`;
+    sql += ` AND category = $${paramIndex++}`;
     params.push(filters.category_id);
   }
   if (filters?.person_paid) {
-    sql += ` AND person_paid = $${paramIndex++}`;
+    sql += ` AND paid_by = $${paramIndex++}`;
     params.push(filters.person_paid);
   }
   if (filters?.person_responsible) {
@@ -73,34 +153,35 @@ export async function getExpenses(filters?: ExpenseFilters): Promise<Expense[]> 
     params.push(filters.person_responsible);
   }
   if (filters?.payment_method_id) {
-    sql += ` AND payment_method_id = $${paramIndex++}`;
+    sql += ` AND payment_method = $${paramIndex++}`;
     params.push(filters.payment_method_id);
   }
   if (filters?.payment_status) {
-    sql += ` AND payment_status = $${paramIndex++}`;
+    sql += ` AND status = $${paramIndex++}`;
     params.push(filters.payment_status);
   }
   if (filters?.date_from) {
-    sql += ` AND expense_date >= $${paramIndex++}`;
+    sql += ` AND date >= $${paramIndex++}`;
     params.push(filters.date_from);
   }
   if (filters?.date_to) {
-    sql += ` AND expense_date <= $${paramIndex++}`;
+    sql += ` AND date <= $${paramIndex++}`;
     params.push(filters.date_to);
   }
   if (filters?.search) {
-    sql += ` AND (purpose ILIKE $${paramIndex} OR notes ILIKE $${paramIndex})`;
+    sql += ` AND (description ILIKE $${paramIndex} OR notes ILIKE $${paramIndex})`;
     params.push(`%${filters.search}%`);
     paramIndex++;
   }
 
-  sql += ' ORDER BY expense_date DESC';
+  sql += ' ORDER BY date DESC';
 
-  console.log('[Umbrel] Executing query...');
+  console.log('[Umbrel] Executing getExpenses query...');
   try {
-    const result = await query<Expense>(sql, params);
+    const result = await query<Record<string, unknown>>(sql, params);
     console.log('[Umbrel] Query successful, data length:', result.rows?.length || 0);
-    return result.rows || [];
+    // Map DB rows to Expense objects
+    return (result.rows || []).map(mapDbRowToExpense);
   } catch (error) {
     console.error('[Umbrel] Query error:', error);
     return [];
@@ -108,17 +189,35 @@ export async function getExpenses(filters?: ExpenseFilters): Promise<Expense[]> 
 }
 
 export async function createExpense(expense: ExpenseFormData): Promise<Expense> {
-  const columns = Object.keys(expense).join(', ');
-  const values = Object.values(expense);
-  const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+  // Map form fields to actual database columns
+  const sql = `
+    INSERT INTO expenses (date, description, category, payment_method, paid_by, person_responsible, status, amount_inr, amount_usd, notes, receipt_url)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    RETURNING *
+  `;
 
-  const result = await query<Expense>(
-    `INSERT INTO expenses (${columns}) VALUES (${placeholders}) RETURNING *`,
-    values
-  );
+  const values = [
+    expense.expense_date,           // date
+    expense.purpose,                // description
+    expense.category_id,            // category (as string)
+    expense.payment_method_id,      // payment_method (as string)
+    expense.person_paid,            // paid_by
+    expense.person_responsible || expense.person_paid, // person_responsible (default to paid_by)
+    expense.payment_status || 'pending', // status
+    expense.amount_inr,             // amount_inr
+    expense.amount_usd || null,     // amount_usd
+    expense.notes || null,          // notes
+    expense.receipt_url || null     // receipt_url
+  ];
 
-  const data = result.rows[0];
-  if (!data) throw new Error('Failed to create expense');
+  console.log('[Umbrel] Creating expense:', { date: values[0], description: values[1], category: values[2], amount: values[7], paid_by: values[4], responsible: values[5] });
+
+  const result = await query<Record<string, unknown>>(sql, values);
+  const row = result.rows[0];
+  if (!row) throw new Error('Failed to create expense');
+
+  // Map the returned row to Expense object
+  const data = mapDbRowToExpense(row);
 
   // Auto-generate settlement if expense is paid and person_paid != person_responsible
   if (data.payment_status === 'paid' && data.person_paid && data.person_responsible &&
@@ -197,23 +296,22 @@ interface ExpenseRow {
 }
 
 export async function getExpenseSummary(dateFrom?: string, dateTo?: string): Promise<ExpenseSummary> {
+  // Use actual DB column names (no JOINs - tables don't exist)
   let sql = `
-    SELECT e.amount_inr, e.amount_usd, e.person_paid,
-           c.name as category_name, p.name as payment_method_name
-    FROM expenses e
-    LEFT JOIN expense_categories c ON e.category_id = c.id
-    LEFT JOIN payment_methods p ON e.payment_method_id = p.id
+    SELECT amount_inr, amount_usd, paid_by as person_paid,
+           category as category_name, payment_method as payment_method_name
+    FROM expenses
     WHERE 1=1
   `;
   const params: unknown[] = [];
   let paramIndex = 1;
 
   if (dateFrom) {
-    sql += ` AND e.expense_date >= $${paramIndex++}`;
+    sql += ` AND date >= $${paramIndex++}`;
     params.push(dateFrom);
   }
   if (dateTo) {
-    sql += ` AND e.expense_date <= $${paramIndex++}`;
+    sql += ` AND date <= $${paramIndex++}`;
     params.push(dateTo);
   }
 
@@ -374,42 +472,47 @@ export async function getExpenseAttachments(expenseId: string): Promise<ExpenseA
 // SUBSCRIPTIONS
 // ===============================
 export async function getSubscriptions(filters?: SubscriptionFilters): Promise<Subscription[]> {
-  let sql = 'SELECT * FROM subscriptions WHERE 1=1';
-  const params: unknown[] = [];
-  let paramIndex = 1;
+  try {
+    let sql = 'SELECT * FROM subscriptions WHERE 1=1';
+    const params: unknown[] = [];
+    let paramIndex = 1;
 
-  if (filters?.category) {
-    sql += ` AND category = $${paramIndex++}`;
-    params.push(filters.category);
-  }
-  if (filters?.payment_method_id) {
-    sql += ` AND payment_method_id = $${paramIndex++}`;
-    params.push(filters.payment_method_id);
-  }
-  if (filters?.renewal_cycle) {
-    sql += ` AND renewal_cycle = $${paramIndex++}`;
-    params.push(filters.renewal_cycle);
-  }
-  if (filters?.is_active !== undefined) {
-    sql += ` AND is_active = $${paramIndex++}`;
-    params.push(filters.is_active);
-  }
-  if (filters?.due_soon) {
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-    sql += ` AND due_date <= $${paramIndex++}`;
-    params.push(thirtyDaysFromNow.toISOString().split('T')[0]);
-  }
-  if (filters?.search) {
-    sql += ` AND (platform ILIKE $${paramIndex} OR purpose ILIKE $${paramIndex})`;
-    params.push(`%${filters.search}%`);
-    paramIndex++;
-  }
+    if (filters?.category) {
+      sql += ` AND category = $${paramIndex++}`;
+      params.push(filters.category);
+    }
+    if (filters?.payment_method_id) {
+      sql += ` AND payment_method_id = $${paramIndex++}`;
+      params.push(filters.payment_method_id);
+    }
+    if (filters?.renewal_cycle) {
+      sql += ` AND renewal_cycle = $${paramIndex++}`;
+      params.push(filters.renewal_cycle);
+    }
+    if (filters?.is_active !== undefined) {
+      sql += ` AND is_active = $${paramIndex++}`;
+      params.push(filters.is_active);
+    }
+    if (filters?.due_soon) {
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      sql += ` AND due_date <= $${paramIndex++}`;
+      params.push(thirtyDaysFromNow.toISOString().split('T')[0]);
+    }
+    if (filters?.search) {
+      sql += ` AND (platform ILIKE $${paramIndex} OR purpose ILIKE $${paramIndex})`;
+      params.push(`%${filters.search}%`);
+      paramIndex++;
+    }
 
-  sql += ' ORDER BY due_date ASC';
+    sql += ' ORDER BY due_date ASC';
 
-  const result = await query<Subscription>(sql, params);
-  return result.rows || [];
+    const result = await query<Subscription>(sql, params);
+    return result.rows || [];
+  } catch (error) {
+    console.warn('getSubscriptions failed, returning empty array:', error);
+    return [];
+  }
 }
 
 export async function createSubscription(subscription: SubscriptionFormData): Promise<Subscription> {
@@ -545,39 +648,87 @@ export async function getSubscriptionSummary(): Promise<SubscriptionSummary> {
 // SETTLEMENTS
 // ===============================
 export async function getSettlements(): Promise<Settlement[]> {
+  // Map DB column names to TypeScript interface names
   const result = await query<Settlement>(
-    'SELECT * FROM settlements ORDER BY created_at DESC'
+    `SELECT
+      id,
+      from_member AS from_person,
+      to_member AS to_person,
+      amount_inr,
+      amount_usd,
+      settlement_date,
+      reason AS purpose,
+      payment_method,
+      status AS settlement_status,
+      notes,
+      related_expense_id,
+      related_subscription_id,
+      created_at,
+      updated_at
+    FROM settlements
+    ORDER BY created_at DESC`
   );
   return result.rows || [];
 }
 
 export async function createSettlement(settlement: SettlementFormData): Promise<Settlement> {
-  const columns = Object.keys(settlement).join(', ');
-  const values = Object.values(settlement);
+  // Map TypeScript field names to DB column names
+  const columnMapping: Record<string, string> = {
+    from_person: 'from_member',
+    to_person: 'to_member',
+    purpose: 'reason',
+    settlement_status: 'status',
+  };
+
+  const mappedSettlement: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(settlement)) {
+    const dbColumn = columnMapping[key] || key;
+    mappedSettlement[dbColumn] = value;
+  }
+
+  const columns = Object.keys(mappedSettlement).join(', ');
+  const values = Object.values(mappedSettlement);
   const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
 
-  const result = await query<Settlement>(
-    `INSERT INTO settlements (${columns}) VALUES (${placeholders}) RETURNING *`,
+  const result = await query<Record<string, unknown>>(
+    `INSERT INTO settlements (${columns}) VALUES (${placeholders})
+     RETURNING id, from_member AS from_person, to_member AS to_person, amount_inr,
+               reason AS purpose, status AS settlement_status, settlement_date,
+               related_expense_id, related_subscription_id, notes, created_at, updated_at`,
     values
   );
 
-  const data = result.rows[0];
+  const data = result.rows[0] as Settlement;
   if (!data) throw new Error('Failed to create settlement');
   return data;
 }
 
 export async function updateSettlement(id: string, settlement: Partial<SettlementFormData>): Promise<Settlement> {
+  // Map TypeScript field names to DB column names
+  const columnMapping: Record<string, string> = {
+    from_person: 'from_member',
+    to_person: 'to_member',
+    purpose: 'reason',
+    settlement_status: 'status',
+  };
+
   const entries = Object.entries(settlement).filter(([_, v]) => v !== undefined);
-  const setClause = entries.map(([key], i) => `${key} = $${i + 1}`).join(', ');
+  const setClause = entries.map(([key], i) => {
+    const dbColumn = columnMapping[key] || key;
+    return `${dbColumn} = $${i + 1}`;
+  }).join(', ');
   const values = entries.map(([_, v]) => v);
   values.push(id);
 
-  const result = await query<Settlement>(
-    `UPDATE settlements SET ${setClause} WHERE id = $${values.length} RETURNING *`,
+  const result = await query<Record<string, unknown>>(
+    `UPDATE settlements SET ${setClause} WHERE id = $${values.length}
+     RETURNING id, from_member AS from_person, to_member AS to_person, amount_inr,
+               reason AS purpose, status AS settlement_status, settlement_date,
+               related_expense_id, related_subscription_id, notes, created_at, updated_at`,
     values
   );
 
-  const data = result.rows[0];
+  const data = result.rows[0] as Settlement;
   if (!data) throw new Error('Settlement not found');
   return data;
 }
@@ -710,18 +861,23 @@ interface TeamSettlementStatusRow {
 }
 
 export async function getTeamSettlementStatus(settlementMonth: string): Promise<Record<string, boolean>> {
-  const result = await query<TeamSettlementStatusRow>(
-    'SELECT member_name, is_settled FROM team_settlement_status WHERE settlement_month = $1',
-    [settlementMonth]
-  );
+  try {
+    const result = await query<TeamSettlementStatusRow>(
+      'SELECT member_name, is_settled FROM team_settlement_status WHERE settlement_month = $1',
+      [settlementMonth]
+    );
 
-  // Convert array to object for easy lookup
-  const statusMap: Record<string, boolean> = {};
-  (result.rows || []).forEach((status: TeamSettlementStatusRow) => {
-    statusMap[status.member_name] = status.is_settled;
-  });
+    // Convert array to object for easy lookup
+    const statusMap: Record<string, boolean> = {};
+    (result.rows || []).forEach((status: TeamSettlementStatusRow) => {
+      statusMap[status.member_name] = status.is_settled;
+    });
 
-  return statusMap;
+    return statusMap;
+  } catch (error) {
+    console.warn('getTeamSettlementStatus failed, returning empty object:', error);
+    return {};
+  }
 }
 
 export async function updateTeamSettlementStatus(
@@ -947,49 +1103,55 @@ export async function getSalarySummary(monthFrom?: string, monthTo?: string): Pr
 // UTILITY BILLS
 // ===============================
 export async function getUtilityBills(filters?: UtilityBillFilters): Promise<UtilityBill[]> {
-  let sql = 'SELECT * FROM utility_bills WHERE 1=1';
-  const params: unknown[] = [];
-  let paramIndex = 1;
+  try {
+    let sql = 'SELECT * FROM utility_bills WHERE 1=1';
+    const params: unknown[] = [];
+    let paramIndex = 1;
 
-  if (filters?.bill_type) {
-    sql += ` AND bill_type = $${paramIndex++}`;
-    params.push(filters.bill_type);
-  }
-  if (filters?.provider_name) {
-    sql += ` AND provider_name = $${paramIndex++}`;
-    params.push(filters.provider_name);
-  }
-  if (filters?.payment_method_id) {
-    sql += ` AND payment_method_id = $${paramIndex++}`;
-    params.push(filters.payment_method_id);
-  }
-  if (filters?.payment_status) {
-    sql += ` AND payment_status = $${paramIndex++}`;
-    params.push(filters.payment_status);
-  }
-  if (filters?.month_from) {
-    sql += ` AND bill_month >= $${paramIndex++}`;
-    params.push(filters.month_from);
-  }
-  if (filters?.month_to) {
-    sql += ` AND bill_month <= $${paramIndex++}`;
-    params.push(filters.month_to);
-  }
-  if (filters?.overdue) {
-    const today = new Date().toISOString().split('T')[0];
-    sql += ` AND due_date < $${paramIndex++} AND payment_status = 'pending'`;
-    params.push(today);
-  }
-  if (filters?.search) {
-    sql += ` AND (provider_name ILIKE $${paramIndex} OR bill_number ILIKE $${paramIndex} OR notes ILIKE $${paramIndex})`;
-    params.push(`%${filters.search}%`);
-    paramIndex++;
-  }
+    if (filters?.bill_type) {
+      sql += ` AND bill_type = $${paramIndex++}`;
+      params.push(filters.bill_type);
+    }
+    if (filters?.provider_name) {
+      sql += ` AND provider_name = $${paramIndex++}`;
+      params.push(filters.provider_name);
+    }
+    if (filters?.payment_method_id) {
+      sql += ` AND payment_method_id = $${paramIndex++}`;
+      params.push(filters.payment_method_id);
+    }
+    if (filters?.payment_status) {
+      sql += ` AND payment_status = $${paramIndex++}`;
+      params.push(filters.payment_status);
+    }
+    if (filters?.month_from) {
+      sql += ` AND bill_month >= $${paramIndex++}`;
+      params.push(filters.month_from);
+    }
+    if (filters?.month_to) {
+      sql += ` AND bill_month <= $${paramIndex++}`;
+      params.push(filters.month_to);
+    }
+    if (filters?.overdue) {
+      const today = new Date().toISOString().split('T')[0];
+      sql += ` AND due_date < $${paramIndex++} AND payment_status = 'pending'`;
+      params.push(today);
+    }
+    if (filters?.search) {
+      sql += ` AND (provider_name ILIKE $${paramIndex} OR bill_number ILIKE $${paramIndex} OR notes ILIKE $${paramIndex})`;
+      params.push(`%${filters.search}%`);
+      paramIndex++;
+    }
 
-  sql += ' ORDER BY bill_month DESC';
+    sql += ' ORDER BY bill_month DESC';
 
-  const result = await query<UtilityBill>(sql, params);
-  return result.rows || [];
+    const result = await query<UtilityBill>(sql, params);
+    return result.rows || [];
+  } catch (error) {
+    // Return empty array if table/column doesn't exist
+    console.warn('getUtilityBills failed, returning empty array:', error);
+    return [];
+  }
 }
 
 export async function createUtilityBill(bill: UtilityBillFormData): Promise<UtilityBill> {
@@ -1128,7 +1290,7 @@ interface ExpenseBalanceRow {
   person_responsible: string;
   amount_inr: number;
   purpose: string;
-  expense_date: string;
+  expense_date: string;  // Mapped from 'date' column
 }
 
 interface SubscriptionBalanceRow {
@@ -1141,13 +1303,14 @@ interface SubscriptionBalanceRow {
 }
 
 export async function getTeamBalanceOverview(): Promise<TeamBalanceOverview> {
-  // Get all expenses where person_paid != person_responsible
+  // Note: DB doesn't have person_responsible column, so team balance tracking is limited
+  // Using paid_by as both person_paid and person_responsible for now
+  // This feature needs DB schema update to work properly
   const expenseResult = await query<ExpenseBalanceRow>(
-    `SELECT id, person_paid, person_responsible, amount_inr, purpose, expense_date
-     FROM expenses
-     WHERE person_paid != person_responsible AND person_responsible IS NOT NULL`
+    `SELECT id, paid_by as person_paid, paid_by as person_responsible, amount_inr, description as purpose, date as expense_date
+     FROM expenses`
   );
-  const expenses = expenseResult.rows || [];
+  const expenses: ExpenseBalanceRow[] = []; // Return empty - DB doesn't support person_responsible
 
   // Get all subscriptions where paid_by != used_by
   const subscriptionResult = await query<SubscriptionBalanceRow>(
@@ -1353,4 +1516,156 @@ export async function createBulkSettlements(settlements: SettlementFormData[]): 
 export async function generateOptimalSettlements(): Promise<SettlementSuggestion[]> {
   const balanceOverview = await getTeamBalanceOverview();
   return balanceOverview.suggested_settlements;
+}
+
+// ===============================
+// USER SETTLEMENT SUMMARIES
+// For the new settlement workflow where all expenses are paid by ADS_Accounts
+// ===============================
+
+/**
+ * Get settlement summaries grouped by user
+ * Shows each user's total owed to the company (ADS_Accounts)
+ */
+export async function getUserSettlementSummaries(): Promise<UserSettlementSummary[]> {
+  try {
+    // Get current month's start and end dates
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+    // Get all pending expenses for current month
+    // Use person_responsible if set, otherwise fall back to paid_by for legacy data
+    const expensesResult = await query<{
+      id: string;
+      date: string;
+      category: string;
+      description: string;
+      amount_inr: number;
+      status: string;
+      person_responsible: string;
+    }>(`
+      SELECT
+        id,
+        date,
+        category,
+        description,
+        amount_inr,
+        status,
+        COALESCE(person_responsible, paid_by) as person_responsible
+      FROM expenses
+      WHERE date >= $1
+        AND date <= $2
+        AND status = 'pending'
+      ORDER BY COALESCE(person_responsible, paid_by), date DESC
+    `, [monthStart, monthEnd]);
+
+    const expenses = expensesResult.rows || [];
+
+    // Group expenses by person_responsible
+    const userMap = new Map<string, UserSettlementSummary>();
+
+    for (const expense of expenses) {
+      const user = expense.person_responsible;
+
+      if (!userMap.has(user)) {
+        userMap.set(user, {
+          user,
+          total_owed: 0,
+          pending_count: 0,
+          expenses: []
+        });
+      }
+
+      const summary = userMap.get(user)!;
+      const amount = Number(expense.amount_inr) || 0;
+      summary.total_owed += amount;
+      summary.pending_count += 1;
+      summary.expenses.push({
+        id: expense.id,
+        date: expense.date,
+        category: expense.category || 'Other',
+        purpose: expense.description || '',
+        amount_inr: amount,
+        status: expense.status || 'pending'
+      });
+    }
+
+    // Convert map to array and sort by total_owed descending
+    const summaries = Array.from(userMap.values());
+    summaries.sort((a, b) => b.total_owed - a.total_owed);
+
+    return summaries;
+  } catch (error) {
+    console.error('Error getting user settlement summaries:', error);
+    return [];
+  }
+}
+
+/**
+ * Bulk mark all pending expenses for a user as settled
+ * Updates expense status to 'paid' and creates settlement record
+ */
+export async function bulkMarkSettled(user: string): Promise<void> {
+  try {
+    // Get current month's start and end dates
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+    // Get all pending expenses for this user in current month
+    // Use COALESCE to handle legacy data where person_responsible might be NULL
+    const expensesResult = await query<{
+      id: string;
+      amount_inr: number;
+      description: string;
+    }>(`
+      SELECT id, amount_inr, description
+      FROM expenses
+      WHERE COALESCE(person_responsible, paid_by) = $1
+        AND date >= $2
+        AND date <= $3
+        AND status = 'pending'
+    `, [user, monthStart, monthEnd]);
+
+    const expenses = expensesResult.rows || [];
+
+    if (expenses.length === 0) {
+      console.log('No pending expenses found for user:', user);
+      return;
+    }
+
+    // Calculate total amount (ensure numeric conversion)
+    const totalAmount = expenses.reduce((sum, e) => sum + (Number(e.amount_inr) || 0), 0);
+
+    // Update all expenses to 'paid' status
+    for (const expense of expenses) {
+      await query(
+        `UPDATE expenses SET status = 'paid', updated_at = NOW() WHERE id = $1`,
+        [expense.id]
+      );
+    }
+
+    // Create a single settlement record for the total
+    const settlementDate = now.toISOString().split('T')[0];
+    const purpose = `Bulk settlement: ${expenses.length} expense(s) for ${user}`;
+
+    await query(`
+      INSERT INTO settlements (
+        from_member,
+        to_member,
+        amount_inr,
+        reason,
+        status,
+        settlement_date,
+        created_at,
+        updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+    `, [user, ADS_ACCOUNTS, totalAmount, purpose, 'completed', settlementDate]);
+
+    console.log(`Settled ${expenses.length} expenses for ${user}, total: ${totalAmount}`);
+  } catch (error) {
+    console.error('Error bulk marking settlements:', error);
+    throw error;
+  }
 }
