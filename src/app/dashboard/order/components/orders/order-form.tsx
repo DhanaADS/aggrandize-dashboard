@@ -83,6 +83,8 @@ interface PublicationItem {
 export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nextOrderNumber, setNextOrderNumber] = useState<string>('');
+  const [loadingOrderNumber, setLoadingOrderNumber] = useState(false);
   const [formData, setFormData] = useState<CreateOrderInput & { status?: OrderStatus }>({
     client_name: '',
     client_email: '',
@@ -117,6 +119,27 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
   const [customAmount, setCustomAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [referenceNumber, setReferenceNumber] = useState<string>('');
+
+  // Fetch next order number for new orders
+  useEffect(() => {
+    if (!order) {
+      const fetchNextOrderNumber = async () => {
+        setLoadingOrderNumber(true);
+        try {
+          const response = await fetch('/api/order/next-number');
+          const data = await response.json();
+          if (data.success && data.orderNumber) {
+            setNextOrderNumber(data.orderNumber);
+          }
+        } catch (err) {
+          console.error('Failed to fetch next order number:', err);
+        } finally {
+          setLoadingOrderNumber(false);
+        }
+      };
+      fetchNextOrderNumber();
+    }
+  }, [order]);
 
   useEffect(() => {
     if (order) {
@@ -466,6 +489,28 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
         Order Details
       </Typography>
       <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <TextField
+            fullWidth
+            label="Order Number"
+            value={order ? order.order_number : nextOrderNumber}
+            InputProps={{
+              readOnly: true,
+              startAdornment: loadingOrderNumber ? (
+                <InputAdornment position="start">
+                  <CircularProgress size={16} />
+                </InputAdornment>
+              ) : undefined,
+            }}
+            helperText={!order ? 'Auto-generated' : undefined}
+            sx={{
+              '& .MuiInputBase-input': {
+                fontWeight: 600,
+                color: 'primary.main',
+              },
+            }}
+          />
+        </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <TextField
             fullWidth

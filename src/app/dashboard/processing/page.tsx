@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-nextauth';
 import { ProcessingOverview } from './components/overview/processing-overview';
 import { MyTasksTab } from './components/my-tasks/my-tasks-tab';
+import { AllTasksTab } from './components/all-tasks/all-tasks-tab';
 import { PendingApprovalTab } from './components/pending-approval/pending-approval-tab';
 import { PublishedTab } from './components/published/published-tab';
 import { PaymentStatusTab } from './components/payment-status/payment-status-tab';
@@ -19,12 +20,13 @@ import {
 import {
   Dashboard as OverviewIcon,
   Assignment as TasksIcon,
+  ViewList as AllTasksIcon,
   PendingActions as PendingIcon,
   CheckCircle as PublishedIcon,
   Payment as PaymentIcon,
 } from '@mui/icons-material';
 
-type ProcessingModule = 'overview' | 'my-tasks' | 'pending-approval' | 'published' | 'payment-status';
+type ProcessingModule = 'overview' | 'my-tasks' | 'all-tasks' | 'pending-approval' | 'published' | 'payment-status';
 
 export default function ProcessingPage() {
   const { user } = useAuth();
@@ -33,7 +35,7 @@ export default function ProcessingPage() {
   const [activeModule, setActiveModule] = useState<ProcessingModule>('overview');
 
   useEffect(() => {
-    if (tabParam && ['overview', 'my-tasks', 'pending-approval', 'published', 'payment-status'].includes(tabParam)) {
+    if (tabParam && ['overview', 'my-tasks', 'all-tasks', 'pending-approval', 'published', 'payment-status'].includes(tabParam)) {
       setActiveModule(tabParam);
     }
   }, [tabParam]);
@@ -45,6 +47,7 @@ export default function ProcessingPage() {
   const modules = [
     { id: 'overview' as const, label: 'Overview', icon: <OverviewIcon /> },
     { id: 'my-tasks' as const, label: 'My Tasks', icon: <TasksIcon /> },
+    { id: 'all-tasks' as const, label: 'All Tasks', icon: <AllTasksIcon /> },
     { id: 'pending-approval' as const, label: 'Pending Approval', icon: <PendingIcon /> },
     { id: 'published' as const, label: 'Published', icon: <PublishedIcon /> },
     { id: 'payment-status' as const, label: 'Payment Status', icon: <PaymentIcon /> },
@@ -107,6 +110,7 @@ export default function ProcessingPage() {
       <Paper elevation={3} sx={{ p: { xs: 2, sm: 3, md: 4 }, borderRadius: 2 }}>
         {activeModule === 'overview' && <ProcessingOverview />}
         {activeModule === 'my-tasks' && <MyTasksTab />}
+        {activeModule === 'all-tasks' && <AllTasksTab />}
         {activeModule === 'pending-approval' && <PendingApprovalTab />}
         {activeModule === 'published' && <PublishedTab />}
         {activeModule === 'payment-status' && <PaymentStatusTab />}

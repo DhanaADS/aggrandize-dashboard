@@ -268,7 +268,7 @@ export function MyTasksTab() {
                 <TableCell>Client URL</TableCell>
                 <TableCell>Article</TableCell>
                 <TableCell>Live</TableCell>
-                <TableCell align="right">Price</TableCell>
+                <TableCell align="right">Processing Payment</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Due Date</TableCell>
                 <TableCell align="center">Actions</TableCell>
@@ -364,9 +364,11 @@ export function MyTasksTab() {
                       ) : '-'}
                     </TableCell>
                     <TableCell align="right">
-                      <Typography variant="body2" fontWeight="600" color="success.main">
-                        {formatCurrency(task.inventory_price)}
-                      </Typography>
+                      <Tooltip title="Processing Payment (what we pay to publisher)">
+                        <Typography variant="body2" fontWeight="600" color="success.main">
+                          {formatCurrency(task.processing_payment || task.inventory_price)}
+                        </Typography>
+                      </Tooltip>
                     </TableCell>
                     <TableCell>
                       {getStatusChip(task.processing_status, task.approval_feedback)}

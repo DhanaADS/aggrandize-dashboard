@@ -244,9 +244,9 @@ export function TaskDetailDrawer({ task, open, onClose, onTaskUpdated }: TaskDet
               )}
             </Box>
             <Box display="flex" justifyContent="space-between" py={1}>
-              <Typography variant="body2" color="text.secondary">Price</Typography>
+              <Typography variant="body2" color="text.secondary">Processing Payment</Typography>
               <Typography variant="body2" fontWeight="600" color="success.main">
-                {formatCurrency(task.inventory_price)}
+                {formatCurrency(task.processing_payment || task.inventory_price)}
               </Typography>
             </Box>
           </Box>

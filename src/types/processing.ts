@@ -66,13 +66,21 @@ export interface ProcessingOrderItem {
   updated_at: string;
 
   // Joined data (optional)
-  inventory_price?: number;              // Price from website_inventory
+  inventory_price?: number | null;       // Client price (from order_items.price)
+  processing_payment?: number | null;    // Our price (from website_inventory.our_price) - what we pay to publishers
   assignment?: OrderItemAssignment;
   payment_request?: ProcessingPaymentRequest;
   order?: {
     order_number: string;
     client_name: string;
+    client_email?: string | null;
+    client_company?: string | null;
+    client_whatsapp?: string | null;
+    client_telegram?: string | null;
     project_name: string | null;
+    order_date?: string | null;
+    due_date?: string | null;
+    assigned_to?: string | null;
   };
 }
 
@@ -193,6 +201,7 @@ export interface ProcessingStats {
   completed_count: number;
   overdue_count: number;
   my_tasks_count: number;
+  total_processing_payment?: number;  // Total processing payment (our_price) for all tasks
 }
 
 export interface AccountsStats {

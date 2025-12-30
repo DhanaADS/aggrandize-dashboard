@@ -866,12 +866,39 @@ export interface OrderStats {
   total_outstanding: number;
 }
 
-// Generate order number (AGG-YYYY-NNN)
+// Generate order number (YYYY/NNN format with auto-reset on year change)
 export async function generateOrderNumber(): Promise<string> {
   const year = new Date().getFullYear();
-  const result = await queryOne<{ nextval: string }>("SELECT nextval('order_number_seq')");
-  const seq = result?.nextval || '1';
-  return `AGG-${year}-${seq.padStart(3, '0')}`;
+  const yearPrefix = `${year}/`;
+
+  // Find the highest order number for the current year
+  const result = await queryOne<{ order_number: string | null }>(`
+    SELECT order_number FROM orders
+    WHERE order_number LIKE $1
+    ORDER BY order_number DESC
+    LIMIT 1
+  `, [`${yearPrefix}%`]);
+
+  let nextNumber = 1;
+
+  if (result?.order_number) {
+    // Parse the number part (e.g., "2026/005" -> 5)
+    const parts = result.order_number.split('/');
+    if (parts.length === 2) {
+      const currentNum = parseInt(parts[1], 10);
+      if (!isNaN(currentNum)) {
+        nextNumber = currentNum + 1;
+      }
+    }
+  }
+
+  // Format as "YYYY/NNN" with zero-padding
+  return `${year}/${nextNumber.toString().padStart(3, '0')}`;
+}
+
+// Get the next available order number (for preview in forms)
+export async function getNextOrderNumber(): Promise<string> {
+  return generateOrderNumber();
 }
 
 // Get all orders with optional filters
