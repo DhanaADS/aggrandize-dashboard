@@ -1605,13 +1605,20 @@ export async function getUserSettlementSummaries(): Promise<UserSettlementSummar
 /**
  * Bulk mark all pending expenses for a user as settled
  * Updates expense status to 'paid' and creates settlement record
+ * Links individual expenses to settlement via junction table
  */
-export async function bulkMarkSettled(user: string): Promise<void> {
+export async function bulkMarkSettled(user: string, settledBy?: string): Promise<{
+  settlementId: string;
+  expenseCount: number;
+  totalAmount: number;
+} | null> {
   try {
     // Get current month's start and end dates
     const now = new Date();
+    const settledAt = now.toISOString();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const adminName = settledBy || 'Admin';
 
     // Get all pending expenses for this user in current month
     // Use COALESCE to handle legacy data where person_responsible might be NULL
@@ -1632,17 +1639,17 @@ export async function bulkMarkSettled(user: string): Promise<void> {
 
     if (expenses.length === 0) {
       console.log('No pending expenses found for user:', user);
-      return;
+      return null;
     }
 
     // Calculate total amount (ensure numeric conversion)
     const totalAmount = expenses.reduce((sum, e) => sum + (Number(e.amount_inr) || 0), 0);
 
-    // Update all expenses to 'paid' status
+    // Update all expenses to 'paid' status with settlement tracking
     for (const expense of expenses) {
       await query(
-        `UPDATE expenses SET status = 'paid', updated_at = NOW() WHERE id = $1`,
-        [expense.id]
+        `UPDATE expenses SET status = 'paid', settled_by = $2, settled_at = $3, updated_at = NOW() WHERE id = $1`,
+        [expense.id, adminName, settledAt]
       );
     }
 
@@ -1650,7 +1657,7 @@ export async function bulkMarkSettled(user: string): Promise<void> {
     const settlementDate = now.toISOString().split('T')[0];
     const purpose = `Bulk settlement: ${expenses.length} expense(s) for ${user}`;
 
-    await query(`
+    const settlementResult = await query<{ id: string }>(`
       INSERT INTO settlements (
         from_member,
         to_member,
@@ -1658,12 +1665,33 @@ export async function bulkMarkSettled(user: string): Promise<void> {
         reason,
         status,
         settlement_date,
+        settled_by,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-    `, [user, ADS_ACCOUNTS, totalAmount, purpose, 'completed', settlementDate]);
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+      RETURNING id
+    `, [user, ADS_ACCOUNTS, totalAmount, purpose, 'completed', settlementDate, adminName]);
 
-    console.log(`Settled ${expenses.length} expenses for ${user}, total: ${totalAmount}`);
+    const settlementId = settlementResult.rows[0]?.id;
+
+    if (settlementId) {
+      // Create junction table records linking settlement to individual expenses
+      for (const expense of expenses) {
+        await query(`
+          INSERT INTO settlement_expenses (settlement_id, expense_id, amount_inr)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (settlement_id, expense_id) DO NOTHING
+        `, [settlementId, expense.id, expense.amount_inr]);
+      }
+    }
+
+    console.log(`Settled ${expenses.length} expenses for ${user}, total: ${totalAmount}, by: ${adminName}`);
+
+    return {
+      settlementId: settlementId || '',
+      expenseCount: expenses.length,
+      totalAmount
+    };
   } catch (error) {
     console.error('Error bulk marking settlements:', error);
     throw error;

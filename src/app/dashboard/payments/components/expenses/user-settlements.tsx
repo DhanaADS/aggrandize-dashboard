@@ -24,12 +24,15 @@ import {
 } from '@mui/icons-material';
 import { UserSettlementSummary, ADS_ACCOUNTS } from '@/types/finance';
 import { getUserSettlementSummaries, bulkMarkSettled } from '@/lib/finance-api';
+import { formatSettlementNotification } from '@/lib/whatsapp/expense-parser';
+import { getPhoneByTeamMember } from '@/lib/whatsapp/team-mapping';
 
 interface UserSettlementsProps {
   refreshTrigger?: number;
+  adminName?: string;
 }
 
-export function UserSettlements({ refreshTrigger }: UserSettlementsProps) {
+export function UserSettlements({ refreshTrigger, adminName }: UserSettlementsProps) {
   const [summaries, setSummaries] = useState<UserSettlementSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,9 +64,37 @@ export function UserSettlements({ refreshTrigger }: UserSettlementsProps) {
   const handleMarkSettled = async (user: string) => {
     if (!confirm(`Mark all pending expenses for ${user} as settled?`)) return;
 
+    // Get the summary before settling to access expense details
+    const summary = summaries.find(s => s.user === user);
+
     setSettlingUser(user);
     try {
-      await bulkMarkSettled(user);
+      const result = await bulkMarkSettled(user, adminName);
+      if (result) {
+        console.log(`Settlement complete: ${result.expenseCount} expenses, ₹${result.totalAmount}`);
+
+        // Send WhatsApp notification
+        const userPhone = getPhoneByTeamMember(user);
+        if (userPhone && summary) {
+          const message = formatSettlementNotification(
+            user,
+            summary.expenses.map(e => ({ description: e.purpose || e.category, amount_inr: e.amount_inr })),
+            result.totalAmount,
+            adminName || 'Admin'
+          );
+          try {
+            await fetch('/api/whatsapp/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ phone: userPhone, message })
+            });
+            console.log(`WhatsApp notification sent to ${user} (${userPhone})`);
+          } catch (whatsappErr) {
+            console.error('Failed to send WhatsApp notification:', whatsappErr);
+            // Don't fail the settlement if WhatsApp notification fails
+          }
+        }
+      }
       // Refresh the data
       await fetchSummaries();
       setExpandedUser(null);

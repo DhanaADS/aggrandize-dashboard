@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-nextauth';
 import { OverviewFinalDesign } from './components/overview/overview-final-design';
 import { ExpensesTab } from './components/expenses/expenses-tab';
@@ -24,6 +24,7 @@ type FinanceModule = 'overview' | 'expenses' | 'salary';
 
 export default function PaymentsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as FinanceModule;
   const [activeModule, setActiveModule] = useState<FinanceModule>('overview');
@@ -78,7 +79,10 @@ export default function PaymentsPage() {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
         <Tabs
           value={activeModule}
-          onChange={(_, newValue) => setActiveModule(newValue)}
+          onChange={(_, newValue) => {
+            setActiveModule(newValue);
+            router.push(`?tab=${newValue}`, { scroll: false });
+          }}
           variant="scrollable"
           scrollButtons="auto"
           allowScrollButtonsMobile

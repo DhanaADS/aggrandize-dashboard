@@ -20,6 +20,8 @@ import {
   Alert,
   FormControlLabel,
   Switch,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { Subscription, SubscriptionFormData } from '@/types/finance';
@@ -63,6 +65,7 @@ export function SubscriptionFormDialog({ open, subscription, onClose, onSuccess 
     next_due_date: '',
     auto_renewal: true,
     is_active: true,
+    billing_type: 'postpaid' as 'prepaid' | 'postpaid',
     payment_method_id: 'Office Card',
     used_by: '',
     paid_by: '',
@@ -86,6 +89,7 @@ export function SubscriptionFormDialog({ open, subscription, onClose, onSuccess 
           next_due_date: subscription.next_due_date || '',
           auto_renewal: subscription.auto_renewal ?? true,
           is_active: subscription.is_active ?? true,
+          billing_type: subscription.billing_type || 'postpaid',
           payment_method_id: subscription.payment_method_id || 'Office Card',
           used_by: subscription.used_by || '',
           paid_by: subscription.paid_by || '',
@@ -105,6 +109,7 @@ export function SubscriptionFormDialog({ open, subscription, onClose, onSuccess 
           next_due_date: '',
           auto_renewal: true,
           is_active: true,
+          billing_type: 'postpaid',
           payment_method_id: 'Office Card',
           used_by: '',
           paid_by: '',
@@ -192,6 +197,7 @@ export function SubscriptionFormDialog({ open, subscription, onClose, onSuccess 
         next_due_date: formData.next_due_date || calculateNextDueDate(formData.due_date, formData.renewal_cycle),
         auto_renewal: formData.auto_renewal,
         is_active: formData.is_active,
+        billing_type: formData.billing_type,
         payment_method_id: formData.payment_method_id,
         used_by: formData.used_by,
         paid_by: formData.paid_by,
@@ -321,6 +327,52 @@ export function SubscriptionFormDialog({ open, subscription, onClose, onSuccess 
                 ))}
               </Select>
             </FormControl>
+          </Grid>
+
+          {/* Billing Type */}
+          <Grid item xs={12} sm={6}>
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Billing Type
+              </Typography>
+              <ToggleButtonGroup
+                value={formData.billing_type}
+                exclusive
+                onChange={(_e, value) => {
+                  if (value) setFormData({ ...formData, billing_type: value });
+                }}
+                fullWidth
+                size="small"
+              >
+                <ToggleButton
+                  value="prepaid"
+                  sx={{
+                    '&.Mui-selected': {
+                      bgcolor: '#10b98130',
+                      color: '#10b981',
+                      '&:hover': { bgcolor: '#10b98140' },
+                    },
+                  }}
+                >
+                  Prepaid
+                </ToggleButton>
+                <ToggleButton
+                  value="postpaid"
+                  sx={{
+                    '&.Mui-selected': {
+                      bgcolor: '#f59e0b30',
+                      color: '#f59e0b',
+                      '&:hover': { bgcolor: '#f59e0b40' },
+                    },
+                  }}
+                >
+                  Postpaid
+                </ToggleButton>
+              </ToggleButtonGroup>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                {formData.billing_type === 'prepaid' ? 'Paid in advance (no overdue risk)' : 'Paid after service (can be overdue)'}
+              </Typography>
+            </Box>
           </Grid>
 
           {/* Due Date */}

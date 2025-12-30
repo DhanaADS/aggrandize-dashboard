@@ -61,12 +61,13 @@ export interface Subscription {
   auto_renewal: boolean;
   is_active: boolean;
   category: string;
+  billing_type?: 'prepaid' | 'postpaid';
   notes?: string;
   used_by?: string;
   paid_by?: string;
   created_at: string;
   updated_at: string;
-  
+
   // Joined data
   payment_method?: PaymentMethod;
 }
@@ -160,6 +161,7 @@ export interface SubscriptionFormData {
   auto_renewal: boolean;
   is_active: boolean;
   category: string;
+  billing_type?: 'prepaid' | 'postpaid';
   notes?: string;
   used_by?: string;
   paid_by?: string;

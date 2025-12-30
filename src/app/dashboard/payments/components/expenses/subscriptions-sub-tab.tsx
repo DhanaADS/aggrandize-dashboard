@@ -36,9 +36,39 @@ import {
   Warning as WarningIcon,
   Error as ErrorIcon,
 } from '@mui/icons-material';
-import { Subscription, SubscriptionFilters } from '@/types/finance';
-import { getSubscriptions, deleteSubscription } from '@/lib/finance-api';
+import { Subscription, SubscriptionFilters, Expense } from '@/types/finance';
+import { getSubscriptions, deleteSubscription, getExpenses } from '@/lib/finance-api';
 import { SubscriptionFormDialog } from './subscription-form-dialog';
+
+// Calculate billing cycle dates (5th to 5th)
+function getBillingCycleDates(): { start: string; end: string; label: string } {
+  const now = new Date();
+  const day = now.getDate();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  let startDate: Date;
+  let endDate: Date;
+
+  if (day >= 5) {
+    // Current billing cycle: 5th of current month to 4th of next month
+    startDate = new Date(year, month, 5);
+    endDate = new Date(year, month + 1, 4);
+  } else {
+    // Current billing cycle: 5th of previous month to 4th of current month
+    startDate = new Date(year, month - 1, 5);
+    endDate = new Date(year, month, 4);
+  }
+
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const label = `${startDate.getDate()} ${months[startDate.getMonth()]} - ${endDate.getDate()} ${months[endDate.getMonth()]}`;
+
+  return {
+    start: startDate.toISOString().split('T')[0],
+    end: endDate.toISOString().split('T')[0],
+    label
+  };
+}
 
 // Category icons mapping
 const CATEGORY_ICONS: Record<string, string> = {
@@ -68,6 +98,8 @@ const STATUS_COLORS: Record<string, string> = {
   inactive: '#6b7280',
   overdue: '#ef4444',
   dueSoon: '#f59e0b',
+  prepaid: '#10b981',
+  postpaid: '#f59e0b',
 };
 
 // Renewal cycle options
@@ -89,6 +121,7 @@ const StatCard = ({ title, value, subValue, color }: { title: string; value: Rea
 
 export function SubscriptionsSubTab() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [currentMonthExpenses, setCurrentMonthExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -96,6 +129,9 @@ export function SubscriptionsSubTab() {
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<SubscriptionFilters>({});
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Get billing cycle dates
+  const billingCycle = getBillingCycleDates();
 
   const fetchSubscriptions = useCallback(async () => {
     setLoading(true);
@@ -111,24 +147,44 @@ export function SubscriptionsSubTab() {
     }
   }, [filters]);
 
+  // Fetch current month expenses (5th to 5th billing cycle)
+  const fetchCurrentMonthExpenses = useCallback(async () => {
+    try {
+      const expenses = await getExpenses({
+        date_from: billingCycle.start,
+        date_to: billingCycle.end
+      });
+      setCurrentMonthExpenses(expenses || []);
+    } catch (err) {
+      console.error('Error fetching current month expenses:', err);
+    }
+  }, [billingCycle.start, billingCycle.end]);
+
   useEffect(() => {
     fetchSubscriptions();
-  }, [fetchSubscriptions, refreshTrigger]);
+    fetchCurrentMonthExpenses();
+  }, [fetchSubscriptions, fetchCurrentMonthExpenses, refreshTrigger]);
 
   // Helper functions
   const isOverdue = (sub: Subscription) => {
     if (!sub.is_active) return false;
+    // Prepaid subscriptions can't be overdue - they're paid in advance
+    if (sub.billing_type === 'prepaid') return false;
     const dueDate = new Date(sub.next_due_date || sub.due_date);
     return dueDate < new Date();
   };
 
   const isDueSoon = (sub: Subscription) => {
     if (!sub.is_active) return false;
+    // Prepaid subscriptions show "renewal soon" instead of "due soon"
     const dueDate = new Date(sub.next_due_date || sub.due_date);
     const today = new Date();
     const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return daysUntilDue <= 7 && daysUntilDue >= 0;
   };
+
+  // Check if subscription is prepaid
+  const isPrepaid = (sub: Subscription) => sub.billing_type === 'prepaid';
 
   const getDueDateStatus = (sub: Subscription) => {
     if (isOverdue(sub)) return 'overdue';
@@ -183,6 +239,10 @@ export function SubscriptionsSubTab() {
   const activeCount = activeSubscriptions.length;
   const overdueCount = subscriptions.filter(isOverdue).length;
   const dueSoonCount = subscriptions.filter(isDueSoon).length;
+
+  // Calculate current month expenses (billing cycle 5th-5th)
+  const currentMonthExpenseTotal = currentMonthExpenses.reduce((sum, e) => sum + (Number(e.amount_inr) || 0), 0);
+  const currentMonthExpenseCount = currentMonthExpenses.length;
 
   // Sort subscriptions: Overdue first, then Due Soon, then rest
   const sortedSubscriptions = [...subscriptions].sort((a, b) => {
@@ -246,6 +306,26 @@ export function SubscriptionsSubTab() {
           </Button>
         </Box>
       </Box>
+
+      {/* Current Month Expense Summary */}
+      {!loading && (
+        <Paper elevation={3} sx={{ p: 2, mb: 3, borderRadius: 2, bgcolor: 'background.paper' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+            <Box>
+              <Typography variant="body2" color="text.secondary">
+                Current Billing Cycle ({billingCycle.label})
+              </Typography>
+              <Typography variant="h4" fontWeight="700" sx={{ color: '#00ff88' }}>
+                {formatCurrency(currentMonthExpenseTotal)}
+              </Typography>
+            </Box>
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography variant="body2" color="text.secondary">Expenses</Typography>
+              <Typography variant="h5" fontWeight="600">{currentMonthExpenseCount}</Typography>
+            </Box>
+          </Box>
+        </Paper>
+      )}
 
       {/* Summary Cards - Matching Salary Tab Style */}
       {loading ? (
@@ -432,6 +512,7 @@ export function SubscriptionsSubTab() {
                   <TableCell>Category</TableCell>
                   <TableCell align="right">Amount</TableCell>
                   <TableCell>Cycle</TableCell>
+                  <TableCell>Billing</TableCell>
                   <TableCell>Due Date</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="center">Actions</TableCell>
@@ -518,20 +599,37 @@ export function SubscriptionsSubTab() {
                         />
                       </TableCell>
                       <TableCell>
+                        <Chip
+                          label={isPrepaid(subscription) ? 'Prepaid' : 'Postpaid'}
+                          size="small"
+                          sx={{
+                            bgcolor: isPrepaid(subscription) ? '#10b98120' : '#f59e0b20',
+                            color: isPrepaid(subscription) ? '#10b981' : '#f59e0b',
+                            fontWeight: 600,
+                            fontSize: '0.7rem',
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color: isOverdueItem
-                                ? STATUS_COLORS.overdue
-                                : isDueSoonItem
-                                ? STATUS_COLORS.dueSoon
-                                : 'text.primary',
-                              fontWeight: isOverdueItem || isDueSoonItem ? 600 : 400,
-                            }}
-                          >
-                            {formatDate(subscription.next_due_date || subscription.due_date)}
-                          </Typography>
+                          <Box>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                              {isPrepaid(subscription) ? 'Paid until' : 'Due'}
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: isOverdueItem
+                                  ? STATUS_COLORS.overdue
+                                  : isDueSoonItem
+                                  ? STATUS_COLORS.dueSoon
+                                  : 'text.primary',
+                                fontWeight: isOverdueItem || isDueSoonItem ? 600 : 400,
+                              }}
+                            >
+                              {formatDate(subscription.next_due_date || subscription.due_date)}
+                            </Typography>
+                          </Box>
                           {isOverdueItem && (
                             <Chip
                               label="OVERDUE"
@@ -547,10 +645,10 @@ export function SubscriptionsSubTab() {
                           )}
                           {isDueSoonItem && !isOverdueItem && (
                             <Chip
-                              label="DUE SOON"
+                              label={isPrepaid(subscription) ? 'RENEWS SOON' : 'DUE SOON'}
                               size="small"
                               sx={{
-                                bgcolor: STATUS_COLORS.dueSoon,
+                                bgcolor: isPrepaid(subscription) ? '#3b82f6' : STATUS_COLORS.dueSoon,
                                 color: '#fff',
                                 fontSize: '0.65rem',
                                 fontWeight: 700,

@@ -178,7 +178,7 @@ export function ExpensesTab() {
 
       {/* Settlements Sub-Tab */}
       {activeSubTab === 'settlements' && (
-        <UserSettlements refreshTrigger={refreshTrigger} />
+        <UserSettlements refreshTrigger={refreshTrigger} adminName={session?.user?.name || 'Admin'} />
       )}
 
       {/* Subscriptions Sub-Tab */}
