@@ -960,6 +960,9 @@ export async function createOrder(data: {
   notes?: string;
   created_by?: string;
   assigned_to?: string;
+  default_keyword?: string;
+  show_on_processing?: boolean;
+  enable_assignments?: boolean;
 }): Promise<Order> {
   const orderNumber = await generateOrderNumber();
 
@@ -967,8 +970,9 @@ export async function createOrder(data: {
     `INSERT INTO orders (
       order_number, client_name, client_email, client_company,
       client_whatsapp, client_telegram,
-      project_name, order_date, due_date, discount, notes, created_by, assigned_to
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      project_name, order_date, due_date, discount, notes, created_by, assigned_to,
+      default_keyword, show_on_processing, enable_assignments
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
     RETURNING *`,
     [
       orderNumber,
@@ -984,6 +988,9 @@ export async function createOrder(data: {
       data.notes || null,
       data.created_by || null,
       data.assigned_to || null,
+      data.default_keyword || null,
+      data.show_on_processing ?? true,
+      data.enable_assignments ?? true,
     ]
   );
   return result!;
@@ -1003,6 +1010,9 @@ export async function updateOrder(id: string, data: {
   status?: string;
   notes?: string;
   assigned_to?: string;
+  default_keyword?: string;
+  show_on_processing?: boolean;
+  enable_assignments?: boolean;
 }): Promise<Order | null> {
   const fields: string[] = [];
   const values: unknown[] = [];

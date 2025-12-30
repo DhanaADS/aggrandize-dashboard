@@ -27,6 +27,8 @@ import {
   Radio,
   FormControlLabel,
   FormLabel,
+  Switch,
+  Tooltip,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -35,6 +37,10 @@ import {
   Delete as DeleteIcon,
   WhatsApp as WhatsAppIcon,
   Telegram as TelegramIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+  PersonAdd as PersonAddIcon,
+  PersonOff as PersonOffIcon,
 } from '@mui/icons-material';
 import {
   Order,
@@ -89,6 +95,9 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
     discount: 0,
     notes: '',
     assigned_to: '',
+    default_keyword: '',
+    show_on_processing: true,
+    enable_assignments: true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -124,6 +133,9 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
         notes: order.notes || '',
         status: order.status,
         assigned_to: order.assigned_to || '',
+        default_keyword: order.default_keyword || '',
+        show_on_processing: order.show_on_processing ?? true,
+        enable_assignments: order.enable_assignments ?? true,
       });
     }
   }, [order]);
@@ -254,6 +266,9 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
         due_date: formData.due_date || undefined,
         discount: formData.discount || 0,
         notes: formData.notes || undefined,
+        default_keyword: formData.default_keyword || undefined,
+        show_on_processing: formData.show_on_processing,
+        enable_assignments: formData.enable_assignments,
       };
 
       if (order && formData.status) {
@@ -526,6 +541,52 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
               ))}
             </Select>
           </FormControl>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <TextField
+            fullWidth
+            label="Default Keyword"
+            value={formData.default_keyword}
+            onChange={handleChange('default_keyword')}
+            placeholder="Auto-fill for all publications"
+            helperText="Applied to all publications in this order"
+          />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column' }}>
+            <Tooltip title="When enabled, this order and its items will appear on the Processing page">
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.show_on_processing ?? true}
+                    onChange={(e) => setFormData({ ...formData, show_on_processing: e.target.checked })}
+                  />
+                }
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {formData.show_on_processing ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
+                    <Typography variant="body2">Show on Processing</Typography>
+                  </Box>
+                }
+              />
+            </Tooltip>
+            <Tooltip title="When enabled, team members can be assigned to items in this order">
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.enable_assignments ?? true}
+                    onChange={(e) => setFormData({ ...formData, enable_assignments: e.target.checked })}
+                  />
+                }
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {formData.enable_assignments ? <PersonAddIcon fontSize="small" /> : <PersonOffIcon fontSize="small" />}
+                    <Typography variant="body2">Enable Assignments</Typography>
+                  </Box>
+                }
+              />
+            </Tooltip>
+          </Box>
         </Grid>
       </Grid>
 

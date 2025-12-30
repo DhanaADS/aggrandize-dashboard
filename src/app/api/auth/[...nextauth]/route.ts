@@ -119,7 +119,7 @@ export const authOptions = {
       return true;
     },
     async jwt({ token, user, account }) {
-      // Add role to JWT token
+      // Add role to JWT token on first sign-in
       if (user?.email) {
         const role = getTeamMemberRole(user.email);
 
@@ -136,13 +136,18 @@ export const authOptions = {
           token.teamMember = true;
           token.isExternal = false;
         }
+        token.email = user.email;
+      }
 
-        // Fetch and add permissions to token for middleware access
+      // ALWAYS fetch fresh permissions from database (not just on first login)
+      // This ensures permission changes take effect immediately without logout
+      const userEmail = token.email as string;
+      if (userEmail) {
         try {
           const { data: userProfile } = await supabase
             .from('user_profiles')
             .select('individual_permissions')
-            .eq('email', user.email)
+            .eq('email', userEmail)
             .single();
 
           // Admin users always get full permissions
@@ -153,7 +158,8 @@ export const authOptions = {
               canAccessInventory: true,
               canAccessTools: true,
               canAccessPayments: true,
-              canAccessTodos: true
+              canAccessTodos: true,
+              canAccessAccounts: true
             };
           } else if (userProfile?.individual_permissions) {
             token.permissions = {
@@ -162,7 +168,8 @@ export const authOptions = {
               canAccessInventory: userProfile.individual_permissions.canAccessInventory ?? false,
               canAccessTools: userProfile.individual_permissions.canAccessTools ?? false,
               canAccessPayments: userProfile.individual_permissions.canAccessPayments ?? false,
-              canAccessTodos: userProfile.individual_permissions.canAccessTodos ?? true
+              canAccessTodos: userProfile.individual_permissions.canAccessTodos ?? true,
+              canAccessAccounts: userProfile.individual_permissions.canAccessAccounts ?? false
             };
           } else {
             // Fallback to role-based permissions
@@ -173,7 +180,8 @@ export const authOptions = {
                 canAccessInventory: true,
                 canAccessTools: true,
                 canAccessPayments: true,
-                canAccessTodos: true
+                canAccessTodos: true,
+                canAccessAccounts: true
               },
               marketing: {
                 canAccessOrder: true,
@@ -181,7 +189,8 @@ export const authOptions = {
                 canAccessInventory: true,
                 canAccessTools: true,
                 canAccessPayments: false,
-                canAccessTodos: true
+                canAccessTodos: true,
+                canAccessAccounts: false
               },
               processing: {
                 canAccessOrder: false,
@@ -189,7 +198,8 @@ export const authOptions = {
                 canAccessInventory: false,
                 canAccessTools: true,
                 canAccessPayments: false,
-                canAccessTodos: true
+                canAccessTodos: true,
+                canAccessAccounts: false
               },
               member: {
                 canAccessOrder: false,
@@ -197,7 +207,8 @@ export const authOptions = {
                 canAccessInventory: false,
                 canAccessTools: false,
                 canAccessPayments: false,
-                canAccessTodos: true
+                canAccessTodos: true,
+                canAccessAccounts: false
               }
             };
             token.permissions = rolePermissions[token.role as keyof typeof rolePermissions] || rolePermissions.member;
@@ -206,17 +217,16 @@ export const authOptions = {
           console.error('Error fetching permissions for JWT:', error);
           // Fallback permissions based on role
           if (token.role === 'admin') {
-            // Admin always gets full permissions even if database fails
             token.permissions = {
               canAccessOrder: true,
               canAccessProcessing: true,
               canAccessInventory: true,
               canAccessTools: true,
               canAccessPayments: true,
-              canAccessTodos: true
+              canAccessTodos: true,
+              canAccessAccounts: true
             };
           } else {
-            // Role-based fallback for non-admin users
             const rolePermissions = {
               marketing: {
                 canAccessOrder: true,
@@ -224,7 +234,8 @@ export const authOptions = {
                 canAccessInventory: true,
                 canAccessTools: true,
                 canAccessPayments: false,
-                canAccessTodos: true
+                canAccessTodos: true,
+                canAccessAccounts: false
               },
               processing: {
                 canAccessOrder: false,
@@ -232,7 +243,8 @@ export const authOptions = {
                 canAccessInventory: false,
                 canAccessTools: true,
                 canAccessPayments: false,
-                canAccessTodos: true
+                canAccessTodos: true,
+                canAccessAccounts: false
               },
               member: {
                 canAccessOrder: false,
@@ -240,7 +252,8 @@ export const authOptions = {
                 canAccessInventory: false,
                 canAccessTools: false,
                 canAccessPayments: false,
-                canAccessTodos: true
+                canAccessTodos: true,
+                canAccessAccounts: false
               }
             };
             token.permissions = rolePermissions[token.role as keyof typeof rolePermissions] || rolePermissions.member;
@@ -273,7 +286,8 @@ export const authOptions = {
               canAccessInventory: true,
               canAccessTools: true,
               canAccessPayments: true,
-              canAccessTodos: true
+              canAccessTodos: true,
+              canAccessAccounts: true
             };
           } else if (userProfile?.individual_permissions) {
             // Use fresh database permissions
@@ -283,7 +297,8 @@ export const authOptions = {
               canAccessInventory: userProfile.individual_permissions.canAccessInventory ?? false,
               canAccessTools: userProfile.individual_permissions.canAccessTools ?? false,
               canAccessPayments: userProfile.individual_permissions.canAccessPayments ?? false,
-              canAccessTodos: userProfile.individual_permissions.canAccessTodos ?? true
+              canAccessTodos: userProfile.individual_permissions.canAccessTodos ?? true,
+              canAccessAccounts: userProfile.individual_permissions.canAccessAccounts ?? false
             };
           } else {
             // Fallback to role-based defaults
@@ -294,7 +309,8 @@ export const authOptions = {
                 canAccessInventory: true,
                 canAccessTools: true,
                 canAccessPayments: true,
-                canAccessTodos: true
+                canAccessTodos: true,
+                canAccessAccounts: true
               },
               marketing: {
                 canAccessOrder: true,
@@ -302,7 +318,8 @@ export const authOptions = {
                 canAccessInventory: true,
                 canAccessTools: true,
                 canAccessPayments: false,
-                canAccessTodos: true
+                canAccessTodos: true,
+                canAccessAccounts: false
               },
               processing: {
                 canAccessOrder: false,
@@ -310,7 +327,8 @@ export const authOptions = {
                 canAccessInventory: false,
                 canAccessTools: true,
                 canAccessPayments: false,
-                canAccessTodos: true
+                canAccessTodos: true,
+                canAccessAccounts: false
               },
               member: {
                 canAccessOrder: false,
@@ -318,7 +336,8 @@ export const authOptions = {
                 canAccessInventory: false,
                 canAccessTools: false,
                 canAccessPayments: false,
-                canAccessTodos: true
+                canAccessTodos: true,
+                canAccessAccounts: false
               }
             };
             session.user.permissions = rolePermissions[session.user.role as keyof typeof rolePermissions] || rolePermissions.member;
@@ -334,6 +353,7 @@ export const authOptions = {
               canAccessTools: boolean;
               canAccessPayments: boolean;
               canAccessTodos: boolean;
+              canAccessAccounts: boolean;
             };
           } else {
             // Ultimate fallback based on role
@@ -344,7 +364,8 @@ export const authOptions = {
                 canAccessInventory: true,
                 canAccessTools: true,
                 canAccessPayments: true,
-                canAccessTodos: true
+                canAccessTodos: true,
+                canAccessAccounts: true
               };
             } else {
               session.user.permissions = {
@@ -353,7 +374,8 @@ export const authOptions = {
                 canAccessInventory: false,
                 canAccessTools: false,
                 canAccessPayments: false,
-                canAccessTodos: true
+                canAccessTodos: true,
+                canAccessAccounts: false
               };
             }
           }

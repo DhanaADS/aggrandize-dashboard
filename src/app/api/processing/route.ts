@@ -28,6 +28,9 @@ export async function GET(request: NextRequest) {
     // Exclude cancelled orders
     conditions.push(`o.status != 'cancelled'`);
 
+    // Only show orders that have show_on_processing enabled (default true)
+    conditions.push(`COALESCE(o.show_on_processing, true) = true`);
+
     // Exclude completed items (status = 'live')
     conditions.push(`oi.status != 'live'`);
 
@@ -168,6 +171,7 @@ export async function GET(request: NextRequest) {
       JOIN orders o ON o.id = oi.order_id
       WHERE o.assigned_to = $1
         AND o.status != 'cancelled'
+        AND COALESCE(o.show_on_processing, true) = true
         AND oi.status != 'live'
     `, [session.user.email]);
 

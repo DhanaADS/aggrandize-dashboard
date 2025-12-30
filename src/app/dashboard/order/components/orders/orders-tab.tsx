@@ -18,7 +18,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
   Skeleton,
   Alert,
   Collapse,
@@ -26,9 +25,6 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Visibility as ViewIcon,
   FilterList as FilterIcon,
   Close as CloseIcon,
   Search as SearchIcon,
@@ -39,8 +35,6 @@ import {
   OrderFilters,
   ORDER_STATUS_COLORS,
   ORDER_STATUS_LABELS,
-  PAYMENT_STATUS_COLORS,
-  PAYMENT_STATUS_LABELS,
   OrderStatus,
   PaymentStatus,
 } from '@/types/orders';
@@ -133,13 +127,6 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
     setShowForm(false);
     setEditingOrder(null);
     setRefreshTrigger((prev) => prev + 1);
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
   };
 
   const formatDate = (dateString: string) => {
@@ -336,27 +323,25 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
         </Box>
       ) : (
         <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 1200 }}>
+          <Table sx={{ minWidth: 700 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Order #</TableCell>
                 <TableCell>Client</TableCell>
                 <TableCell>Project</TableCell>
                 <TableCell>Date</TableCell>
-                <TableCell align="right">Total</TableCell>
-                <TableCell align="right">Balance</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell>Payment</TableCell>
-                <TableCell>Assigned To</TableCell>
                 <TableCell align="center">Items</TableCell>
-                <TableCell align="center">Article</TableCell>
-                <TableCell align="center">Live</TableCell>
-                <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {orders.map((order) => (
-                <TableRow key={order.id} hover>
+                <TableRow
+                  key={order.id}
+                  hover
+                  onClick={() => onViewOrder(order.id)}
+                  sx={{ cursor: 'pointer' }}
+                >
                   <TableCell>
                     <Typography variant="body2" fontWeight="600" sx={{ color: 'primary.main' }}>
                       {order.order_number}
@@ -366,45 +351,14 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
                     <Typography variant="body2" fontWeight="500">
                       {order.client_name}
                     </Typography>
-                    {order.client_company && (
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        {order.client_company}
-                      </Typography>
-                    )}
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {order.project_name || '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">{formatDate(order.order_date)}</Typography>
-                    {order.due_date && (
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        Due: {formatDate(order.due_date)}
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2" fontWeight="600">
-                      {formatCurrency(order.total_amount)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography
-                      variant="body2"
-                      fontWeight="600"
-                      sx={{
-                        color:
-                          order.balance_due > 0
-                            ? 'warning.main'
-                            : order.balance_due === 0
-                            ? 'success.main'
-                            : 'text.primary',
-                      }}
-                    >
-                      {formatCurrency(order.balance_due)}
-                    </Typography>
                   </TableCell>
                   <TableCell>
                     <Chip
@@ -418,96 +372,10 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
                       }}
                     />
                   </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={PAYMENT_STATUS_LABELS[order.payment_status]}
-                      size="small"
-                      sx={{
-                        bgcolor: `${PAYMENT_STATUS_COLORS[order.payment_status]}20`,
-                        color: PAYMENT_STATUS_COLORS[order.payment_status],
-                        fontWeight: 600,
-                        fontSize: '0.75rem',
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {order.assigned_to ? (
-                      <Typography variant="body2" fontWeight={500}>
-                        {order.assigned_to.split('@')[0]}
-                      </Typography>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary" fontStyle="italic">
-                        Unassigned
-                      </Typography>
-                    )}
-                  </TableCell>
                   <TableCell align="center">
                     <Typography variant="body2">
                       {order.items_completed || 0}/{order.items_count || 0}
                     </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    {(order.items_with_article || 0) > 0 ? (
-                      <Button
-                        size="small"
-                        variant="text"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onViewOrder(order.id);
-                        }}
-                        sx={{ minWidth: 'auto', textTransform: 'none', fontSize: '0.75rem' }}
-                      >
-                        View ({order.items_with_article})
-                      </Button>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">-</Typography>
-                    )}
-                  </TableCell>
-                  <TableCell align="center">
-                    {(order.items_with_live || 0) > 0 ? (
-                      <Button
-                        size="small"
-                        variant="text"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onViewOrder(order.id);
-                        }}
-                        sx={{ minWidth: 'auto', textTransform: 'none', fontSize: '0.75rem' }}
-                      >
-                        View ({order.items_with_live})
-                      </Button>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">-</Typography>
-                    )}
-                  </TableCell>
-                  <TableCell align="center">
-                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                      <IconButton
-                        size="small"
-                        onClick={() => onViewOrder(order.id)}
-                        title="View Details"
-                      >
-                        <ViewIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => {
-                          setEditingOrder(order);
-                          setShowForm(true);
-                        }}
-                        title="Edit"
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDelete(order.id, order.order_number)}
-                        title="Delete"
-                        sx={{ color: 'error.main' }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
                   </TableCell>
                 </TableRow>
               ))}

@@ -56,23 +56,39 @@ export interface OrderGroup {
 }
 
 /**
- * Parse order number from Excel format to system format
- * TA20_01 → AGG-2020-001
- * TA20_180 → AGG-2020-180
+ * Keep order number as-is from Excel
+ * TA20_01 → TA20_01
+ * ADS23_01 → ADS23_01
+ * No conversion - preserve original format
  */
 export function parseOrderNumber(no: string): string {
   if (!no) return '';
+  return no.toString().trim();
+}
 
-  // Extract year and number from formats like TA20_01, TA20_180
-  const match = no.match(/TA(\d{2})_(\d+)/i);
+/**
+ * Check if order number is valid
+ * Supports: TA{YY}_{XXX}, ADS{YY}_{XXX}
+ */
+export function isValidOrderNumber(no: string): boolean {
+  if (!no) return false;
+  const str = no.toString().trim();
+  // TA20_01, TA21_100, ADS23_01, ADS24_50
+  return /^(TA|ADS)\d{2}_\d+$/i.test(str);
+}
+
+/**
+ * Extract year from order number
+ * TA20_01 → 2020
+ * ADS23_01 → 2023
+ */
+export function extractYearFromOrderNo(no: string): number {
+  if (!no) return 2020;
+  const match = no.match(/^(?:TA|ADS)(\d{2})_/i);
   if (match) {
-    const year = `20${match[1]}`;
-    const num = match[2].padStart(3, '0');
-    return `AGG-${year}-${num}`;
+    return 2000 + parseInt(match[1], 10);
   }
-
-  // Return original if not matching expected format
-  return no;
+  return 2020;
 }
 
 /**
@@ -242,18 +258,20 @@ function excelDateToISO(serial: number): string {
  * 22/12/20 → 2020-12-22
  * 43890 (Excel serial) → 2020-03-11
  */
-export function parseDate(date: string | Date | number | null, month?: string): string {
+export function parseDate(date: string | Date | number | null, month?: string, year?: number): string {
+  const defaultYear = year || 2020;
+
   if (!date && date !== 0) {
     // Use month sheet name as fallback
     const monthMap: Record<string, string> = {
-      'Jan': '01', 'Feb': '02', 'Mar': '03', 'April': '04',
-      'May': '05', 'June': '06', 'July': '07', 'Aug': '08',
+      'Jan': '01', 'Feb': '02', 'Mar': '03', 'March': '03', 'April': '04', 'Apr': '04',
+      'May': '05', 'June': '06', 'Jun': '06', 'July': '07', 'Aug': '08',
       'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
     };
     if (month && monthMap[month]) {
-      return `2020-${monthMap[month]}-01`;
+      return `${defaultYear}-${monthMap[month]}-01`;
     }
-    return '2020-01-01';
+    return `${defaultYear}-01-01`;
   }
 
   // Handle Date object
@@ -300,30 +318,43 @@ export function parseDate(date: string | Date | number | null, month?: string): 
     // Ignore parsing errors
   }
 
-  return '2020-01-01';
+  return `${defaultYear}-01-01`;
 }
 
 /**
  * Get order number from row, handling different column names
- * Some sheets use "No", others use "  " (spaces)
+ * Supports: TA{YY}_{XXX} and ADS{YY}_{XXX} formats
+ * Column names: "No", "Order No", "Order_No", or spaces
  */
 function getOrderNumber(row: ExcelRow & Record<string, unknown>): string | null {
+  // Check for valid order number pattern (TA or ADS prefix)
+  const isOrderNo = (val: unknown): boolean => {
+    if (!val || typeof val !== 'string') return false;
+    return /^(TA|ADS)\d{2}_\d+$/i.test(val.trim());
+  };
+
   // Try standard "No" column
-  if (row.No && typeof row.No === 'string' && row.No.startsWith('TA')) {
-    return row.No;
+  if (isOrderNo(row.No)) {
+    return (row.No as string).trim();
+  }
+
+  // Try "Order No" column (2025 format)
+  const orderNoKey = 'Order No';
+  if (isOrderNo(row[orderNoKey])) {
+    return (row[orderNoKey] as string).trim();
   }
 
   // Try column with spaces (June sheet)
   const spacesKey = '  ';
-  if (row[spacesKey] && typeof row[spacesKey] === 'string' && (row[spacesKey] as string).startsWith('TA')) {
-    return row[spacesKey] as string;
+  if (isOrderNo(row[spacesKey])) {
+    return (row[spacesKey] as string).trim();
   }
 
   // Try first column that looks like an order number
   for (const key of Object.keys(row)) {
     const val = row[key];
-    if (val && typeof val === 'string' && val.startsWith('TA') && /^TA\d{2}_\d+$/.test(val)) {
-      return val;
+    if (isOrderNo(val)) {
+      return (val as string).trim();
     }
   }
 
@@ -379,14 +410,17 @@ export function groupRowsByOrder(rows: (ExcelRow & Record<string, unknown>)[], s
 /**
  * Transform an order group to system format
  */
-export function transformOrderGroup(group: OrderGroup, sheetName: string): TransformedOrder {
+export function transformOrderGroup(group: OrderGroup, sheetName: string, year?: number): TransformedOrder {
   const totalPrice = parsePrice(group.price);
   const itemCount = group.rows.length;
   const pricePerItem = itemCount > 0 ? Math.round((totalPrice / itemCount) * 100) / 100 : 0;
 
+  // Extract year from order number if not provided
+  const orderYear = year || extractYearFromOrderNo(group.orderNo);
+
   // Determine overall status from items
   const statuses = group.rows.map(r => r.Status?.toLowerCase().trim() || 'live');
-  const hasAllLive = statuses.every(s => s === 'live' || s === 'verified');
+  const hasAllLive = statuses.every(s => s === 'live' || s === 'verified' || s === 'completed');
   const hasAllCanceled = statuses.every(s => s === 'canceled' || s === 'cancelled');
 
   let orderStatus: OrderStatus = 'completed';
@@ -422,12 +456,12 @@ export function transformOrderGroup(group: OrderGroup, sheetName: string): Trans
     client_email: null,
     client_company: extractDomain(group.clientUrl),
     project_name: firstKeyword,
-    order_date: parseDate(group.date, sheetName),
+    order_date: parseDate(group.date, sheetName, orderYear),
     due_date: null,
     total_amount: totalPrice,
     status: orderStatus,
     payment_status: paymentStatus,
-    notes: `Imported from ${sheetName} 2020`,
+    notes: `Imported from ${sheetName} ${orderYear}`,
     items
   };
 }
@@ -435,9 +469,9 @@ export function transformOrderGroup(group: OrderGroup, sheetName: string): Trans
 /**
  * Transform all rows from a sheet
  */
-export function transformSheet(rows: (ExcelRow & Record<string, unknown>)[], sheetName: string): TransformedOrder[] {
+export function transformSheet(rows: (ExcelRow & Record<string, unknown>)[], sheetName: string, year?: number): TransformedOrder[] {
   const groups = groupRowsByOrder(rows, sheetName);
-  return groups.map(group => transformOrderGroup(group, sheetName));
+  return groups.map(group => transformOrderGroup(group, sheetName, year));
 }
 
 /**

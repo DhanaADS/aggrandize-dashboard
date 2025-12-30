@@ -28,6 +28,13 @@ import {
   Select,
   MenuItem,
   Divider,
+  Switch,
+  FormControlLabel,
+  Autocomplete,
+  ToggleButton,
+  ToggleButtonGroup,
+  Checkbox,
+  Tooltip,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -36,6 +43,12 @@ import {
   Payment as PaymentIcon,
   CheckCircle as CheckIcon,
   Link as LinkIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+  PersonAdd as PersonAddIcon,
+  PersonOff as PersonOffIcon,
+  Inventory as InventoryIcon,
+  Create as ManualIcon,
 } from '@mui/icons-material';
 import {
   Order,
@@ -88,6 +101,11 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
     notes: '',
   });
 
+  // Website mode: 'inventory' (autocomplete from inventory) or 'manual' (free text)
+  const [websiteMode, setWebsiteMode] = useState<'inventory' | 'manual'>('manual');
+  const [inventoryItems, setInventoryItems] = useState<{ website_name: string; website_url: string }[]>([]);
+  const [useDefaultKeyword, setUseDefaultKeyword] = useState(false);
+
   const [paymentForm, setPaymentForm] = useState({
     amount: 0,
     payment_method: '',
@@ -119,6 +137,51 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
   useEffect(() => {
     fetchOrder();
   }, [fetchOrder, refreshTrigger]);
+
+  // Fetch inventory items for autocomplete
+  useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        const response = await fetch('/api/inventory?limit=500');
+        const data = await response.json();
+        if (data.success && data.items) {
+          setInventoryItems(data.items.map((item: { website_name: string; website_url: string }) => ({
+            website_name: item.website_name,
+            website_url: item.website_url,
+          })));
+        }
+      } catch (err) {
+        console.error('Error fetching inventory:', err);
+      }
+    };
+    fetchInventory();
+  }, []);
+
+  // Update keyword when using default keyword
+  useEffect(() => {
+    if (useDefaultKeyword && order?.default_keyword && !editingItem) {
+      setItemForm(prev => ({ ...prev, keyword: order.default_keyword || '' }));
+    }
+  }, [useDefaultKeyword, order?.default_keyword, editingItem]);
+
+  // Handler for updating order settings
+  const handleUpdateOrderSetting = async (field: string, value: boolean | string) => {
+    try {
+      const response = await fetch(`/api/order/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setRefreshTrigger(prev => prev + 1);
+      } else {
+        alert(data.error || `Failed to update ${field}`);
+      }
+    } catch (err) {
+      alert(`Failed to update ${field}`);
+    }
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -421,6 +484,60 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
                   Project: {order.project_name}
                 </Typography>
               )}
+              {/* Order Settings Toggles */}
+              <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+                <Tooltip title="When enabled, this order and its items appear on the Processing page">
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={order.show_on_processing ?? true}
+                        onChange={(e) => handleUpdateOrderSetting('show_on_processing', e.target.checked)}
+                        size="small"
+                      />
+                    }
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {order.show_on_processing ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
+                        <Typography variant="body2">Show on Processing</Typography>
+                      </Box>
+                    }
+                  />
+                </Tooltip>
+                <Tooltip title="When enabled, team members can be assigned to items">
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={order.enable_assignments ?? true}
+                        onChange={(e) => handleUpdateOrderSetting('enable_assignments', e.target.checked)}
+                        size="small"
+                      />
+                    }
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {order.enable_assignments ? <PersonAddIcon fontSize="small" /> : <PersonOffIcon fontSize="small" />}
+                        <Typography variant="body2">Enable Assignments</Typography>
+                      </Box>
+                    }
+                  />
+                </Tooltip>
+              </Box>
+              {/* Default Keyword */}
+              <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <TextField
+                  size="small"
+                  label="Default Keyword"
+                  value={order.default_keyword || ''}
+                  onChange={(e) => handleUpdateOrderSetting('default_keyword', e.target.value)}
+                  placeholder="Auto-fill for new items"
+                  sx={{ minWidth: 200 }}
+                  InputProps={{
+                    sx: { fontSize: '0.85rem' }
+                  }}
+                />
+                <Typography variant="caption" color="text.secondary">
+                  (applies to all new items)
+                </Typography>
+              </Box>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
               <Box sx={{ textAlign: { xs: 'left', md: 'right' } }}>
@@ -633,17 +750,19 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
                                     </Box>
                                   );
                                 })}
-                                <Button
-                                  size="small"
-                                  variant="text"
-                                  onClick={() => openAssignmentDialog(item)}
-                                  sx={{ fontSize: '0.65rem', alignSelf: 'flex-start', mt: 0.5, p: 0.5 }}
-                                  startIcon={<AddIcon sx={{ fontSize: '0.9rem' }} />}
-                                >
-                                  Add
-                                </Button>
+                                {(order.enable_assignments ?? true) && (
+                                  <Button
+                                    size="small"
+                                    variant="text"
+                                    onClick={() => openAssignmentDialog(item)}
+                                    sx={{ fontSize: '0.65rem', alignSelf: 'flex-start', mt: 0.5, p: 0.5 }}
+                                    startIcon={<AddIcon sx={{ fontSize: '0.9rem' }} />}
+                                  >
+                                    Add
+                                  </Button>
+                                )}
                               </>
-                            ) : (
+                            ) : (order.enable_assignments ?? true) ? (
                               <Button
                                 size="small"
                                 variant="outlined"
@@ -652,6 +771,8 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
                               >
                                 Assign
                               </Button>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">-</Typography>
                             )}
                           </Box>
                         </TableCell>
@@ -847,15 +968,72 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
         <DialogTitle>{editingItem ? 'Edit Publication' : 'Add Publication'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
+            {/* Website Mode Toggle (only for new items) */}
+            {!editingItem && (
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">Website Mode:</Typography>
+                  <ToggleButtonGroup
+                    value={websiteMode}
+                    exclusive
+                    onChange={(_, newMode) => {
+                      if (newMode) {
+                        setWebsiteMode(newMode);
+                        setItemForm({ ...itemForm, website: '' });
+                      }
+                    }}
+                    size="small"
+                  >
+                    <ToggleButton value="inventory" sx={{ px: 2, py: 0.5 }}>
+                      <InventoryIcon sx={{ mr: 0.5, fontSize: '1rem' }} />
+                      <Typography variant="body2">Inventory</Typography>
+                    </ToggleButton>
+                    <ToggleButton value="manual" sx={{ px: 2, py: 0.5 }}>
+                      <ManualIcon sx={{ mr: 0.5, fontSize: '1rem' }} />
+                      <Typography variant="body2">Manual</Typography>
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
+              </Grid>
+            )}
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Website"
-                required
-                value={itemForm.website}
-                onChange={(e) => setItemForm({ ...itemForm, website: e.target.value })}
-                disabled={!!editingItem}
-              />
+              {/* Website field - Autocomplete for inventory mode, TextField for manual */}
+              {!editingItem && websiteMode === 'inventory' ? (
+                <Autocomplete
+                  options={inventoryItems}
+                  getOptionLabel={(option) => option.website_name || ''}
+                  value={inventoryItems.find(i => i.website_name === itemForm.website) || null}
+                  onChange={(_, newValue) => {
+                    setItemForm({ ...itemForm, website: newValue?.website_name || '' });
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Website (from inventory)"
+                      required
+                      placeholder="Search inventory..."
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option.website_name}>
+                      <Box>
+                        <Typography variant="body2" fontWeight="600">{option.website_name}</Typography>
+                        <Typography variant="caption" color="text.secondary">{option.website_url}</Typography>
+                      </Box>
+                    </li>
+                  )}
+                />
+              ) : (
+                <TextField
+                  fullWidth
+                  label="Website"
+                  required
+                  value={itemForm.website}
+                  onChange={(e) => setItemForm({ ...itemForm, website: e.target.value })}
+                  disabled={!!editingItem}
+                  placeholder={editingItem ? '' : 'Enter website name...'}
+                />
+              )}
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
@@ -869,13 +1047,44 @@ export function OrderDetail({ orderId, onBack }: OrderDetailProps) {
               />
             </Grid>
             <Grid size={{ xs: 12 }}>
-              <TextField
-                fullWidth
-                label="Keyword"
-                required
-                value={itemForm.keyword}
-                onChange={(e) => setItemForm({ ...itemForm, keyword: e.target.value })}
-              />
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                <TextField
+                  fullWidth
+                  label="Keyword"
+                  required
+                  value={itemForm.keyword}
+                  onChange={(e) => {
+                    setItemForm({ ...itemForm, keyword: e.target.value });
+                    if (useDefaultKeyword && e.target.value !== order?.default_keyword) {
+                      setUseDefaultKeyword(false);
+                    }
+                  }}
+                />
+                {!editingItem && order?.default_keyword && (
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={useDefaultKeyword}
+                        onChange={(e) => {
+                          setUseDefaultKeyword(e.target.checked);
+                          if (e.target.checked) {
+                            setItemForm({ ...itemForm, keyword: order.default_keyword || '' });
+                          }
+                        }}
+                        size="small"
+                      />
+                    }
+                    label={
+                      <Tooltip title={`Use default: "${order.default_keyword}"`}>
+                        <Typography variant="caption" sx={{ whiteSpace: 'nowrap' }}>
+                          Use default
+                        </Typography>
+                      </Tooltip>
+                    }
+                    sx={{ ml: 0, mt: 0.5 }}
+                  />
+                )}
+              </Box>
             </Grid>
             <Grid size={{ xs: 12 }}>
               <TextField

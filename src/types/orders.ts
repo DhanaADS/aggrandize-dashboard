@@ -42,6 +42,11 @@ export interface Order {
   // Assignment
   assigned_to: string | null;
 
+  // Order-level settings
+  default_keyword: string | null;
+  show_on_processing: boolean;
+  enable_assignments: boolean;
+
   // Joined data (optional)
   items?: OrderItem[];
   payments?: OrderPayment[];
@@ -129,6 +134,10 @@ export interface CreateOrderInput {
   notes?: string;
   created_by?: string;
   assigned_to?: string;
+  // Order-level settings
+  default_keyword?: string;
+  show_on_processing?: boolean;
+  enable_assignments?: boolean;
   items?: CreateOrderItemInput[];
 }
 
@@ -145,6 +154,10 @@ export interface UpdateOrderInput {
   status?: OrderStatus;
   notes?: string;
   assigned_to?: string;
+  // Order-level settings
+  default_keyword?: string;
+  show_on_processing?: boolean;
+  enable_assignments?: boolean;
 }
 
 export interface CreateOrderItemInput {
