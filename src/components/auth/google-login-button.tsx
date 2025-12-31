@@ -11,13 +11,14 @@ interface GoogleLoginButtonProps {
 
 export function GoogleLoginButton({ disabled = false, callbackUrl = '/dashboard' }: GoogleLoginButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true);
-      await signIn('google', { 
+      await signIn('google', {
         callbackUrl,
-        redirect: true 
+        redirect: true
       });
     } catch (error) {
       console.error('Google login error:', error);
@@ -25,59 +26,51 @@ export function GoogleLoginButton({ disabled = false, callbackUrl = '/dashboard'
     }
   };
 
+  const buttonStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.75rem',
+    width: '100%',
+    padding: '1rem 1.5rem',
+    backgroundColor: isHovered && !disabled && !isLoading ? '#f8fafc' : '#ffffff',
+    color: '#1e293b',
+    border: isHovered && !disabled && !isLoading ? '1px solid #3b82f6' : '1px solid #e2e8f0',
+    borderRadius: '12px',
+    fontSize: '1rem',
+    fontWeight: '500',
+    cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
+    opacity: disabled || isLoading ? 0.6 : 1,
+    transition: 'all 0.2s ease',
+    boxShadow: isHovered && !disabled && !isLoading
+      ? '0 4px 12px rgba(59, 130, 246, 0.15)'
+      : '0 1px 3px rgba(0, 0, 0, 0.08)',
+  };
+
   return (
     <button
       type="button"
       onClick={handleGoogleLogin}
       disabled={disabled || isLoading}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '0.75rem',
-        width: '100%',
-        padding: '0.875rem 1.5rem',
-        backgroundColor: '#fff',
-        color: '#1f2937',
-        border: '1px solid #d1d5db',
-        borderRadius: '8px',
-        fontSize: '0.95rem',
-        fontWeight: '500',
-        cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
-        opacity: disabled || isLoading ? 0.6 : 1,
-        transition: 'all 0.2s ease',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled && !isLoading) {
-          e.currentTarget.style.backgroundColor = '#f9fafb';
-          e.currentTarget.style.borderColor = '#9ca3af';
-          e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!disabled && !isLoading) {
-          e.currentTarget.style.backgroundColor = '#fff';
-          e.currentTarget.style.borderColor = '#d1d5db';
-          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-        }
-      }}
+      style={buttonStyle}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {isLoading ? (
         <div
           className={styles.spinner}
           style={{
-            width: '18px',
-            height: '18px',
-            border: '2px solid #f3f4f6',
+            width: '20px',
+            height: '20px',
+            border: '2px solid #e2e8f0',
             borderTop: '2px solid #3b82f6',
             borderRadius: '50%'
           }}
         />
       ) : (
         <svg
-          width="18"
-          height="18"
+          width="20"
+          height="20"
           viewBox="0 0 24 24"
           style={{ flexShrink: 0 }}
         >
@@ -99,7 +92,7 @@ export function GoogleLoginButton({ disabled = false, callbackUrl = '/dashboard'
           />
         </svg>
       )}
-      {isLoading ? 'Signing in...' : 'Continue with Google'}
+      <span>{isLoading ? 'Signing in...' : 'Continue with Google'}</span>
     </button>
   );
 }
