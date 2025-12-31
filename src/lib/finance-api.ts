@@ -29,6 +29,7 @@ import {
   ExpenseApproval,
   ExpenseApprovalFormData,
   UserSettlementSummary,
+  SettlementRecord,
   ADS_ACCOUNTS
 } from '@/types/finance';
 
@@ -1695,5 +1696,68 @@ export async function bulkMarkSettled(user: string, settledBy?: string): Promise
   } catch (error) {
     console.error('Error bulk marking settlements:', error);
     throw error;
+  }
+}
+
+/**
+ * Get settlement history - all completed settlements with linked expense details
+ */
+export async function getSettlementHistory(): Promise<SettlementRecord[]> {
+  try {
+    // Get all completed settlements
+    const settlementsResult = await query<{
+      id: string;
+      from_member: string;
+      to_member: string;
+      amount_inr: number;
+      reason: string;
+      status: string;
+      settlement_date: string;
+      settled_by: string;
+      created_at: string;
+    }>(`
+      SELECT id, from_member, to_member, amount_inr, reason, status,
+             settlement_date, settled_by, created_at
+      FROM settlements
+      WHERE status = 'completed'
+      ORDER BY created_at DESC
+      LIMIT 50
+    `, []);
+
+    const settlements = settlementsResult.rows || [];
+
+    // For each settlement, get the linked expenses
+    const settlementsWithExpenses: SettlementRecord[] = [];
+
+    for (const settlement of settlements) {
+      // Get expenses linked to this settlement via junction table
+      const expensesResult = await query<{
+        id: string;
+        purpose: string;
+        category: string;
+        amount_inr: number;
+        expense_date: string;
+      }>(`
+        SELECT e.id,
+               COALESCE(e.description, e.purpose, 'Expense') as purpose,
+               COALESCE(e.category, 'Other') as category,
+               se.amount_inr,
+               COALESCE(e.date, e.expense_date)::text as expense_date
+        FROM settlement_expenses se
+        JOIN expenses e ON e.id = se.expense_id
+        WHERE se.settlement_id = $1
+        ORDER BY e.date DESC
+      `, [settlement.id]);
+
+      settlementsWithExpenses.push({
+        ...settlement,
+        expenses: expensesResult.rows || []
+      });
+    }
+
+    return settlementsWithExpenses;
+  } catch (error) {
+    console.error('Error getting settlement history:', error);
+    return [];
   }
 }

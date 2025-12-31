@@ -496,6 +496,28 @@ export interface UserSettlementSummary {
   }[];
 }
 
+// Settlement History interfaces
+export interface SettlementRecord {
+  id: string;
+  from_member: string;
+  to_member: string;
+  amount_inr: number;
+  reason: string;
+  status: string;
+  settlement_date: string;
+  settled_by: string;
+  created_at: string;
+  expenses: SettledExpenseDetail[];
+}
+
+export interface SettledExpenseDetail {
+  id: string;
+  purpose: string;
+  category: string;
+  amount_inr: number;
+  expense_date: string;
+}
+
 // Payslip related interfaces
 export interface PayslipData {
   employee: EmployeeProfile;

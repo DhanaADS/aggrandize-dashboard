@@ -22,8 +22,8 @@ import {
   ExpandLess as CollapseIcon,
   CheckCircle as SettleIcon,
 } from '@mui/icons-material';
-import { UserSettlementSummary, ADS_ACCOUNTS } from '@/types/finance';
-import { getUserSettlementSummaries, bulkMarkSettled } from '@/lib/finance-api';
+import { UserSettlementSummary, SettlementRecord, ADS_ACCOUNTS } from '@/types/finance';
+import { getUserSettlementSummaries, bulkMarkSettled, getSettlementHistory } from '@/lib/finance-api';
 import { formatSettlementNotification } from '@/lib/whatsapp/expense-parser';
 import { getPhoneByTeamMember } from '@/lib/whatsapp/team-mapping';
 
@@ -34,31 +34,41 @@ interface UserSettlementsProps {
 
 export function UserSettlements({ refreshTrigger, adminName }: UserSettlementsProps) {
   const [summaries, setSummaries] = useState<UserSettlementSummary[]>([]);
+  const [history, setHistory] = useState<SettlementRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
   const [settlingUser, setSettlingUser] = useState<string | null>(null);
 
-  const fetchSummaries = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getUserSettlementSummaries();
-      setSummaries(data || []);
+      const [summariesData, historyData] = await Promise.all([
+        getUserSettlementSummaries(),
+        getSettlementHistory()
+      ]);
+      setSummaries(summariesData || []);
+      setHistory(historyData || []);
     } catch (err) {
-      setError('Failed to load settlement summaries');
-      console.error('Error fetching settlement summaries:', err);
+      setError('Failed to load settlement data');
+      console.error('Error fetching settlement data:', err);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchSummaries();
-  }, [fetchSummaries, refreshTrigger]);
+    fetchData();
+  }, [fetchData, refreshTrigger]);
 
   const handleToggleExpand = (user: string) => {
     setExpandedUser(expandedUser === user ? null : user);
+  };
+
+  const handleToggleHistory = (id: string) => {
+    setExpandedHistory(expandedHistory === id ? null : id);
   };
 
   const handleMarkSettled = async (user: string) => {
@@ -96,7 +106,7 @@ export function UserSettlements({ refreshTrigger, adminName }: UserSettlementsPr
         }
       }
       // Refresh the data
-      await fetchSummaries();
+      await fetchData();
       setExpandedUser(null);
     } catch (err) {
       alert('Failed to mark settlements as completed');
@@ -315,6 +325,134 @@ export function UserSettlements({ refreshTrigger, adminName }: UserSettlementsPr
             </TableBody>
           </Table>
         </TableContainer>
+      )}
+
+      {/* Settlement History Section */}
+      {history.length > 0 && (
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h6" fontWeight="600" sx={{ mb: 2 }}>
+            Settlement History
+          </Typography>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell width="40px"></TableCell>
+                  <TableCell>Date</TableCell>
+                  <TableCell>Team Member</TableCell>
+                  <TableCell align="right">Amount</TableCell>
+                  <TableCell align="center">Expenses</TableCell>
+                  <TableCell>Settled By</TableCell>
+                  <TableCell align="center">Status</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {history.map((record) => (
+                  <React.Fragment key={record.id}>
+                    <TableRow
+                      hover
+                      onClick={() => handleToggleHistory(record.id)}
+                      sx={{ cursor: 'pointer', '& > *': { borderBottom: expandedHistory === record.id ? 0 : undefined } }}
+                    >
+                      <TableCell>
+                        <IconButton size="small">
+                          {expandedHistory === record.id ? <CollapseIcon /> : <ExpandIcon />}
+                        </IconButton>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {formatDate(record.settlement_date || record.created_at)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body1" fontWeight="600">
+                          {record.from_member}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body1" fontWeight="700" sx={{ color: '#10b981' }}>
+                          {formatCurrency(record.amount_inr)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          label={`${record.expenses?.length || 0} item${(record.expenses?.length || 0) !== 1 ? 's' : ''}`}
+                          size="small"
+                          sx={{ bgcolor: 'primary.main' + '20', color: 'primary.main' }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {record.settled_by || '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          label="Settled"
+                          size="small"
+                          sx={{ bgcolor: '#10b98120', color: '#10b981', fontWeight: 600 }}
+                        />
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Expanded Details Row */}
+                    <TableRow>
+                      <TableCell colSpan={7} sx={{ py: 0, bgcolor: 'action.hover' }}>
+                        <Collapse in={expandedHistory === record.id} timeout="auto" unmountOnExit>
+                          <Box sx={{ py: 2, px: 3 }}>
+                            <Typography variant="subtitle2" fontWeight="600" sx={{ mb: 2 }}>
+                              Expenses Settled
+                            </Typography>
+                            {record.expenses && record.expenses.length > 0 ? (
+                              <Table size="small">
+                                <TableHead>
+                                  <TableRow>
+                                    <TableCell>Date</TableCell>
+                                    <TableCell>Category</TableCell>
+                                    <TableCell>Purpose</TableCell>
+                                    <TableCell align="right">Amount</TableCell>
+                                  </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                  {record.expenses.map((expense) => (
+                                    <TableRow key={expense.id}>
+                                      <TableCell>{formatDate(expense.expense_date)}</TableCell>
+                                      <TableCell>
+                                        <Chip
+                                          label={expense.category || 'Other'}
+                                          size="small"
+                                          sx={{ fontSize: '0.7rem' }}
+                                        />
+                                      </TableCell>
+                                      <TableCell>
+                                        <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                          {expense.purpose || '-'}
+                                        </Typography>
+                                      </TableCell>
+                                      <TableCell align="right">
+                                        <Typography variant="body2" fontWeight="600">
+                                          {formatCurrency(expense.amount_inr)}
+                                        </Typography>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">
+                                No expense details available
+                              </Typography>
+                            )}
+                          </Box>
+                        </Collapse>
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
       )}
     </Box>
   );
