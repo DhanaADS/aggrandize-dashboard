@@ -1092,19 +1092,23 @@ export async function recalculateOrderTotals(orderId: string): Promise<Order | n
   return result;
 }
 
-// Get order stats
-export async function getOrderStats(): Promise<OrderStats> {
+// Get order stats (with optional date filter for 2026+ filtering)
+export async function getOrderStats(filters?: { date_from?: string }): Promise<OrderStats> {
+  // Build date condition if filter provided
+  const dateCondition = filters?.date_from ? `order_date >= '${filters.date_from}'` : '1=1';
+  const dateAndCondition = filters?.date_from ? `AND order_date >= '${filters.date_from}'` : '';
+
   const result = await queryOne<OrderStats>(`
     SELECT
-      (SELECT COUNT(*) FROM orders)::int as total_orders,
-      (SELECT COUNT(*) FROM orders WHERE status = 'draft')::int as draft_count,
-      (SELECT COUNT(*) FROM orders WHERE status = 'confirmed')::int as confirmed_count,
-      (SELECT COUNT(*) FROM orders WHERE status = 'in_progress')::int as in_progress_count,
-      (SELECT COUNT(*) FROM orders WHERE status = 'completed')::int as completed_count,
-      (SELECT COUNT(*) FROM orders WHERE status = 'cancelled')::int as cancelled_count,
-      COALESCE((SELECT SUM(total_amount) FROM orders WHERE status != 'cancelled'), 0)::decimal as total_revenue,
-      COALESCE((SELECT SUM(amount_paid) FROM orders WHERE status != 'cancelled'), 0)::decimal as total_paid,
-      COALESCE((SELECT SUM(balance_due) FROM orders WHERE status != 'cancelled'), 0)::decimal as total_outstanding
+      (SELECT COUNT(*) FROM orders WHERE ${dateCondition})::int as total_orders,
+      (SELECT COUNT(*) FROM orders WHERE status = 'draft' ${dateAndCondition})::int as draft_count,
+      (SELECT COUNT(*) FROM orders WHERE status = 'confirmed' ${dateAndCondition})::int as confirmed_count,
+      (SELECT COUNT(*) FROM orders WHERE status = 'in_progress' ${dateAndCondition})::int as in_progress_count,
+      (SELECT COUNT(*) FROM orders WHERE status = 'completed' ${dateAndCondition})::int as completed_count,
+      (SELECT COUNT(*) FROM orders WHERE status = 'cancelled' ${dateAndCondition})::int as cancelled_count,
+      COALESCE((SELECT SUM(total_amount) FROM orders WHERE status != 'cancelled' ${dateAndCondition}), 0)::decimal as total_revenue,
+      COALESCE((SELECT SUM(amount_paid) FROM orders WHERE status != 'cancelled' ${dateAndCondition}), 0)::decimal as total_paid,
+      COALESCE((SELECT SUM(balance_due) FROM orders WHERE status != 'cancelled' ${dateAndCondition}), 0)::decimal as total_outstanding
   `);
   return result!;
 }
@@ -1289,4 +1293,242 @@ export async function deleteOrderPayment(paymentId: string): Promise<boolean> {
   }
 
   return (result.rowCount || 0) > 0;
+}
+
+// ==================== CLIENT CRM FUNCTIONS ====================
+
+import type { Client, ClientFormData, ClientSearchResult, ClientFilters } from '@/types/clients';
+
+// Get all clients with optional filters
+export async function getClients(filters?: ClientFilters): Promise<Client[]> {
+  let sql = 'SELECT * FROM clients WHERE 1=1';
+  const params: (string | number | boolean)[] = [];
+  let paramIndex = 1;
+
+  if (filters?.search) {
+    sql += ` AND (name ILIKE $${paramIndex} OR email ILIKE $${paramIndex} OR company ILIKE $${paramIndex})`;
+    params.push(`%${filters.search}%`);
+    paramIndex++;
+  }
+
+  if (filters?.has_email) {
+    sql += ` AND email IS NOT NULL AND email != ''`;
+  }
+
+  if (filters?.min_orders) {
+    sql += ` AND total_orders >= $${paramIndex}`;
+    params.push(filters.min_orders);
+    paramIndex++;
+  }
+
+  sql += ' ORDER BY last_order_date DESC NULLS LAST, name ASC';
+
+  const result = await query<Client>(sql, params);
+  return result.rows || [];
+}
+
+// Search clients for autocomplete
+export async function searchClients(searchTerm: string, limit: number = 10): Promise<ClientSearchResult[]> {
+  const sql = `
+    SELECT id, name, email, company, whatsapp, telegram, total_orders, total_revenue, last_order_date
+    FROM clients
+    WHERE name ILIKE $1 OR email ILIKE $1 OR company ILIKE $1
+    ORDER BY total_orders DESC, last_order_date DESC NULLS LAST
+    LIMIT $2
+  `;
+  const result = await query<ClientSearchResult>(sql, [`%${searchTerm}%`, limit]);
+  return result.rows || [];
+}
+
+// Get single client by ID
+export async function getClientById(id: string): Promise<Client | null> {
+  return queryOne<Client>('SELECT * FROM clients WHERE id = $1', [id]);
+}
+
+// Get client by email
+export async function getClientByEmail(email: string): Promise<Client | null> {
+  return queryOne<Client>('SELECT * FROM clients WHERE email = $1', [email]);
+}
+
+// Get client by name (exact match)
+export async function getClientByName(name: string): Promise<Client | null> {
+  return queryOne<Client>('SELECT * FROM clients WHERE LOWER(name) = LOWER($1)', [name]);
+}
+
+// Create new client
+export async function createClient(data: ClientFormData): Promise<Client> {
+  const result = await queryOne<Client>(
+    `INSERT INTO clients (name, email, company, whatsapp, telegram, notes, tags)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING *`,
+    [
+      data.name,
+      data.email || null,
+      data.company || null,
+      data.whatsapp || null,
+      data.telegram || null,
+      data.notes || null,
+      data.tags || null
+    ]
+  );
+  return result!;
+}
+
+// Update client
+export async function updateClient(id: string, data: Partial<ClientFormData>): Promise<Client> {
+  const fields: string[] = [];
+  const values: (string | string[] | null)[] = [];
+  let paramIndex = 1;
+
+  if (data.name !== undefined) {
+    fields.push(`name = $${paramIndex++}`);
+    values.push(data.name);
+  }
+  if (data.email !== undefined) {
+    fields.push(`email = $${paramIndex++}`);
+    values.push(data.email || null);
+  }
+  if (data.company !== undefined) {
+    fields.push(`company = $${paramIndex++}`);
+    values.push(data.company || null);
+  }
+  if (data.whatsapp !== undefined) {
+    fields.push(`whatsapp = $${paramIndex++}`);
+    values.push(data.whatsapp || null);
+  }
+  if (data.telegram !== undefined) {
+    fields.push(`telegram = $${paramIndex++}`);
+    values.push(data.telegram || null);
+  }
+  if (data.notes !== undefined) {
+    fields.push(`notes = $${paramIndex++}`);
+    values.push(data.notes || null);
+  }
+  if (data.tags !== undefined) {
+    fields.push(`tags = $${paramIndex++}`);
+    values.push(data.tags || null);
+  }
+
+  fields.push(`updated_at = NOW()`);
+  values.push(id);
+
+  const sql = `UPDATE clients SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+  const result = await queryOne<Client>(sql, values);
+  return result!;
+}
+
+// Update client stats (called after order changes)
+export async function updateClientStats(clientId: string): Promise<void> {
+  await query(
+    `UPDATE clients SET
+      total_orders = (SELECT COUNT(*) FROM orders WHERE client_id = $1),
+      total_revenue = COALESCE((SELECT SUM(total_amount) FROM orders WHERE client_id = $1), 0),
+      first_order_date = (SELECT MIN(order_date) FROM orders WHERE client_id = $1),
+      last_order_date = (SELECT MAX(order_date) FROM orders WHERE client_id = $1),
+      updated_at = NOW()
+    WHERE id = $1`,
+    [clientId]
+  );
+}
+
+// Find or create client from order data
+export async function findOrCreateClient(data: {
+  name: string;
+  email?: string | null;
+  company?: string | null;
+  whatsapp?: string | null;
+  telegram?: string | null;
+}): Promise<Client> {
+  // Try to find by email first (most reliable)
+  if (data.email) {
+    const byEmail = await getClientByEmail(data.email);
+    if (byEmail) return byEmail;
+  }
+
+  // Try to find by exact name match
+  const byName = await getClientByName(data.name);
+  if (byName) return byName;
+
+  // Create new client
+  return createClient({
+    name: data.name,
+    email: data.email || undefined,
+    company: data.company || undefined,
+    whatsapp: data.whatsapp || undefined,
+    telegram: data.telegram || undefined,
+  });
+}
+
+// Delete client
+export async function deleteClient(id: string): Promise<boolean> {
+  const result = await query('DELETE FROM clients WHERE id = $1', [id]);
+  return (result.rowCount || 0) > 0;
+}
+
+// Migrate existing orders to clients table (one-time migration)
+export async function migrateOrdersToClients(): Promise<{ clientsCreated: number; ordersLinked: number }> {
+  // Get unique clients from orders
+  const uniqueClients = await query<{
+    client_name: string;
+    client_email: string | null;
+    client_company: string | null;
+    client_whatsapp: string | null;
+    client_telegram: string | null;
+    total_orders: number;
+    total_revenue: number;
+    first_order_date: string;
+    last_order_date: string;
+  }>(`
+    SELECT
+      client_name,
+      MAX(client_email) as client_email,
+      MAX(client_company) as client_company,
+      MAX(client_whatsapp) as client_whatsapp,
+      MAX(client_telegram) as client_telegram,
+      COUNT(*)::int as total_orders,
+      COALESCE(SUM(total_amount), 0) as total_revenue,
+      MIN(order_date)::text as first_order_date,
+      MAX(order_date)::text as last_order_date
+    FROM orders
+    WHERE client_id IS NULL
+    GROUP BY LOWER(client_name)
+    ORDER BY total_orders DESC
+  `, []);
+
+  let clientsCreated = 0;
+  let ordersLinked = 0;
+
+  for (const clientData of uniqueClients.rows || []) {
+    // Create client
+    const client = await queryOne<Client>(
+      `INSERT INTO clients (name, email, company, whatsapp, telegram, total_orders, total_revenue, first_order_date, last_order_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT DO NOTHING
+       RETURNING *`,
+      [
+        clientData.client_name,
+        clientData.client_email,
+        clientData.client_company,
+        clientData.client_whatsapp,
+        clientData.client_telegram,
+        clientData.total_orders,
+        clientData.total_revenue,
+        clientData.first_order_date,
+        clientData.last_order_date
+      ]
+    );
+
+    if (client) {
+      clientsCreated++;
+
+      // Link orders to this client
+      const linkResult = await query(
+        `UPDATE orders SET client_id = $1 WHERE LOWER(client_name) = LOWER($2) AND client_id IS NULL`,
+        [client.id, clientData.client_name]
+      );
+      ordersLinked += linkResult.rowCount || 0;
+    }
+  }
+
+  return { clientsCreated, ordersLinked };
 }

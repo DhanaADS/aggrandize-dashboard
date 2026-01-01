@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   try {
     const [orders, stats] = await Promise.all([
       getOrders(Object.keys(filters).length > 0 ? filters : undefined),
-      getOrderStats(),
+      getOrderStats(filters.date_from ? { date_from: filters.date_from } : undefined),
     ]);
 
     return NextResponse.json({

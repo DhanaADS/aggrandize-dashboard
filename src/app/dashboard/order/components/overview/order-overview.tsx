@@ -52,7 +52,8 @@ export function OrderOverview({ onViewOrder }: OrderOverviewProps) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/order');
+      // Filter to 2026 orders only (fresh start for new year)
+      const response = await fetch('/api/order?date_from=2026-01-01');
       const data = await response.json();
 
       if (data.success) {

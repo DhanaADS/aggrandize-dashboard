@@ -22,6 +22,8 @@ import {
   Alert,
   Collapse,
   Grid,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -29,6 +31,8 @@ import {
   Close as CloseIcon,
   Search as SearchIcon,
   CloudUpload as ImportIcon,
+  TrendingUp as CurrentIcon,
+  History as HistoryIcon,
 } from '@mui/icons-material';
 import {
   Order,
@@ -40,6 +44,10 @@ import {
 } from '@/types/orders';
 import { OrderForm } from './order-form';
 import { ImportOrdersDialog } from '../import/import-orders-dialog';
+import { PreviousYearsTab } from './previous-years-tab';
+
+// Sub-tab type for Orders section
+type OrdersSubTab = 'current' | 'previous';
 
 // Admin emails who can see all orders
 const ADMIN_EMAILS = [
@@ -62,6 +70,7 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
   const [filters, setFilters] = useState<OrderFilters>({});
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<OrdersSubTab>('current'); // Sub-tab state
 
   // Check if current user is admin
   const userEmail = session?.user?.email || '';
@@ -78,6 +87,11 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
       if (filters.date_from) params.append('date_from', filters.date_from);
       if (filters.date_to) params.append('date_to', filters.date_to);
       if (filters.search) params.append('search', filters.search);
+
+      // Always filter to 2026 orders only (current year tab)
+      if (!filters.date_from) {
+        params.append('date_from', '2026-01-01');
+      }
 
       // Non-admins can only see orders assigned to them
       if (!isAdmin && userEmail) {
@@ -158,41 +172,73 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
 
   return (
     <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box>
-          <Typography variant="h5" fontWeight="600">
-            Orders
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {orders.length} order{orders.length !== 1 ? 's' : ''} found
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="outlined"
-            startIcon={<FilterIcon />}
-            onClick={() => setShowFilters(!showFilters)}
-            color={hasActiveFilters ? 'primary' : 'inherit'}
-          >
-            Filters {hasActiveFilters && `(${Object.values(filters).filter(Boolean).length})`}
-          </Button>
-          {isAdmin && (
-            <Button
-              variant="outlined"
-              startIcon={<ImportIcon />}
-              onClick={() => setShowImportDialog(true)}
-            >
-              Import
-            </Button>
-          )}
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setShowForm(true)}>
-            New Order
-          </Button>
-        </Box>
+      {/* Sub-Tab Navigation */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs
+          value={activeSubTab}
+          onChange={(_, newValue) => setActiveSubTab(newValue)}
+          aria-label="Order sub-tabs"
+        >
+          <Tab
+            value="current"
+            icon={<CurrentIcon />}
+            label="2026 Orders"
+            iconPosition="start"
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          />
+          <Tab
+            value="previous"
+            icon={<HistoryIcon />}
+            label="Previous Years"
+            iconPosition="start"
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          />
+        </Tabs>
       </Box>
 
-      {/* Filters Panel */}
+      {/* Previous Years Tab Content */}
+      {activeSubTab === 'previous' && (
+        <PreviousYearsTab onViewOrder={onViewOrder} />
+      )}
+
+      {/* Current Year (2026) Tab Content */}
+      {activeSubTab === 'current' && (
+        <>
+          {/* Header */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box>
+              <Typography variant="h5" fontWeight="600">
+                2026 Orders
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {orders.length} order{orders.length !== 1 ? 's' : ''} found
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="outlined"
+                startIcon={<FilterIcon />}
+                onClick={() => setShowFilters(!showFilters)}
+                color={hasActiveFilters ? 'primary' : 'inherit'}
+              >
+                Filters {hasActiveFilters && `(${Object.values(filters).filter(Boolean).length})`}
+              </Button>
+              {isAdmin && (
+                <Button
+                  variant="outlined"
+                  startIcon={<ImportIcon />}
+                  onClick={() => setShowImportDialog(true)}
+                >
+                  Import
+                </Button>
+              )}
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setShowForm(true)}>
+                New Order
+              </Button>
+            </Box>
+          </Box>
+
+          {/* Filters Panel */}
       <Collapse in={showFilters}>
         <Box
           sx={{
@@ -382,6 +428,8 @@ export function OrdersTab({ onViewOrder }: OrdersTabProps) {
             </TableBody>
           </Table>
         </TableContainer>
+      )}
+        </>
       )}
 
       {/* Import Dialog */}
