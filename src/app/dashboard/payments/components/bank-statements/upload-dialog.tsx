@@ -1,14 +1,32 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import styles from '../../payments.module.css';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Box,
+  Typography,
+  LinearProgress,
+  Alert,
+  Paper,
+  Chip,
+} from '@mui/material';
+import {
+  CloudUpload as UploadIcon,
+  Description as FileIcon,
+  CheckCircle as SuccessIcon,
+} from '@mui/icons-material';
 
 interface UploadDialogProps {
   onClose: () => void;
   onUploadComplete: (statementId: string) => void;
 }
 
-type UploadStep = 'upload' | 'processing' | 'preview' | 'matching' | 'complete';
+type UploadStep = 'upload' | 'processing' | 'matching' | 'complete';
 
 export default function UploadDialog({ onClose, onUploadComplete }: UploadDialogProps) {
   const [step, setStep] = useState<UploadStep>('upload');
@@ -23,14 +41,6 @@ export default function UploadDialog({ onClose, onUploadComplete }: UploadDialog
   const [statementId, setStatementId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
-
-  // Click outside to close
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === overlayRef.current && !isProcessing) {
-      onClose();
-    }
-  };
 
   // File selection handlers
   const handleFileSelect = (file: File) => {
@@ -165,118 +175,146 @@ export default function UploadDialog({ onClose, onUploadComplete }: UploadDialog
     switch (step) {
       case 'upload':
         return (
-          <div className={styles.dialogContent}>
-            <h2 className={styles.dialogTitle}>Upload Bank Statement</h2>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Bank Name (Optional)</label>
-              <input
-                type="text"
-                className={styles.input}
+          <>
+            <DialogContent>
+              <TextField
+                fullWidth
+                label="Bank Name (Optional)"
                 value={bankName}
                 onChange={(e) => setBankName(e.target.value)}
                 placeholder="e.g., HDFC Bank, ICICI Bank"
-              />
-            </div>
-
-            <div
-              className={`${styles.uploadZone} ${isDragging ? styles.uploadZoneDragging : ''}`}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,.csv,.pdf"
-                style={{ display: 'none' }}
-                onChange={handleFileInputChange}
+                sx={{ mb: 3 }}
               />
 
-              {selectedFile ? (
-                <div className={styles.selectedFile}>
-                  <div className={styles.fileIcon}>📄</div>
-                  <div className={styles.fileName}>{selectedFile.name}</div>
-                  <div className={styles.fileSize}>
-                    {(selectedFile.size / 1024).toFixed(1)} KB
-                  </div>
-                </div>
-              ) : (
-                <div className={styles.uploadPrompt}>
-                  <div className={styles.uploadIcon}>📤</div>
-                  <p>Drag and drop your bank statement here</p>
-                  <p className={styles.uploadHint}>or click to browse</p>
-                  <p className={styles.uploadFormats}>Supports: Excel (.xlsx, .xls), CSV, PDF</p>
-                </div>
-              )}
-            </div>
-
-            {error && <div className={styles.errorMessage}>{error}</div>}
-
-            <div className={styles.dialogActions}>
-              <button
-                className={styles.buttonSecondary}
-                onClick={onClose}
-                disabled={isProcessing}
+              <Paper
+                variant="outlined"
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => fileInputRef.current?.click()}
+                sx={{
+                  p: 4,
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  border: isDragging ? 2 : 1,
+                  borderColor: isDragging ? 'primary.main' : 'divider',
+                  borderStyle: 'dashed',
+                  bgcolor: isDragging ? 'action.hover' : 'background.paper',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                    borderColor: 'primary.main',
+                  },
+                }}
               >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv,.pdf"
+                  style={{ display: 'none' }}
+                  onChange={handleFileInputChange}
+                />
+
+                {selectedFile ? (
+                  <Box>
+                    <FileIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                      {selectedFile.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {(selectedFile.size / 1024).toFixed(1)} KB
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box>
+                    <UploadIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+                    <Typography variant="body1" gutterBottom>
+                      Drag and drop your bank statement here
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      or click to browse
+                    </Typography>
+                    <Typography variant="caption" color="text.disabled" sx={{ mt: 2, display: 'block' }}>
+                      Supports: Excel (.xlsx, .xls), CSV, PDF (Max 10MB)
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
+
+              {error && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {error}
+                </Alert>
+              )}
+            </DialogContent>
+
+            <DialogActions>
+              <Button onClick={onClose} disabled={isProcessing}>
                 Cancel
-              </button>
-              <button
-                className={styles.button}
+              </Button>
+              <Button
+                variant="contained"
                 onClick={handleUpload}
                 disabled={!selectedFile || isProcessing}
+                startIcon={<UploadIcon />}
               >
                 Upload & Analyze
-              </button>
-            </div>
-          </div>
+              </Button>
+            </DialogActions>
+          </>
         );
 
       case 'processing':
         return (
-          <div className={styles.dialogContent}>
-            <h2 className={styles.dialogTitle}>Processing Statement...</h2>
+          <>
+            <DialogContent>
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography variant="h6" gutterBottom>
+                  Processing Statement...
+                </Typography>
 
-            <div className={styles.processingContainer}>
-              <div className={styles.processingSpinner}>
-                <div className={styles.spinner}></div>
-              </div>
-
-              <div className={styles.progressBar}>
-                <div
-                  className={styles.progressFill}
-                  style={{ width: `${progress}%` }}
-                ></div>
-              </div>
-
-              <div className={styles.processingText}>
-                {progress < 30 && 'Uploading file...'}
-                {progress >= 30 && progress < 70 && 'Extracting transactions with AI...'}
-                {progress >= 70 && progress < 100 && 'Matching with subscriptions...'}
-                {progress === 100 && 'Complete!'}
-              </div>
-            </div>
-          </div>
+                <Box sx={{ my: 4 }}>
+                  <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 4 }} />
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                    {progress < 30 && 'Uploading file...'}
+                    {progress >= 30 && progress < 70 && 'Extracting transactions with AI...'}
+                    {progress >= 70 && progress < 100 && 'Matching with subscriptions...'}
+                    {progress === 100 && 'Complete!'}
+                  </Typography>
+                </Box>
+              </Box>
+            </DialogContent>
+          </>
         );
 
       case 'matching':
         return (
-          <div className={styles.dialogContent}>
-            <h2 className={styles.dialogTitle}>Matching Complete</h2>
+          <>
+            <DialogContent>
+              <Box sx={{ textAlign: 'center', py: 3 }}>
+                <SuccessIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Matching Complete
+                </Typography>
 
-            <div className={styles.matchingSummary}>
-              <p>
-                Found <strong>{extractedData?.total_transactions || 0}</strong> transactions
-              </p>
-              <p>
-                Matched <strong>{extractedData?.matched_count || 0}</strong> with subscriptions
-              </p>
-            </div>
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mt: 3 }}>
+                  <Chip
+                    label={`${extractedData?.total_transactions || 0} transactions found`}
+                    color="primary"
+                    variant="outlined"
+                  />
+                  <Chip
+                    label={`${extractedData?.matched_count || 0} matched`}
+                    color="success"
+                    variant="outlined"
+                  />
+                </Box>
+              </Box>
+            </DialogContent>
 
-            <div className={styles.dialogActions}>
-              <button
-                className={styles.button}
+            <DialogActions>
+              <Button
+                variant="contained"
                 onClick={() => {
                   setStep('complete');
                   setTimeout(() => {
@@ -285,22 +323,29 @@ export default function UploadDialog({ onClose, onUploadComplete }: UploadDialog
                     }
                   }, 1500);
                 }}
+                fullWidth
               >
                 View Results
-              </button>
-            </div>
-          </div>
+              </Button>
+            </DialogActions>
+          </>
         );
 
       case 'complete':
         return (
-          <div className={styles.dialogContent}>
-            <div className={styles.successIcon}>✅</div>
-            <h2 className={styles.dialogTitle}>Upload Complete!</h2>
-            <p className={styles.successMessage}>
-              Your bank statement has been processed successfully.
-            </p>
-          </div>
+          <>
+            <DialogContent>
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <SuccessIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Upload Complete!
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Your bank statement has been processed successfully.
+                </Typography>
+              </Box>
+            </DialogContent>
+          </>
         );
 
       default:
@@ -309,14 +354,14 @@ export default function UploadDialog({ onClose, onUploadComplete }: UploadDialog
   };
 
   return (
-    <div
-      ref={overlayRef}
-      className={styles.modalOverlay}
-      onClick={handleOverlayClick}
+    <Dialog
+      open
+      onClose={isProcessing ? undefined : onClose}
+      maxWidth="sm"
+      fullWidth
     >
-      <div className={styles.modal}>
-        {renderContent()}
-      </div>
-    </div>
+      <DialogTitle>Upload Bank Statement</DialogTitle>
+      {renderContent()}
+    </Dialog>
   );
 }

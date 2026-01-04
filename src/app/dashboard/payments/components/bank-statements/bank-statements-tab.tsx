@@ -1,6 +1,39 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
+  Grid,
+  Card,
+  CardContent,
+  CardActionArea,
+  Chip,
+  IconButton,
+  Alert,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@mui/material';
+import {
+  CloudUpload as UploadIcon,
+  Description as FileIcon,
+  CheckCircle as CompletedIcon,
+  Error as FailedIcon,
+  HourglassEmpty as PendingIcon,
+  Refresh as ProcessingIcon,
+} from '@mui/icons-material';
 import { BankStatement, BankTransaction } from '@/types/bank-statements';
 import { Subscription } from '@/types/finance';
 import {
@@ -11,9 +44,9 @@ import {
 import { getSubscriptions } from '@/lib/finance-api';
 import UploadDialog from './upload-dialog';
 import TransactionTable from './transaction-table';
-import styles from '../../payments.module.css';
 
 export default function BankStatementsTab() {
+  const { data: session } = useSession();
   const [statements, setStatements] = useState<BankStatement[]>([]);
   const [selectedStatement, setSelectedStatement] = useState<BankStatement | null>(null);
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
@@ -102,161 +135,207 @@ export default function BankStatementsTab() {
   const handleIgnore = async (transactionId: string) => {
     try {
       // Update transaction to ignored status
-      const tx = transactions.find(t => t.id === transactionId);
-      if (tx) {
-        // Update via API (you'd need to add an updateTransaction function)
-        console.log('Ignoring transaction:', transactionId);
-        // For now, just refresh
-        if (selectedStatement) {
-          fetchTransactions(selectedStatement.id);
-        }
+      console.log('Ignoring transaction:', transactionId);
+      if (selectedStatement) {
+        fetchTransactions(selectedStatement.id);
       }
     } catch (err) {
       console.error('Error ignoring transaction:', err);
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <CompletedIcon sx={{ color: '#10b981', fontSize: 18 }} />;
+      case 'processing':
+        return <ProcessingIcon sx={{ color: '#f59e0b', fontSize: 18 }} />;
+      case 'failed':
+        return <FailedIcon sx={{ color: '#ef4444', fontSize: 18 }} />;
+      default:
+        return <PendingIcon sx={{ color: '#6b7280', fontSize: 18 }} />;
+    }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return '#10b981';
+        return 'success';
       case 'processing':
-        return '#f59e0b';
+        return 'warning';
       case 'failed':
-        return '#ef4444';
+        return 'error';
       default:
-        return '#6b7280';
+        return 'default';
     }
   };
 
+  if (loading) {
+    return (
+      <Box>
+        <Skeleton variant="rectangular" height={60} sx={{ mb: 2 }} />
+        <Skeleton variant="rectangular" height={400} />
+      </Box>
+    );
+  }
+
   return (
-    <div className={styles.tabContainer}>
+    <Box>
       {/* Header */}
-      <div className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Bank Statements</h1>
-          <p className={styles.subtitle}>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box>
+          <Typography variant="h5" fontWeight={700} gutterBottom>
+            Bank Statements
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
             Upload bank statements and automatically match transactions with subscriptions
-          </p>
-        </div>
-        <button className={styles.button} onClick={() => setShowUploadDialog(true)}>
-          + Upload Statement
-        </button>
-      </div>
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<UploadIcon />}
+          onClick={() => setShowUploadDialog(true)}
+          sx={{ textTransform: 'none' }}
+        >
+          Upload Statement
+        </Button>
+      </Box>
 
       {/* Error Display */}
       {error && (
-        <div className={styles.errorBanner}>
+        <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 3 }}>
           {error}
-          <button onClick={() => setError(null)}>✕</button>
-        </div>
+        </Alert>
       )}
 
-      <div className={styles.contentLayout}>
+      <Grid container spacing={3}>
         {/* Statements Sidebar */}
-        <div className={styles.sidebar}>
-          <h3 className={styles.sidebarTitle}>Statements ({statements.length})</h3>
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h6" fontWeight={600} gutterBottom>
+              Statements ({statements.length})
+            </Typography>
 
-          {loading ? (
-            <div className={styles.loadingState}>Loading...</div>
-          ) : statements.length === 0 ? (
-            <div className={styles.emptyState}>
-              <p>No statements uploaded yet</p>
-              <button
-                className={styles.buttonSecondary}
-                onClick={() => setShowUploadDialog(true)}
-              >
-                Upload First Statement
-              </button>
-            </div>
-          ) : (
-            <div className={styles.statementsList}>
-              {statements.map((stmt) => (
-                <div
-                  key={stmt.id}
-                  className={`${styles.statementItem} ${
-                    selectedStatement?.id === stmt.id ? styles.statementItemActive : ''
-                  }`}
-                  onClick={() => setSelectedStatement(stmt)}
+            {statements.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <FileIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  No statements uploaded yet
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setShowUploadDialog(true)}
+                  sx={{ mt: 2, textTransform: 'none' }}
                 >
-                  <div className={styles.statementHeader}>
-                    <div className={styles.statementBank}>
-                      {stmt.bank_name || 'Unknown Bank'}
-                    </div>
-                    <div
-                      className={styles.statementStatus}
-                      style={{ color: getStatusColor(stmt.processing_status) }}
-                    >
-                      {stmt.processing_status}
-                    </div>
-                  </div>
+                  Upload First Statement
+                </Button>
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 2 }}>
+                {statements.map((stmt) => (
+                  <Card
+                    key={stmt.id}
+                    variant={selectedStatement?.id === stmt.id ? 'elevation' : 'outlined'}
+                    sx={{
+                      cursor: 'pointer',
+                      border: selectedStatement?.id === stmt.id ? 2 : 1,
+                      borderColor: selectedStatement?.id === stmt.id ? 'primary.main' : 'divider',
+                    }}
+                  >
+                    <CardActionArea onClick={() => setSelectedStatement(stmt)}>
+                      <CardContent sx={{ p: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="subtitle2" fontWeight={600}>
+                            {stmt.bank_name || 'Unknown Bank'}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            {getStatusIcon(stmt.processing_status)}
+                          </Box>
+                        </Box>
 
-                  <div className={styles.statementFile}>{stmt.file_name}</div>
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                          {stmt.file_name}
+                        </Typography>
 
-                  <div className={styles.statementStats}>
-                    <span>
-                      {stmt.total_transactions} transactions
-                    </span>
-                    {stmt.matched_transactions > 0 && (
-                      <span className={styles.statementMatched}>
-                        {stmt.matched_transactions} matched
-                      </span>
-                    )}
-                  </div>
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                          <Chip
+                            label={`${stmt.total_transactions} transactions`}
+                            size="small"
+                            variant="outlined"
+                          />
+                          {stmt.matched_transactions > 0 && (
+                            <Chip
+                              label={`${stmt.matched_transactions} matched`}
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                            />
+                          )}
+                        </Box>
 
-                  <div className={styles.statementDate}>
-                    {formatDate(stmt.upload_date)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                        <Typography variant="caption" color="text.disabled" display="block" sx={{ mt: 1 }}>
+                          {new Date(stmt.upload_date).toLocaleDateString('en-IN', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </Typography>
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                ))}
+              </Box>
+            )}
+          </Paper>
+        </Grid>
 
         {/* Main Content - Transactions */}
-        <div className={styles.mainContent}>
-          {selectedStatement ? (
-            <>
-              <div className={styles.statementDetails}>
-                <h2>{selectedStatement.bank_name || 'Bank Statement'}</h2>
-                <div className={styles.statementMeta}>
-                  <span>File: {selectedStatement.file_name}</span>
-                  {selectedStatement.statement_period_start && (
-                    <span>
-                      Period: {formatDate(selectedStatement.statement_period_start)} -{' '}
-                      {selectedStatement.statement_period_end
-                        ? formatDate(selectedStatement.statement_period_end)
-                        : 'Present'}
-                    </span>
-                  )}
-                  {selectedStatement.account_number && (
-                    <span>Account: ****{selectedStatement.account_number}</span>
-                  )}
-                </div>
-              </div>
+        <Grid item xs={12} md={8}>
+          <Paper sx={{ p: 3 }}>
+            {selectedStatement ? (
+              <>
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" fontWeight={700} gutterBottom>
+                    {selectedStatement.bank_name || 'Bank Statement'}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      File: {selectedStatement.file_name}
+                    </Typography>
+                    {selectedStatement.statement_period_start && (
+                      <Typography variant="body2" color="text.secondary">
+                        Period: {new Date(selectedStatement.statement_period_start).toLocaleDateString()} -{' '}
+                        {selectedStatement.statement_period_end
+                          ? new Date(selectedStatement.statement_period_end).toLocaleDateString()
+                          : 'Present'}
+                      </Typography>
+                    )}
+                    {selectedStatement.account_number && (
+                      <Typography variant="body2" color="text.secondary">
+                        Account: ****{selectedStatement.account_number}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
 
-              <TransactionTable
-                transactions={transactions}
-                subscriptions={subscriptions}
-                onMatchConfirm={handleMatchConfirm}
-                onIgnore={handleIgnore}
-              />
-            </>
-          ) : (
-            <div className={styles.emptyMainContent}>
-              <p>Select a statement to view transactions</p>
-            </div>
-          )}
-        </div>
-      </div>
+                <TransactionTable
+                  transactions={transactions}
+                  subscriptions={subscriptions}
+                  onMatchConfirm={handleMatchConfirm}
+                  onIgnore={handleIgnore}
+                />
+              </>
+            ) : (
+              <Box sx={{ textAlign: 'center', py: 10 }}>
+                <Typography variant="body1" color="text.secondary">
+                  Select a statement to view transactions
+                </Typography>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
 
       {/* Upload Dialog */}
       {showUploadDialog && (
@@ -265,6 +344,6 @@ export default function BankStatementsTab() {
           onUploadComplete={handleUploadComplete}
         />
       )}
-    </div>
+    </Box>
   );
 }
