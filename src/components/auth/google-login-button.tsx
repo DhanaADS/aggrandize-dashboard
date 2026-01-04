@@ -7,9 +7,10 @@ import styles from './google-login-button.module.css';
 interface GoogleLoginButtonProps {
   disabled?: boolean;
   callbackUrl?: string;
+  isDark?: boolean;
 }
 
-export function GoogleLoginButton({ disabled = false, callbackUrl = '/dashboard' }: GoogleLoginButtonProps) {
+export function GoogleLoginButton({ disabled = false, callbackUrl = '/dashboard', isDark = false }: GoogleLoginButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -26,26 +27,52 @@ export function GoogleLoginButton({ disabled = false, callbackUrl = '/dashboard'
     }
   };
 
-  const buttonStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.75rem',
-    width: '100%',
-    padding: '1rem 1.5rem',
-    backgroundColor: isHovered && !disabled && !isLoading ? '#f8fafc' : '#ffffff',
-    color: '#1e293b',
-    border: isHovered && !disabled && !isLoading ? '1px solid #3b82f6' : '1px solid #e2e8f0',
-    borderRadius: '12px',
-    fontSize: '1rem',
-    fontWeight: '500',
-    cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
-    opacity: disabled || isLoading ? 0.6 : 1,
-    transition: 'all 0.2s ease',
-    boxShadow: isHovered && !disabled && !isLoading
-      ? '0 4px 12px rgba(59, 130, 246, 0.15)'
-      : '0 1px 3px rgba(0, 0, 0, 0.08)',
+  const getButtonStyle = (): React.CSSProperties => {
+    if (isDark) {
+      return {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '0.75rem',
+        width: '100%',
+        padding: '1rem 1.5rem',
+        backgroundColor: isHovered && !disabled && !isLoading ? '#334155' : '#1e293b',
+        color: '#f1f5f9',
+        border: isHovered && !disabled && !isLoading ? '1px solid #00c5b8' : '1px solid rgba(255, 255, 255, 0.1)',
+        borderRadius: '12px',
+        fontSize: '1rem',
+        fontWeight: '500',
+        cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
+        opacity: disabled || isLoading ? 0.6 : 1,
+        transition: 'all 0.2s ease',
+        boxShadow: isHovered && !disabled && !isLoading
+          ? '0 4px 12px rgba(0, 197, 184, 0.2)'
+          : '0 1px 3px rgba(0, 0, 0, 0.2)',
+      };
+    }
+    return {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '0.75rem',
+      width: '100%',
+      padding: '1rem 1.5rem',
+      backgroundColor: isHovered && !disabled && !isLoading ? '#f8fafc' : '#ffffff',
+      color: '#1e293b',
+      border: isHovered && !disabled && !isLoading ? '1px solid #3b82f6' : '1px solid #e2e8f0',
+      borderRadius: '12px',
+      fontSize: '1rem',
+      fontWeight: '500',
+      cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
+      opacity: disabled || isLoading ? 0.6 : 1,
+      transition: 'all 0.2s ease',
+      boxShadow: isHovered && !disabled && !isLoading
+        ? '0 4px 12px rgba(59, 130, 246, 0.15)'
+        : '0 1px 3px rgba(0, 0, 0, 0.08)',
+    };
   };
+
+  const buttonStyle = getButtonStyle();
 
   return (
     <button
@@ -62,8 +89,8 @@ export function GoogleLoginButton({ disabled = false, callbackUrl = '/dashboard'
           style={{
             width: '20px',
             height: '20px',
-            border: '2px solid #e2e8f0',
-            borderTop: '2px solid #3b82f6',
+            border: isDark ? '2px solid rgba(255,255,255,0.1)' : '2px solid #e2e8f0',
+            borderTop: isDark ? '2px solid #00c5b8' : '2px solid #3b82f6',
             borderRadius: '50%'
           }}
         />

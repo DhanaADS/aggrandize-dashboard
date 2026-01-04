@@ -1,4 +1,4 @@
-/* Corporate Clean Login Form Styles */
+/* Corporate Clean Login Form Styles with Dark Mode */
 
 .container {
   display: flex;
@@ -6,10 +6,58 @@
   min-height: 100vh;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   padding: 1rem;
   position: relative;
   overflow: hidden;
+  transition: background 0.3s ease;
+}
+
+/* Light Theme */
+.light {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+/* Dark Theme */
+.dark {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+}
+
+/* Theme Toggle Button */
+.themeToggle {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.light .themeToggle {
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.light .themeToggle:hover {
+  background: #f1f5f9;
+  transform: scale(1.05);
+}
+
+.dark .themeToggle {
+  background: #1e293b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark .themeToggle:hover {
+  background: #334155;
+  transform: scale(1.05);
 }
 
 /* Subtle background pattern */
@@ -19,25 +67,49 @@
   left: 0;
   right: 0;
   bottom: 0;
+  pointer-events: none;
+}
+
+.light .backgroundPattern {
   background-image:
     radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
     radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
-  pointer-events: none;
+}
+
+.dark .backgroundPattern {
+  background-image:
+    radial-gradient(circle at 20% 80%, rgba(0, 197, 184, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
 }
 
 .card {
   width: 100%;
   max-width: 420px;
+  border-radius: 16px;
+  padding: 2.5rem;
+  position: relative;
+  z-index: 1;
+  animation: fadeIn 0.4s ease-out;
+  transition: all 0.3s ease;
+}
+
+.light .card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -2px rgba(0, 0, 0, 0.1),
     0 20px 40px -10px rgba(0, 0, 0, 0.1);
-  padding: 2.5rem;
-  position: relative;
-  z-index: 1;
+}
+
+.dark .card {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 2px 4px -2px rgba(0, 0, 0, 0.2),
+    0 20px 40px -10px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
 }
 
 .logoContainer {
@@ -50,8 +122,15 @@
   width: 64px;
   height: 64px;
   border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: transform 0.3s ease;
+}
+
+.light .logo {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.dark .logo {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .logo:hover {
@@ -66,16 +145,30 @@
 .title {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1e293b;
   margin: 0 0 0.5rem 0;
   letter-spacing: -0.02em;
 }
 
+.light .title {
+  color: #1e293b;
+}
+
+.dark .title {
+  color: #f1f5f9;
+}
+
 .subtitle {
-  color: #64748b;
   font-size: 1rem;
   margin: 0;
   font-weight: 400;
+}
+
+.light .subtitle {
+  color: #64748b;
+}
+
+.dark .subtitle {
+  color: #94a3b8;
 }
 
 .buttonContainer {
@@ -93,14 +186,28 @@
 .dividerLine {
   flex: 1;
   height: 1px;
+}
+
+.light .dividerLine {
   background: #e2e8f0;
 }
 
+.dark .dividerLine {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .dividerText {
-  color: #94a3b8;
   font-size: 0.875rem;
   font-weight: 500;
   text-transform: lowercase;
+}
+
+.light .dividerText {
+  color: #94a3b8;
+}
+
+.dark .dividerText {
+  color: #64748b;
 }
 
 /* Help Section */
@@ -109,21 +216,40 @@
 }
 
 .helpText {
-  color: #64748b;
   font-size: 0.875rem;
   margin: 0 0 0.25rem 0;
 }
 
+.light .helpText {
+  color: #64748b;
+}
+
+.dark .helpText {
+  color: #94a3b8;
+}
+
 .helpLink {
-  color: #3b82f6;
   font-size: 0.875rem;
   font-weight: 500;
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
-.helpLink:hover {
+.light .helpLink {
+  color: #3b82f6;
+}
+
+.light .helpLink:hover {
   color: #2563eb;
+  text-decoration: underline;
+}
+
+.dark .helpLink {
+  color: #00c5b8;
+}
+
+.dark .helpLink:hover {
+  color: #00e5d6;
   text-decoration: underline;
 }
 
@@ -136,9 +262,16 @@
 }
 
 .copyright {
-  color: #94a3b8;
   font-size: 0.875rem;
   margin: 0;
+}
+
+.light .copyright {
+  color: #94a3b8;
+}
+
+.dark .copyright {
+  color: #64748b;
 }
 
 /* Mobile Responsive */
@@ -165,6 +298,14 @@
   .subtitle {
     font-size: 0.9rem;
   }
+
+  .themeToggle {
+    top: 1rem;
+    right: 1rem;
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
 }
 
 /* Animation for loading states */
@@ -177,8 +318,4 @@
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.card {
-  animation: fadeIn 0.4s ease-out;
 }

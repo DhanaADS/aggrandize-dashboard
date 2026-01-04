@@ -3,6 +3,7 @@
 
 import { query } from './umbrel/query-wrapper';
 import {
+  BankAccount,
   BankStatement,
   BankTransaction,
   SubscriptionPayment,
@@ -11,6 +12,58 @@ import {
   BankTransactionFilters,
   BankStatementSummary,
 } from '@/types/bank-statements';
+
+// ============================================================================
+// BANK ACCOUNTS
+// ============================================================================
+
+/**
+ * Get all bank accounts
+ */
+export async function getBankAccounts(): Promise<BankAccount[]> {
+  try {
+    const result = await query<BankAccount>(
+      'SELECT * FROM bank_accounts WHERE is_active = true ORDER BY is_primary DESC, bank_name',
+      []
+    );
+    return result.rows || [];
+  } catch (error) {
+    console.error('Error fetching bank accounts:', error);
+    return [];
+  }
+}
+
+/**
+ * Get bank account by ID
+ */
+export async function getBankAccount(id: string): Promise<BankAccount | null> {
+  try {
+    const result = await query<BankAccount>(
+      'SELECT * FROM bank_accounts WHERE id = $1',
+      [id]
+    );
+    return result.rows?.[0] || null;
+  } catch (error) {
+    console.error('Error fetching bank account:', error);
+    return null;
+  }
+}
+
+/**
+ * Get bank account by account number
+ */
+export async function getBankAccountByNumber(accountNumber: string): Promise<BankAccount | null> {
+  try {
+    const result = await query<BankAccount>(
+      'SELECT * FROM bank_accounts WHERE account_number = $1',
+      [accountNumber]
+    );
+    return result.rows?.[0] || null;
+  } catch (error) {
+    console.error('Error fetching bank account by number:', error);
+    return null;
+  }
+}
 
 // ============================================================================
 // BANK STATEMENTS

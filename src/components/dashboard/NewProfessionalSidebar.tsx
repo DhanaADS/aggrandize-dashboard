@@ -163,14 +163,15 @@ export function NewProfessionalSidebar() {
         borderBottom: `1px solid ${theme === 'dark' ? '#21262D' : '#E5E7EB'}`
       }}>
         {!isMinimized && (
-          <span style={{
-            color: theme === 'dark' ? '#00C5B8' : '#00A78E',
-            fontSize: '24px',
-            fontWeight: 'bold',
-            whiteSpace: 'nowrap'
-          }}>
-            AGGRANDIZE
-          </span>
+          <img
+            src={theme === 'dark' ? '/logo_dark_theme.png' : '/logo_light_theme.png'}
+            alt="AGGRANDIZE"
+            style={{
+              height: '40px',
+              width: 'auto',
+              objectFit: 'contain'
+            }}
+          />
         )}
         {!isMobile && (
           <button

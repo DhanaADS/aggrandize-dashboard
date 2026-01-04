@@ -29,6 +29,8 @@ import {
   FormLabel,
   Switch,
   Tooltip,
+  Autocomplete,
+  Chip,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -41,7 +43,9 @@ import {
   VisibilityOff as VisibilityOffIcon,
   PersonAdd as PersonAddIcon,
   PersonOff as PersonOffIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
+import { ClientSearchResult } from '@/types/clients';
 import {
   Order,
   OrderStatus,
@@ -119,6 +123,51 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
   const [customAmount, setCustomAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [referenceNumber, setReferenceNumber] = useState<string>('');
+
+  // Client search state
+  const [clientSearchResults, setClientSearchResults] = useState<ClientSearchResult[]>([]);
+  const [clientSearchLoading, setClientSearchLoading] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<ClientSearchResult | null>(null);
+  const [clientSearchInput, setClientSearchInput] = useState('');
+
+  // Search clients when typing
+  useEffect(() => {
+    const searchClients = async () => {
+      if (clientSearchInput.length < 2) {
+        setClientSearchResults([]);
+        return;
+      }
+      setClientSearchLoading(true);
+      try {
+        const response = await fetch(`/api/clients/search?q=${encodeURIComponent(clientSearchInput)}`);
+        const data = await response.json();
+        setClientSearchResults(data || []);
+      } catch (err) {
+        console.error('Error searching clients:', err);
+        setClientSearchResults([]);
+      } finally {
+        setClientSearchLoading(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(searchClients, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [clientSearchInput]);
+
+  // Handle client selection from search
+  const handleClientSelect = (client: ClientSearchResult | null) => {
+    setSelectedClient(client);
+    if (client) {
+      setFormData((prev) => ({
+        ...prev,
+        client_name: client.name,
+        client_email: client.email || '',
+        client_company: client.company || '',
+        client_whatsapp: client.whatsapp || '',
+        client_telegram: client.telegram || '',
+      }));
+    }
+  };
 
   // Fetch next order number for new orders
   useEffect(() => {
@@ -414,19 +463,79 @@ export function OrderForm({ order, onSuccess, onCancel }: OrderFormProps) {
       )}
 
       {/* Client Information */}
-      <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 2 }}>
-        Client Information
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <Typography variant="subtitle1" fontWeight="600">
+          Client Information
+        </Typography>
+        {selectedClient && selectedClient.total_orders > 0 && (
+          <Chip
+            size="small"
+            color="success"
+            label={`Returning Client - ${selectedClient.total_orders} previous order${selectedClient.total_orders > 1 ? 's' : ''}`}
+            sx={{ fontWeight: 600 }}
+          />
+        )}
+      </Box>
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-          <TextField
-            fullWidth
-            label="Client Name"
-            required
-            value={formData.client_name}
-            onChange={handleChange('client_name')}
-            error={!!errors.client_name}
-            helperText={errors.client_name}
+          <Autocomplete
+            freeSolo
+            options={clientSearchResults}
+            getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
+            loading={clientSearchLoading}
+            inputValue={clientSearchInput || formData.client_name}
+            onInputChange={(_, value) => {
+              setClientSearchInput(value);
+              setFormData((prev) => ({ ...prev, client_name: value }));
+            }}
+            onChange={(_, value) => {
+              if (typeof value === 'string') {
+                setFormData((prev) => ({ ...prev, client_name: value }));
+                setSelectedClient(null);
+              } else {
+                handleClientSelect(value);
+              }
+            }}
+            renderOption={(props, option) => (
+              <Box component="li" {...props} key={option.id}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body1" fontWeight="600">{option.name}</Typography>
+                    {option.total_orders > 0 && (
+                      <Chip size="small" label={`${option.total_orders} orders`} sx={{ ml: 1 }} />
+                    )}
+                  </Box>
+                  {(option.company || option.email) && (
+                    <Typography variant="caption" color="text.secondary">
+                      {option.company}{option.company && option.email ? ' • ' : ''}{option.email}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+            )}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Client Name"
+                required
+                error={!!errors.client_name}
+                helperText={errors.client_name || 'Type to search existing clients'}
+                InputProps={{
+                  ...params.InputProps,
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: 'text.disabled' }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <>
+                      {clientSearchLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
