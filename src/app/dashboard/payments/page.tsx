@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-nextauth';
 import { OverviewFinalDesign } from './components/overview/overview-final-design';
 import { ExpensesTab } from './components/expenses/expenses-tab';
 import { SalaryTab } from './components/salary/salary-tab';
+import BankStatementsTab from './components/bank-statements/bank-statements-tab';
 import {
   Box,
   Typography,
@@ -18,9 +19,10 @@ import {
   AccountBalance as PaymentsIcon,
   CreditCard as ExpensesIcon,
   Group as SalaryIcon,
+  AccountBalanceWallet as BankStatementsIcon,
 } from '@mui/icons-material';
 
-type FinanceModule = 'overview' | 'expenses' | 'salary';
+type FinanceModule = 'overview' | 'expenses' | 'salary' | 'bank-statements';
 
 export default function PaymentsPage() {
   const { user } = useAuth();
@@ -30,7 +32,7 @@ export default function PaymentsPage() {
   const [activeModule, setActiveModule] = useState<FinanceModule>('overview');
 
   useEffect(() => {
-    if (tabParam && ['overview', 'expenses', 'salary'].includes(tabParam)) {
+    if (tabParam && ['overview', 'expenses', 'salary', 'bank-statements'].includes(tabParam)) {
       setActiveModule(tabParam);
     }
   }, [tabParam]);
@@ -43,6 +45,7 @@ export default function PaymentsPage() {
     { id: 'overview' as const, label: 'Overview', icon: <PaymentsIcon /> },
     { id: 'expenses' as const, label: 'Expenses', icon: <ExpensesIcon /> },
     { id: 'salary' as const, label: 'Salary', icon: <SalaryIcon /> },
+    { id: 'bank-statements' as const, label: 'Bank Statements', icon: <BankStatementsIcon /> },
   ];
 
   return (
@@ -106,6 +109,7 @@ export default function PaymentsPage() {
         {activeModule === 'overview' && <OverviewFinalDesign />}
         {activeModule === 'expenses' && <ExpensesTab />}
         {activeModule === 'salary' && <SalaryTab />}
+        {activeModule === 'bank-statements' && <BankStatementsTab />}
       </Paper>
     </Box>
   );
